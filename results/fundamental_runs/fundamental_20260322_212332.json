@@ -1,0 +1,13 @@
+{
+  "run_timestamp": "2026-03-22T21:23:32",
+  "threshold_used": 0.6,
+  "stocks_analysed": 4,
+  "stocks_passed": 1,
+  "candidates": [
+    {
+      "ticker": "RELIANCE",
+      "score": 0.65,
+      "reasoning": "GOOD fundamental candidate in Energy sector (relative benchmarks). Positives: solid EPS growth of 19.6% YoY; low leverage (D/E 0.44x); reasonable PB of 2.2x; positive FCF of ₹38736 Cr. No major fundamental negatives identified."
+    }
+  ]
+}

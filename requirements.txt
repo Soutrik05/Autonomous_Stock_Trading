@@ -1,0 +1,27 @@
+# ── Core ──────────────────────────────────────────────────────────────────────
+yfinance
+pandas
+python-dotenv
+
+# ── LangChain / LangGraph ─────────────────────────────────────────────────────
+langchain
+langchain-core
+langchain-groq
+langgraph
+
+# ── RAG ───────────────────────────────────────────────────────────────────────
+faiss-cpu
+sentence-transformers
+feedparser
+
+# ── LLM inference ─────────────────────────────────────────────────────────────
+groq
+
+# ── News agent (FinBERT) ──────────────────────────────────────────────────────
+transformers
+openpyxl
+feedparser
+rapidfuzz
+pandas
+numpy
+requests
