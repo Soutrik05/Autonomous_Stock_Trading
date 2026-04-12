@@ -38,14 +38,14 @@ class Retriever:
         with open(os.path.join(DB_PATH, "metadata.pkl"), "rb") as f:
             self.chunks = pickle.load(f)
 
-        print(f"✅  RAG loaded  {cfg['total']} vectors  "
+        print(f"  RAG loaded  {cfg['total']} vectors  "
               f"(built {cfg['created_at'][:10]})")
 
     def _query(self, query: str, top_k: int = 3,
                filter_type: str = None) -> list[str]:
         emb = self.model.encode([query]).astype("float32")
         faiss.normalize_L2(emb)
-        k        = min(top_k * 6 if filter_type else top_k, self.index.ntotal)
+        k        = min(top_k * 10 if filter_type else top_k, self.index.ntotal)
         _, idxs  = self.index.search(emb, k)
         results  = []
         for i in idxs[0]:
@@ -59,18 +59,15 @@ class Retriever:
                 break
         return results
 
-    def get_context_for_stock(self, symbol: str, sector: str) -> str:
-        tech_ctx   = self._query(f"{symbol} RSI MACD EMA momentum technical", 2, "price_technical")
-        fund_ctx   = self._query(f"{symbol} PE ROE debt margins fundamentals",  2, "fundamental")
-        news_ctx   = self._query(f"{symbol} {sector} news sentiment",           2, "news")
-        sector_ctx = self._query(f"{sector} sector performance outlook",         1, "sector")
+    def get_strategy_rules(self, query: str) -> str:
+        """
+        Pass a scenario (e.g. 'Double bottom breakout in a bearish market') 
+        and retrieve the Varsity rules.
+        """
+        # We only search the 'strategy' chunks we just created
+        strategy_ctx = self._query(query, top_k=3, filter_type="strategy")
 
-        def _fmt(label, items):
-            return f"{label}:\n" + ("\n---\n".join(items) if items else "No data.")
+        if not strategy_ctx:
+            return "No specific Varsity strategy rules found for this setup. Follow standard risk management."
 
-        return "\n\n".join([
-            _fmt("PRICE + TECHNICAL CONTEXT (RAG)", tech_ctx),
-            _fmt("FUNDAMENTAL CONTEXT (RAG)",        fund_ctx),
-            _fmt("NEWS CONTEXT (RAG)",               news_ctx),
-            _fmt("SECTOR CONTEXT (RAG)",             sector_ctx),
-        ])
+        return "ZERODHA VARSITY RULES:\n\n" + "\n---\n".join(strategy_ctx)

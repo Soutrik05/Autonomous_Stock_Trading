@@ -1,4 +1,23 @@
+# Credentials
 .env
+
+# JSON
+.json
+
+# Python
 __pycache__/
 *.pyc
+*.pyo
+.pytest_cache/
+
+# Data files
+data/nifty500_constituents.csv
+
+# Virtual environment
 venv/
+.venv/
+
+# RAG DB
+rag_db/
+.index/
+.pkl/

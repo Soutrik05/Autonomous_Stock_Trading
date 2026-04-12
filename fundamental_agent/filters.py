@@ -1,78 +1,54 @@
 # ============================================================
-# fundamental_agent/filters.py
-#
-# Hard disqualification filters applied before scoring.
-# A stock that fails any hard filter is excluded from scoring
-# entirely — it does not receive a score and is not passed to
-# the orchestrator.
-#
-# Hard filters are intentionally blunt. They remove stocks that
-# are structurally broken or too risky regardless of any
-# compensating factors. Scoring nuance is irrelevant for these.
-#
-# Single public function: apply_hard_filters(raw) -> str | None
-#   Returns a disqualification reason string if the stock fails,
-#   or None if the stock passes all filters.
+# filters.py — Hard Disqualification Logic
 # ============================================================
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Dict, Any, Tuple
 
 from fundamental_agent import config as cfg
 
-logger = logging.getLogger("fundamental_agent.filters")
+logger = logging.getLogger(__name__)
 
+def passes_hard_filters(data: Dict[str, Any]) -> Tuple[bool, str]:
+    ticker = data.get("ticker", "UNKNOWN")
+    sector = data.get("sector", "Unknown")
+    is_asset_heavy = sector in cfg.ASSET_HEAVY_SECTORS
 
-def apply_hard_filters(raw: Dict[str, Any]) -> Optional[str]:
-    """
-    Applies hard disqualification rules in priority order.
-    Returns the first failure reason found, or None if all pass.
+    logger.info(f"[{ticker}] Running strict hard filters (Sector: {sector})...")
 
-    Rules:
-        1. D/E > max_debt_equity (2.5x default):
-               Too leveraged to be investable under Varsity criteria.
-               Exception: Financial Services sector is fully exempt.
-               Banks and NBFCs borrow to lend — D/E=3x is healthy
-               for Bajaj Finance, normal for HDFC Bank. Screener.in
-               doesn't even display D/E for banks for this reason.
+    # 1. Debt to Equity Disqualification
+    if not is_asset_heavy:
+        de = data.get("debt_to_equity")
+        max_de = cfg.HARD_FILTERS.get("max_debt_equity", 5.0)
+        if de is not None and de > max_de:
+            msg = f"Failed: D/E of {de:.2f} exceeds strict limit of {max_de}."
+            logger.warning(f"[{ticker}] {msg}")
+            return False, msg
+            
+    # 2. Return on Equity (Negative ROE Trap)
+    roe = data.get("roe")
+    eps_growth = data.get("eps_growth_1yr")
+    profit_cagr = data.get("profit_cagr_3yr")
+    
+    # Strictly negative ROE means shareholder equity is being destroyed
+    if roe is not None and roe < 0:
+        msg = f"Failed: Negative ROE ({roe:.2f}%). Destroying shareholder value."
+        logger.warning(f"[{ticker}] {msg}")
+        return False, msg
 
-        2. Consecutive negative EPS quarters >= threshold (2 default):
-               Two or more back-to-back loss quarters signals
-               operational distress, not a one-off blip.
+    # THE "NONE" LOOPHOLE FIX (Catches IDEA)
+    # Bankrupt companies often return 'None' for ROE. We check earnings to verify.
+    if roe is None:
+        if (eps_growth is not None and eps_growth < 0) or (profit_cagr is not None and profit_cagr < 0):
+            msg = "Failed: Missing ROE combined with negative earnings growth (Zombie Risk)."
+            logger.warning(f"[{ticker}] {msg}")
+            return False, msg
 
-        3. ROE < min_roe (0.0 default — i.e. negative ROE):
-               Negative ROE means the company is destroying shareholder
-               value. Even distressed turnarounds should show improving
-               (not negative) ROE to be considered investable.
+    # 3. Earnings Collapse Filter
+    if eps_growth is not None and eps_growth < -50.0 and (profit_cagr is None or profit_cagr < 0):
+        msg = f"Failed: Catastrophic 1-Yr EPS decline ({eps_growth:.2f}%)."
+        logger.warning(f"[{ticker}] {msg}")
+        return False, msg
 
-    Args:
-        raw: Output dict from fetcher.fetch_stock_data().
-
-    Returns:
-        A human-readable disqualification reason string on failure.
-        None if the stock passes all hard filters.
-    """
-    sector = raw.get("sector", "")
-
-    # ── Rule 1: D/E cap ──────────────────────────────────────
-    de = raw.get("de")
-    if de is not None and de > cfg.HARD_FILTERS["max_debt_equity"]:
-        if sector == "Financial Services":
-            logger.debug(
-                f"D/E {de:.2f}x exceeds cap but sector=Financial Services "
-                f"— exempt from D/E hard filter"
-            )
-        else:
-            return f"D/E {de:.2f}x exceeds maximum {cfg.HARD_FILTERS['max_debt_equity']}x"
-
-    # ── Rule 2: Consecutive negative EPS quarters ────────────
-    neg_q = raw.get("negative_eps_quarters", 0)
-    if neg_q >= cfg.HARD_FILTERS["min_negative_eps_quarters"]:
-        return f"EPS negative for {neg_q} consecutive quarters"
-
-    # ── Rule 3: Negative ROE ─────────────────────────────────
-    roe = raw.get("roe")
-    if roe is not None and roe < cfg.HARD_FILTERS["min_roe"]:
-        return f"ROE {roe * 100:.1f}% is negative"
-
-    return None   # all filters passed
+    logger.info(f"[{ticker}] Passed strict hard filters.")
+    return True, "Passed"

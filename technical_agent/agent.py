@@ -11,17 +11,14 @@
 #   4. Score (scorer)
 #   5. Return ranked JSON results
 #
-# The @tool decorator tells LangChain that the Orchestrator LLM
-# can call this function autonomously when it needs technical analysis.
 # =============================================================================
 
 import logging
-from typing import Optional, List
 from langchain.tools import tool
-import json
 
-from technical_agent.data.data_fetcher import GrowwDataFetcher, load_nifty500_tickers, is_valid_df
+from technical_agent.data.data_fetcher import GrowwDataFetcher, is_valid_df
 from technical_agent.indicators.support_resistance import compute_support_resistance
+from technical_agent.indicators.candlesticks import get_latest_candlestick_patterns
 from technical_agent.indicators.rsi import get_latest_rsi
 from technical_agent.indicators.macd import compute_macd
 from technical_agent.indicators.ema import compute_ema_crossover
@@ -30,8 +27,8 @@ from technical_agent.scoring.signal_extractor import extract_all_signals
 from technical_agent.scoring.scorer import compute_score
 from technical_agent.data.data_fetcher import get_market_regime
 from technical_agent.scoring.scorer import apply_regime_filter
-
-from datetime import datetime
+from technical_agent.config import RISK_PROFILE_THRESHOLDS
+from utils import get_sector_map
 
 logger = logging.getLogger(__name__)
 
@@ -59,17 +56,17 @@ def init_fetcher(api_key: str, secret: str) -> None:
 # Core analysis function — separated from @tool for testability
 # ---------------------------------------------------------------------------
 
-def analyse_stocks(tickers: list, trade_type: str, top_n: int = 50, start_date = None) -> dict:
+def analyse_stocks(tickers: list, trade_type: str, risk_profile: str = "medium", start_date: str = None) -> dict:
     """
     Runs the full technical analysis pipeline on a list of tickers.
 
     Args:
         tickers:    List of NSE ticker symbols.
         trade_type: "swing", "short", or "medium"
-        top_n:      Return only the top N results by score.
+        start_date:  The scan date upto which technical analysis is to be performed.
 
     Returns:
-        List of result dicts, sorted by score descending, capped at top_n.
+        Result dict, sorted by score descending.
     """
     if _fetcher is None:
         raise RuntimeError(
@@ -78,27 +75,38 @@ def analyse_stocks(tickers: list, trade_type: str, top_n: int = 50, start_date =
     
     # --- Market regime check ---
     regime = get_market_regime(end_date=start_date)
-
+    
+    sector_map = get_sector_map()
+    
     results = []
-
-    for ticker in tickers:
+    for i in range(len(tickers)):
         try:
+            ticker = tickers[i]
+            print(f"    Analyzing {i+1}/{len(tickers)} : {ticker}", end = "\r")
             # 1. Fetch data
             df = _fetcher.get_ohlcv(ticker, trade_type, end_date=start_date)
 
             # 2. Validate — skip if insufficient data
             if not is_valid_df(df, ticker, trade_type):
+                logger.warning(f"{ticker}: insufficient data for {trade_type} analysis. Skipping.")
                 continue
+            
+            # --- THE LIVE PRICE FIX ---
+            # Fetch yesterday's close price
+            live_price = df['close'].iloc[-1]
+            
+            # candlesticks pattern recognition with dynamic volatility and trend context filtering
+            cdl_res    = get_latest_candlestick_patterns(df)
 
             # 3. Compute indicators
+            sr_res     = compute_support_resistance(df)
             rsi_value  = get_latest_rsi(df)
             macd_res   = compute_macd(df, trade_type)
             ema_res    = compute_ema_crossover(df, trade_type)
             obv_res    = compute_obv(df)
-            sr_res     = compute_support_resistance(df)
-
+            
             # 4. Extract signals
-            signals = extract_all_signals(rsi_value, macd_res, ema_res, obv_res, sr_res)
+            signals = extract_all_signals(rsi_value, macd_res, ema_res, obv_res, sr_res, cdl_res)
 
             # 5. Score
             score_res = compute_score(signals, trade_type)
@@ -107,30 +115,44 @@ def analyse_stocks(tickers: list, trade_type: str, top_n: int = 50, start_date =
             score_res = apply_regime_filter(score_res, regime)
 
             results.append({
-                "ticker":          ticker,
-                "score":           score_res["score"],
-                "label":           score_res["label"],
-                "reasoning":       score_res["reasoning"],
-                "signals":         score_res["signals"],
+                # ── Orchestrator-facing fields ───────────────
+                "ticker":             ticker,
+                "live_price":         live_price,
+                "score":              score_res["score"],
+                "sector":             sector_map.get(ticker, "General"),
+                "label":              score_res["label"],
+                "candlestick_pattern": score_res.get("cdl_reasoning"),
+                "reasoning":          score_res.get("reasoning", "Passed technical filters"),
                 "nearest_support":    sr_res["nearest_support"],
                 "nearest_resistance": sr_res["nearest_resistance"],
                 "support_strength":   sr_res["support_strength"],
-                },
-            )
+                # ── Testing/CSV fields ───────────────────────
+                # Not used by the orchestrator — ignored silently.
+                # Used by technical_main.py for CSV runs and backtesting.
+                # Keep in sync with results_to_df() in technical_main.py.
+                "signals":            score_res["signals"],
+                "sr_proximity_pct":   sr_res.get("sr_proximity_pct"),
+                "rsi":                rsi_value,
+                "macd_line":          macd_res["macd_line"],
+                "signal_line":        macd_res["signal_line"],
+                "ema_short":          ema_res["ema_short"],
+                "ema_long":           ema_res["ema_long"],
+                "obv_slope":          obv_res["obv_slope"],
+            })
 
         except Exception as e:
-            # Never crash the entire run for one bad ticker
+        # Never crash the entire run for one bad ticker
             logger.warning(f"{ticker}: analysis failed -- {e}")
             continue
 
-    # Sort by score descending, return top N
-    buy_stocks = [r for r in results if r["label"] in ("Buy", "Strong Buy","Watch")]
-    buy_stocks.sort(key=lambda x: x["score"], reverse=True)
+    threshold_score = RISK_PROFILE_THRESHOLDS.get(risk_profile.lower(), 0.60)
+    recomendations = [r for r in results if r["score"] >= threshold_score]
+    recomendations.sort(key=lambda x: x["score"], reverse=True)
+
     return {
-    "market_regime": regime,
-    "total_scanned": len(results),
-    "total_buy":     len(buy_stocks),
-    "stocks":        buy_stocks,
+        "market_regime": regime,
+        "total_scanned": len(tickers),
+        "stocks":        recomendations,
     }
 
 
@@ -139,9 +161,9 @@ def analyse_stocks(tickers: list, trade_type: str, top_n: int = 50, start_date =
 # ---------------------------------------------------------------------------
 
 @tool
-def run_technical_analysis(trade_type: str, tickers: Optional[List[str]] = None, top_n: int = 50) -> dict:
+def run_technical_analysis(trade_type: str, tickers: list = None, risk_profile: str = "medium", start_date : str = None) -> dict:
     """
-    Runs technical analysis on all Nifty 500 stocks for the given trade type.
+    Runs technical analysis on the given Nifty500 stocks for the given trade type.
 
     Use this tool when you need to identify technically strong stocks for
     swing trades (2-10 days), short-term trades (2-8 weeks), or medium (3-6 months).
@@ -151,7 +173,9 @@ def run_technical_analysis(trade_type: str, tickers: Optional[List[str]] = None,
     Args:
         trade_type: One of "swing", "short", or "medium"
         tickers:    Name of the stocks to run analysis on
-        top_n:      Number of top stocks to return (default 50)
+        start_date: The scan date you want to perform analysis for. (format: yyyy-mm-dd)
+        (if the scan date is current date, you don't need to explicitly provide a start date,
+        this argument is only when you want to check past technical analysis) 
     
     For medium trades: pass the tickers list returned by run_fundamental_analysis.
     For swing/short trades: omit tickers — the tool scans the full Nifty 500.
@@ -159,13 +183,16 @@ def run_technical_analysis(trade_type: str, tickers: Optional[List[str]] = None,
     Returns:
         a dict with keys:
         market_regime:  current Nifty500 market condition
-        total_scanned:  number of stocks analysed
-        total_buy:      number of Buy/Strong/Watch Buy signals found
-        stocks:         list of candidates sorted by score descending,
-                        each with ticker, score, label, reasoning,
-                        signals, nearest_support, nearest_resistance,
+        stocks:         list of candidates having a score greater than a threshold,
+                        sorted by score descending, each with ticker, score, label, 
+                        reasoning, signals, nearest_support, nearest_resistance,
                         support strength
     """
+    if not tickers:
+        return {"error": "Technical Agent requires a list of tickers."}
+    
+    logger.info(f"Technical Agent triggered for {len(tickers)} tickers, trade type '{trade_type.upper()}', risk profile '{risk_profile.upper()}'.")
+
     try:
         global _fetcher
         if _fetcher is None:
@@ -178,10 +205,27 @@ def run_technical_analysis(trade_type: str, tickers: Optional[List[str]] = None,
                 return {"error": "GROWW_API_KEY and GROWW_SECRET not found in environment"}
             init_fetcher(api_key=api_key, secret=secret)
 
-        if tickers is None:
-            tickers = load_nifty500_tickers()
-        results = analyse_stocks(tickers, trade_type, top_n)
-        return json.dumps(results, default=str)
+        if not tickers:
+            raise ValueError("Technical Agent requires a list of tickers to process.")
+        
+        results = analyse_stocks(tickers, trade_type,  risk_profile)
+
+        INTERNAL_FIELDS = {
+        "signals", "rsi", "macd_line", "signal_line",
+        "ema_short", "ema_long", "obv_slope", "sr_proximity_pct"
+        }
+        clean_stocks = [
+            {k: v for k, v in stock.items() if k not in INTERNAL_FIELDS}
+            for stock in results["stocks"]
+        ]
+
+        logger.info(f"Technical analysis complete: {len(clean_stocks)} / {len(tickers)} selected")
+
+        return {
+            "market_regime": results["market_regime"],
+            "total_scanned": len(tickers),
+            "stocks":        clean_stocks,
+        }
 
     except Exception as e:
         logger.error(f"Technical analysis tool failed: {e}")

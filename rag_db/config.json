@@ -1,12 +1,9 @@
 {
   "model": "all-MiniLM-L6-v2",
   "dimension": 384,
-  "total": 292,
-  "created_at": "2026-03-27T20:06:45.316579",
+  "total": 2027,
+  "created_at": "2026-04-12T13:43:00.498453",
   "by_type": {
-    "fundamental": 100,
-    "sector": 6,
-    "news": 88,
-    "price_technical": 98
+    "strategy": 2027
   }
 }

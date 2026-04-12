@@ -16,15 +16,15 @@ import os
 TRADE_TYPE_DATA_CONFIG = {
     "swing": {
         "interval_in_minutes": 1440,  # daily candles
-        "lookback_days": 200,   
+        "lookback_days": 50,   
     },
     "short": {
         "interval_in_minutes": 1440,
-        "lookback_days": 200,
+        "lookback_days": 100,
     },
     "medium": {
         "interval_in_minutes": 1440,
-        "lookback_days": 300,
+        "lookback_days": 365,
     },
 }
 
@@ -34,7 +34,7 @@ TRADE_TYPE_DATA_CONFIG = {
 MIN_DATA_POINTS = {
     "swing":      30,   # 21 EMA + 9 buffer
     "short":     60,   # 50 EMA + 10 buffer
-    "medium": 115,  # 100 EMA + 15 buffer
+    "medium": 230,  # 200 EMA + 30 buffer
 }
 
 # Path to Nifty 500 CSV from niftyindices.com
@@ -62,7 +62,7 @@ MACD_PARAMS = {
 EMA_PAIRS = {
     "swing":      {"short": 9,  "long": 21},
     "short":     {"short": 25, "long": 50},
-    "medium": {"short": 50, "long": 100},
+    "medium": {"short": 50, "long": 200},
 }
 
 
@@ -97,7 +97,8 @@ RSI_BEARISH_ZONE = 45   # 30–45 → mild bearish momentum
 WEIGHT_PROFILES = {
     "swing": {
         # Tier 1 — Setup (40%): Is there a valid level here?
-        "sr":    0.40,
+        "cdl":   0.20,
+        "sr":    0.20,
 
         # Tier 2 — Trend (35%): Is the direction supporting it?
         "ema":   0.20,
@@ -108,14 +109,16 @@ WEIGHT_PROFILES = {
         "rsi":   0.10,
     },
     "short": {
-        "sr":    0.35,
+        "cdl" :  0.15,
+        "sr":    0.20,
         "ema":   0.25,
         "obv":   0.15,
         "macd":  0.15,
         "rsi":   0.10,
     },
     "medium": {
-        "sr":    0.30,
+        "cdl":   0.10,   
+        "sr":    0.20,
         "ema":   0.30,   # trend matters more over longer holds
         "obv":   0.20,
         "macd":  0.15,
@@ -166,12 +169,27 @@ SIGNAL_SCORES = {
     "sr_breakout":        90,   # price just closed above resistance — strong signal
     "sr_breakdown":       10,   # price just closed below support — avoid
     "sr_neutral":         50,   # between levels — no S&R edge
+
+    # Candle Stick Patterns
+    # (3-Candle Patterns - Highest Conviction)
+    "cdl_morning_star":      95,  # Textbook bullish reversal at support
+    "cdl_evening_star":      15,  # Textbook bearish reversal at resistance
+
+    # (2-Candle Patterns - High Conviction)
+    "cdl_bullish_engulfing": 85,  # Strong buyer takeover
+    "cdl_bearish_engulfing": 25,  # Strong seller takeover
+    "cdl_bullish_harami":    75,  # Volatility contraction, potential upside breakout
+
+    # (1-Candle Patterns - Medium Conviction)
+    "cdl_hammer":            70,  # Intraday rejection of lower prices
+    "cdl_shooting_star":     30,  # Intraday rejection of higher prices
+    "cdl_doji":              50,  # Indecision
+    "cdl_neutral":           50,  # No clear pattern
 }
 
 # -----------------------------------------------------------------------------
 # REASONING PHRASES
 # Human-readable strings for each signal. Used in final JSON output.
-# Keeping language out of logic files.
 # -----------------------------------------------------------------------------
 SIGNAL_PHRASES = {
     "rsi_oversold":       "RSI oversold — potential reversal upward",
@@ -201,6 +219,16 @@ SIGNAL_PHRASES = {
     "sr_breakout":        "Breakout above resistance — trend continuation signal",
     "sr_breakdown":       "Breakdown below support — high risk, avoid",
     "sr_neutral":         "Price between S&R levels — no level signal",
+
+    "cdl_morning_star":      "Morning Star formed — high-conviction 3-day bullish reversal",
+    "cdl_evening_star":      "Evening Star formed — high-conviction 3-day bearish reversal",
+    "cdl_bullish_engulfing": "Bullish Engulfing — buyers overwhelmed sellers on high relative volatility",
+    "cdl_bearish_engulfing": "Bearish Engulfing — sellers overwhelmed buyers on high relative volatility",
+    "cdl_bullish_harami":    "Bullish Harami (Inside Bar) — downward momentum halting, potential reversal",
+    "cdl_hammer":            "Hammer candle — strong intraday rejection of lower prices",
+    "cdl_shooting_star":     "Shooting Star — strong intraday rejection of higher prices",
+    "cdl_doji":              "Doji candle — market indecision, waiting for trend confirmation",
+    "cdl_neutral":           "Normal price action — no distinct candlestick pattern",
 }
 
 # -----------------------------------------------------------------------------
@@ -224,4 +252,11 @@ REGIME_EMA = {
     "medium":     {"fast": 50, "slow": 100},
 }
 REGIME_LOOKBACK_DAYS = 120
+
+# Minimum Score required out of 1.0 for each Risk Profile to pass technical analysis.
+RISK_PROFILE_THRESHOLDS = {
+    "low":      0.70,
+    "medium":   0.60,
+    "high":     0.50
+}
 

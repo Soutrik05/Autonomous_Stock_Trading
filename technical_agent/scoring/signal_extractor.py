@@ -19,6 +19,38 @@ from technical_agent.config import (
 logger = logging.getLogger(__name__)
 
 
+def extract_cdl_signal(cdl_result: dict) -> str:
+    """
+    Converts candlestick booleans to a signal key.
+    Strict priority hierarchy: 3-candle > 2-candle > 1-candle.
+    """
+    if not cdl_result:
+        return "cdl_neutral"
+
+    # Priority 1: 3-Candle Reversals (Highest Conviction)
+    if cdl_result.get("morning_star"):
+        return "cdl_morning_star"
+    if cdl_result.get("evening_star"):
+        return "cdl_evening_star"
+        
+    # Priority 2: 2-Candle Reversals
+    if cdl_result.get("bullish_engulfing"):
+        return "cdl_bullish_engulfing"
+    if cdl_result.get("bearish_engulfing"):
+        return "cdl_bearish_engulfing"
+    if cdl_result.get("bullish_harami"):
+        return "cdl_bullish_harami"
+        
+    # Priority 3: 1-Candle Signals
+    if cdl_result.get("hammer"):
+        return "cdl_hammer"
+    if cdl_result.get("shooting_star"):
+        return "cdl_shooting_star"
+    if cdl_result.get("doji"):
+        return "cdl_doji"
+        
+    return "cdl_neutral"
+
 def extract_rsi_signal(rsi_value: float, macd_result: dict, ema_result: dict) -> str:
     """
     Interprets RSI in the context of trend signals from MACD and EMA.
@@ -133,11 +165,12 @@ def extract_sr_signal(sr_result: dict) -> str:
     return sr_result.get("signal", "sr_neutral")
 
 
-def extract_all_signals(rsi_value, macd_result, ema_result, obv_result, sr_result) -> dict:
+def extract_all_signals(rsi_value, macd_result, ema_result, obv_result, sr_result, cdl_result) -> dict:
     return {
         "rsi":       extract_rsi_signal(rsi_value, macd_result, ema_result),
         "macd":      extract_macd_signal(macd_result, rsi_value, obv_result),
         "ema":       extract_ema_signal(ema_result),
         "obv":       extract_obv_signal(obv_result),
         "sr":        extract_sr_signal(sr_result),
+        "cdl":       extract_cdl_signal(cdl_result)
     }

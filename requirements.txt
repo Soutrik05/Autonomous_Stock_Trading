@@ -1,27 +1,33 @@
-# ── Core ──────────────────────────────────────────────────────────────────────
+# Core
 yfinance
 pandas
+numpy
 python-dotenv
 
-# ── LangChain / LangGraph ─────────────────────────────────────────────────────
+# LangChain / LangGraph
 langchain
 langchain-core
 langchain-groq
 langgraph
 
-# ── RAG ───────────────────────────────────────────────────────────────────────
+# RAG 
 faiss-cpu
 sentence-transformers
 feedparser
 
-# ── LLM inference ─────────────────────────────────────────────────────────────
+# LLM inference 
 groq
 
-# ── News agent (FinBERT) ──────────────────────────────────────────────────────
+# News agent (FinBERT)
 transformers
 openpyxl
 feedparser
 rapidfuzz
-pandas
-numpy
 requests
+
+# Technical Agent 
+growwapi
+
+# Fundamental Agent
+requests
+beautifulsoup4

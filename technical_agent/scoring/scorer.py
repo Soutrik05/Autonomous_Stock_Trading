@@ -44,6 +44,35 @@ def compute_score(signals: dict, trade_type: str) -> dict:
     """
     weights     = WEIGHT_PROFILES[trade_type]
     score_100   = 0.0
+    
+    # Safely get the signal key, defaulting to neutral if missing
+    cdl_signal_key = signals.get("cdl", "cdl_neutral")
+    
+    # Grab the human-readable phrase using the signal_key (not the indicator name!)
+    cdl_reasoning_raw = SIGNAL_PHRASES.get(cdl_signal_key, "No pattern")
+
+    if trade_type == "medium":
+        cdl_output = "N/A (Daily candlesticks ignored for medium-term horizons)"
+    elif cdl_signal_key in ["cdl_neutral", "cdl_doji"]:
+        cdl_output = "No actionable candlestick pattern present today."
+    else:
+        cdl_output = cdl_reasoning_raw
+
+    # MATHEMATICAL CONFLUENCE CHECK
+    # Only award candlestick points if price is actually at a key level
+    sr_signal_key = signals.get("sr", "sr_neutral")
+    
+    # If we have a bullish candlestick, but we are NOT at support, erase the points
+    if cdl_signal_key in ["cdl_morning_star", "cdl_bullish_engulfing", "cdl_hammer"]:
+        if sr_signal_key != "sr_near_support":
+            signals["cdl"] = "cdl_neutral" # Downgrade the signal
+            cdl_output = "Bullish pattern detected, but ignored because price is in 'No Man's Land' (not at support)."
+            
+    # Do the same for bearish patterns at resistance
+    elif cdl_signal_key in ["cdl_evening_star", "cdl_bearish_engulfing", "cdl_shooting_star"]:
+        if sr_signal_key != "sr_near_resistance":
+            signals["cdl"] = "cdl_neutral"
+            cdl_output = "Bearish pattern detected, but ignored because price is not at resistance."
 
     for indicator, signal_key in signals.items():
         weight    = weights.get(indicator, 0)
@@ -60,6 +89,7 @@ def compute_score(signals: dict, trade_type: str) -> dict:
         "score":     score,
         "label":     label,
         "reasoning": reasoning,
+        "cdl_reasoning": cdl_output,
         "signals":   signals,
     }
 
@@ -78,7 +108,7 @@ def _build_reasoning(signals: dict) -> str:
     Only includes non-neutral signals to keep the output clean.
     """
     neutral_signals = {
-        "rsi_neutral", "macd_neutral", "ema_neutral", "obv_neutral", "sr_neutral"
+        "rsi_neutral", "macd_neutral", "ema_neutral", "obv_neutral", "sr_neutral", "cdl_neutral"
     }
 
     phrases = []

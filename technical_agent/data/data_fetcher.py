@@ -28,7 +28,6 @@ import yfinance as yf
 
 logger = logging.getLogger(__name__)
 
-
 def get_market_regime(end_date: str = None, trade_type: str = "swing") -> str:
     try:
         if end_date:
