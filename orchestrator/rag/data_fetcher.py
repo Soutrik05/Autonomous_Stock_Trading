@@ -12,7 +12,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 logger = logging.getLogger(__name__)
 
-KNOWLEDGE_DIR = os.path.join(os.path.dirname(__file__), "knowledge_base")
+KNOWLEDGE_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "rag_db", "knowledge_base")
 
 # ── 1. THE PAGE FILTER DICTIONARY ──
 # Specify the exact pages you want to extract for specific PDFs. 
