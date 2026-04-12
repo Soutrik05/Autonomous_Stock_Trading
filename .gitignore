@@ -2,7 +2,7 @@
 .env
 
 # Data files
-*.json
+
 *.csv
 *.xlsx
 
