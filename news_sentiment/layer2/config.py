@@ -25,8 +25,7 @@ SCORE_THRESHOLDS = {
     "STRONG_NEGATIVE": -0.60,
 }
 
-# ── ARCHITECTURAL FIX: Dynamic Absolute Pathing ──
-# __file__ is at Test/news_sentiment/layer2/config.py
+# __file__ is at news_sentiment/layer2/config.py
 # We traverse up 3 levels to reach the root 'Test' folder, then enter 'data/'
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 NIFTY500_CSV_PATH = os.path.join(BASE_DIR, "data", "nifty500_constituents.csv")
