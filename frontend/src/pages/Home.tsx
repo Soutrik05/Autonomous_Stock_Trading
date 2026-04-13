@@ -20,24 +20,8 @@ const featureCards = [
     desc: 'Set your comfort level once. The system manages your risk automatically across every trade.',
     delay: '0.2s',
   },
-  {
-    icon: Zap,
-    iconColor: '#C8922A',
-    bgFrom: '#FDF3E3',
-    bgTo: '#FEF9F0',
-    title: 'Fast Execution',
-    desc: 'Trades execute in milliseconds. Never miss a market move because of slow systems.',
-    delay: '0.3s',
-  },
-  {
-    icon: TrendingUp,
-    iconColor: '#1A7A4A',
-    bgFrom: '#E8F5EE',
-    bgTo: '#F0FAF4',
-    title: 'Personalised Picks',
-    desc: 'Stock recommendations tailored to your trading style, timeline, and risk appetite.',
-    delay: '0.4s',
-  },
+  
+ 
   {
     icon: BarChart3,
     iconColor: '#C8922A',
@@ -47,15 +31,7 @@ const featureCards = [
     desc: 'Track performance with detailed analytics updated in real-time. No jargon, just clarity.',
     delay: '0.5s',
   },
-  {
-    icon: Clock,
-    iconColor: '#1A7A4A',
-    bgFrom: '#E8F5EE',
-    bgTo: '#F0FAF4',
-    title: 'Always On',
-    desc: 'The system monitors Indian and global markets around the clock, even while you sleep.',
-    delay: '0.6s',
-  },
+
 ];
 
 export default function Home() {
@@ -75,12 +51,12 @@ export default function Home() {
             <div className="animate-fade-in-up">
               <p className="text-xs uppercase tracking-widest mb-4 font-medium"
                 style={{ fontFamily: "'DM Sans', sans-serif", color: '#C8922A' }}>
-                India's #1 AI Trading Platform
+                
               </p>
               {/* Brand headline — Hindi here gives identity without confusing anyone */}
               <h1 className="text-5xl md:text-6xl font-normal leading-tight mb-3"
                 style={{ fontFamily: "'Tiro Devanagari Hindi', serif", color: '#0F1F3D' }}>
-                व्यापारAI
+                व्यापार<span style={{ color: '#C8922A' }}>AI</span>
               </h1>
               <h2 className="text-3xl md:text-4xl font-normal leading-snug mb-6"
                 style={{ fontFamily: "'Crimson Pro', Georgia, serif", color: '#0F1F3D', fontStyle: 'italic' }}>
@@ -88,8 +64,7 @@ export default function Home() {
               </h2>
               <p className="text-lg mb-8 leading-relaxed"
                 style={{ fontFamily: "'Crimson Pro', Georgia, serif", color: '#3D2B00', opacity: 0.75 }}>
-                Let AI handle the complex analysis. You decide how much to invest and your risk level.
-                We'll find the best opportunities and execute your trades automatically.
+                Let AI handle the complex task. You tell us how much to invest, We will find the best oppurtunities for you.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Link to="/platform"
