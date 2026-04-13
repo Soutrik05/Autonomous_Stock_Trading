@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Bot, Shield, TrendingUp, Zap, BarChart3, Clock } from 'lucide-react';
+import { Bot, Shield,BarChart3,} from 'lucide-react';
 
 const featureCards = [
   {
