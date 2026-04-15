@@ -1,13 +1,11 @@
 # Credentials
 .env
 
-# Data files
+# JSON
+*.json
 
-*.csv
-*.xlsx
-
-# Fundamental data cache
-fundamental_data_cache/
+# fundamnetal agent cache
+fundamental_agent/cache
 
 # Python
 __pycache__/
@@ -19,6 +17,6 @@ __pycache__/
 venv/
 .venv/
 
-# RAG DB
-rag_db/*.index
-rag_db/*.pkl
+# RAG Data
+rag_db/*.index/
+rag_db/*.pkl/

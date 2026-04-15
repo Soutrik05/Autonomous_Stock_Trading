@@ -1,10 +1,9 @@
 import pandas as pd
 from news_sentiment.data.fetcher import fetch_bse_announcements, fetch_rss_news, fetch_google_news
-from news_sentiment.layer2.matcher import match_bse_to_nifty, match_news_to_nifty
+from news_sentiment.layer2.matcher import load_nifty500, match_bse_to_nifty, match_news_to_nifty
 from news_sentiment.layer2.sentiment import load_finbert, score_dataframe
 from news_sentiment.layer2.scoring import build_layer2_output, get_orchestrator_payload
 from news_sentiment.layer2.config import OUTPUT_PATH
-from utils import load_nifty500_tickers
 
 
 COMMON_COLS = [
@@ -15,7 +14,7 @@ COMMON_COLS = [
 
 def run() -> list[dict]:
     # 1. Load NIFTY 500
-    nifty500_df = load_nifty500_tickers()
+    nifty500_df = load_nifty500()
 
     # 2. Fetch live data
     bse_raw  = fetch_bse_announcements()
