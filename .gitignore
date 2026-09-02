@@ -1,14 +1,25 @@
 # Credentials
 .env
 
-# Data
+# Data & SQLite Databases
 *.xlsx
 *.xls
 *.csv
 !data/nifty500_constituents.csv
+data/*.db
+data/*_backup.db
+
+# Results & Artifacts
+results/
+_legacy_archive/
+*.md
 
 # Cache
-fundamental_agent/cache
+fundamental/cache/
+news_sentiment/data/
+rag_db/*.json
+rag_db/*.index
+rag_db/*.pkl
 
 # Python
 __pycache__/
@@ -20,7 +31,7 @@ __pycache__/
 venv/
 .venv/
 
-# RAG Data
-rag_db/*.json
-rag_db/*.index
-rag_db/*.pkl
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/

@@ -1,0 +1,38 @@
+name: Nightly EOD Data Ingestion & Precompute
+
+on:
+  schedule:
+    # 18:00 IST Monday to Friday (12:30 UTC)
+    - cron: '30 12 * * 1-5'
+  workflow_dispatch:
+
+jobs:
+  precompute:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Execute EOD Ingestion Pipeline
+        env:
+          UPSTOX_API_KEY: ${{ secrets.UPSTOX_API_KEY }}
+          UPSTOX_API_SECRET: ${{ secrets.UPSTOX_API_SECRET }}
+          UPSTOX_ANALYTICS_TOKEN: ${{ secrets.UPSTOX_ANALYTICS_TOKEN }}
+        run: |
+          python sync_data.py
+
+      - name: Execute Watchlist Refresh & PnL Exit Monitoring
+        run: |
+          python -m precompute.watchlist_refresh
+          python -m precompute.pnl_updater
