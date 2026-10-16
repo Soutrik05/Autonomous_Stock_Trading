@@ -1,0 +1,2 @@
+-- Baseline migration: creates every table in db/schema.sql and seeds schema_version = 1.
+-- See Plan_v3 §7.

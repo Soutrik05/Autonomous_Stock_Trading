@@ -1,0 +1,4 @@
+-- Baseline schema for portfolio.db (symbols, market_calendar, pipeline_runs, agents,
+-- feature_snapshots, agent_watchlist, llm_calls, decisions, forward_returns, pending_orders,
+-- positions, fills, daily_nav, agent_memory, heuristic_applications, reflection_runs, activity_log).
+-- Identical to migration 0001. See Plan_v3 §7.
