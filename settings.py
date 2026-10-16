@@ -7,6 +7,10 @@ import os
 from dataclasses import dataclass, field
 from typing import Dict, List
 
+from dotenv import load_dotenv
+
+load_dotenv()  # loads .env into the environment once; safe to call even if .env is absent
+
 
 @dataclass(frozen=True)
 class Settings:
@@ -83,6 +87,8 @@ class Settings:
     CORP_ACTION_DIFF_PCT: float = 5.0
     CORP_ACTION_LOOKBACK_CANDLES: int = 10
     INGESTION_RETRY_COUNT: int = 3
+    OHLCV_BACKFILL_DAYS: int = 400
+    MARKET_QUOTE_BATCH_SIZE: int = 500
     VIX_BANDS: Dict[str, float] = field(
         default_factory=lambda: {"LOW_VOL": 14.0, "NORMAL": 18.0, "ELEVATED": 24.0}
     )
@@ -91,7 +97,10 @@ class Settings:
     TIMEZONE: str = "Asia/Kolkata"
     PORTFOLIO_DB_PATH: str = os.environ.get("PORTFOLIO_DB_PATH", "state/portfolio.db")
     MARKET_DB_DIR: str = os.environ.get("MARKET_DB_DIR", "data")
+    OHLCV_DB_PATH: str = os.environ.get("OHLCV_DB_PATH", "data/ohlcv.db")
+    MACRO_DB_PATH: str = os.environ.get("MACRO_DB_PATH", "data/macro.db")
     DB_BUSY_TIMEOUT_MS: int = 5000
+    UPSTOX_BASE_URL: str = "https://api.upstox.com"
 
 
 settings = Settings()
