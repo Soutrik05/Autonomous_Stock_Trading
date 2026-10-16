@@ -12,6 +12,7 @@ data/*_backup.db
 # Results & Artifacts
 results/
 _legacy_archive/
+_legacy_reference/
 *.md
 
 # Cache
