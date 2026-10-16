@@ -6,14 +6,22 @@
 *.xls
 *.csv
 !data/nifty500_constituents.csv
+*.db
+*.sqlite
 data/*.db
 data/*_backup.db
+state/*.db
+state/backups/
 
 # Results & Artifacts
 results/
 _legacy_archive/
 _legacy_reference/
 *.md
+!README.md
+!CLAUDE.md
+!docs/
+!docs/*.md
 
 # Cache
 fundamental/cache/
@@ -33,6 +41,10 @@ venv/
 .venv/
 
 # Frontend
-frontend/node_modules/
-frontend/dist/
-frontend/.vite/
+node_modules/
+dist/
+web/.vite/
+
+# Editors
+.idea/
+.vscode/
