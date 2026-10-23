@@ -56,6 +56,10 @@ class Settings:
     STOP_MAY_ONLY_RISE: bool = True
     MAX_OPEN_POSITIONS_PER_AGENT: int = 5
 
+    # --- LLM providers (§3.2) ---
+    LLM_PROVIDER: str = os.environ.get("LLM_PROVIDER", "groq")
+    LLM_FALLBACK_PROVIDER: str = os.environ.get("LLM_FALLBACK_PROVIDER", "gemini")
+
     # --- Prompts (§3.2) ---
     MAX_CANDIDATES_PER_RUN: int = 10
     AGENT_RUN_DELAY_SEC: int = 60

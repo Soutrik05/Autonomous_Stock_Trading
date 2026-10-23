@@ -1,10 +1,12 @@
 """
 Unit tests for evaluation/faithfulness.py's underlying primitives in core/features.py:
 matches() for REL, ABS, EXACT and the macd_hist ABS_PCT_CLOSE rule, and evaluate_predicate()
-including None handling.
+including None handling. Also covers evaluation/faithfulness.py's compute_faithfulness()
+scoring itself: a wrong value, an unregistered name, and citing fewer than 3 metrics.
 See Plan_v3 §3.3.
 """
 from core.features import evaluate_predicate, matches
+from evaluation.faithfulness import compute_faithfulness
 
 
 def test_rel_rule_within_tolerance():
@@ -104,3 +106,37 @@ def test_evaluate_predicate_nested_groups():
     assert evaluate_predicate({"regime": "NORMAL", "rsi_14": 65, "macd_hist": -1}, predicate) is True
     assert evaluate_predicate({"regime": "PANIC", "rsi_14": 65, "macd_hist": -1}, predicate) is False
     assert evaluate_predicate({"regime": "NORMAL", "rsi_14": 40, "macd_hist": -1}, predicate) is False
+
+
+# --- evaluation/faithfulness.compute_faithfulness ---
+
+
+def test_compute_faithfulness_wrong_value_is_a_mismatch():
+    features = {"close": 1000.0, "rsi_14": 50.0, "volume_surge": 1.5, "macd_hist": 1.0}
+    cited = {"rsi_14": 80.0, "volume_surge": 1.5, "macd_hist": 1.0}  # rsi_14 is wrong (diff=30 > ABS(2.0))
+    score = compute_faithfulness(cited, features)
+    assert score == 2 / 3
+
+
+def test_compute_faithfulness_unregistered_name_is_a_mismatch():
+    features = {"close": 1000.0, "rsi_14": 50.0, "volume_surge": 1.5}
+    cited = {"rsi_14": 50.0, "volume_surge": 1.5, "made_up_metric": 1.0}
+    score = compute_faithfulness(cited, features)
+    assert score == 2 / 3
+
+
+def test_compute_faithfulness_penalises_fewer_than_three_cited():
+    features = {"close": 1000.0, "rsi_14": 50.0, "volume_surge": 1.5}
+    cited = {"rsi_14": 50.0, "volume_surge": 1.5}  # both correct, but only 2 cited
+    score = compute_faithfulness(cited, features)
+    assert score == 2 / 3  # matched=2, denom=max(2,3)=3
+
+
+def test_compute_faithfulness_three_correct_scores_1():
+    features = {"close": 1000.0, "rsi_14": 50.0, "volume_surge": 1.5, "roce_pct": 18.0}
+    cited = {"rsi_14": 50.0, "volume_surge": 1.5, "roce_pct": 18.0}
+    assert compute_faithfulness(cited, features) == 1.0
+
+
+def test_compute_faithfulness_empty_citation_is_zero():
+    assert compute_faithfulness({}, {"close": 1000.0}) == 0.0

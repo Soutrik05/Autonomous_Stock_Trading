@@ -15,8 +15,10 @@ faiss-cpu
 sentence-transformers
 feedparser
 
-# LLM inference 
+# LLM inference
 groq
+google-generativeai
+pydantic
 
 # News agent (FinBERT)
 transformers
