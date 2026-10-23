@@ -1,8 +1,10 @@
 """
-One runner for all personas; idempotent per run date. The broker does not exist yet, so this
-runner stops after saving decisions -- it never creates orders.
-Run as `python -m agents.runner --date YYYY-MM-DD --agent simons [--dry-run] [--fake-llm] [--force]`.
-See Plan_v3 §3.2.
+One runner for all personas; idempotent per run date. After decisions are saved, it places
+orders from them via broker.engine.Broker (no monitor, expiry or settlement yet -- orders just
+sit 'pending' until those jobs exist).
+Run as `python -m agents.runner --date YYYY-MM-DD --agent simons
+    [--dry-run] [--fake-llm] [--force] [--no-orders]`.
+See Plan_v3 §3.2, §4.2-§4.3.
 """
 import argparse
 import json
@@ -13,6 +15,7 @@ from typing import List, Optional
 from agents.context_assembler import build_user_prompt, estimate_tokens
 from agents.parsers import parse_with_repair
 from agents.personas import get_persona
+from broker.engine import Broker
 from core.build_features import MAX_STALE_FRACTION, check_data_freshness
 from core.clock import Clock, SystemClock
 from core.database import get_connection
@@ -76,11 +79,13 @@ def _decisions_exist(conn, agent_id: str, run_date: str) -> bool:
     return row is not None
 
 
-def _any_order_references_run(conn, agent_id: str, run_date: str) -> bool:
+def _any_order_is_filled(conn, agent_id: str, run_date: str) -> bool:
+    """--force may cancel still-pending orders and regenerate decisions, but never undo a fill."""
     row = conn.execute(
         """
         SELECT 1 FROM pending_orders
-        WHERE decision_id IN (SELECT id FROM decisions WHERE agent_id = ? AND run_date = ?)
+        WHERE status = 'filled'
+          AND decision_id IN (SELECT id FROM decisions WHERE agent_id = ? AND run_date = ?)
         LIMIT 1
         """,
         (agent_id, run_date),
@@ -196,7 +201,7 @@ def _insert_llm_call(conn: sqlite3.Connection, agent_id, run_date, model, prompt
 def run_one_agent(
     agent_id: str, run_date: str, clock: Clock, portfolio_conn: sqlite3.Connection,
     ohlcv_conn: Optional[sqlite3.Connection] = None, llm_client: Optional[LLMClient] = None,
-    dry_run: bool = False, force: bool = False,
+    dry_run: bool = False, force: bool = False, no_orders: bool = False,
 ) -> dict:
     persona = get_persona(agent_id)
 
@@ -210,12 +215,13 @@ def run_one_agent(
         if _decisions_exist(portfolio_conn, agent_id, run_date):
             if not force:
                 return {"status": "SKIPPED", "detail": "decisions already exist for this agent/date"}
-            if _any_order_references_run(portfolio_conn, agent_id, run_date):
+            if _any_order_is_filled(portfolio_conn, agent_id, run_date):
                 return {
                     "status": "REFUSED",
-                    "detail": "cannot --force: a pending order already references one of this "
-                    "agent's decisions for this date",
+                    "detail": "cannot --force: an order for one of this agent's decisions for "
+                    "this date has already been filled",
                 }
+            Broker(portfolio_conn, clock).cancel_pending_for_run(agent_id, run_date)
             _delete_decisions(portfolio_conn, agent_id, run_date)
 
     review_pool = get_review_pool(portfolio_conn, agent_id, run_date)
@@ -278,13 +284,18 @@ def run_one_agent(
                 decision, agent_id, run_date, "LLM", snapshot_id, llm_call_id, features, clock
             )
             _insert_decision(portfolio_conn, values)
+
+        order_summary = None
+        if not no_orders:
+            order_summary = Broker(portfolio_conn, clock).place_orders_for_run(agent_id, run_date)
     except Exception as exc:
         _finish_run(portfolio_conn, run_date, "FAILED", clock, detail=str(exc)[:500])
         raise
 
     _finish_run(
         portfolio_conn, run_date, "SUCCESS", clock,
-        detail=f"parse_status={parse_status} decisions={len(decisions)} dropped_unknown={dropped} calls={len(attempts)}",
+        detail=f"parse_status={parse_status} decisions={len(decisions)} dropped_unknown={dropped} "
+        f"calls={len(attempts)} orders={order_summary}",
     )
     return {
         "status": "SUCCESS", "parse_status": parse_status, "decisions": len(decisions),
@@ -292,14 +303,15 @@ def run_one_agent(
         "tokens_in": final_result.tokens_in, "tokens_out": final_result.tokens_out,
         "latency_ms": final_result.latency_ms, "model": final_result.model,
         "finish_reason": final_result.finish_reason, "reasoning_tokens": final_result.reasoning_tokens,
-        "token_estimate": token_estimate,
+        "token_estimate": token_estimate, "order_summary": order_summary,
     }
 
 
 def run(
     agent_ids: List[str], as_of_date: str = None, clock: Clock = None, dry_run: bool = False,
-    fake_llm: bool = False, force: bool = False, portfolio_conn: sqlite3.Connection = None,
-    ohlcv_conn: Optional[sqlite3.Connection] = None, llm_client: Optional[LLMClient] = None,
+    fake_llm: bool = False, force: bool = False, no_orders: bool = False,
+    portfolio_conn: sqlite3.Connection = None, ohlcv_conn: Optional[sqlite3.Connection] = None,
+    llm_client: Optional[LLMClient] = None,
 ) -> dict:
     clock = clock or SystemClock()
     owns_conn = portfolio_conn is None
@@ -327,7 +339,7 @@ def run(
         for i, agent_id in enumerate(agent_ids):
             results[agent_id] = run_one_agent(
                 agent_id, run_date, clock, portfolio_conn, ohlcv_conn=ohlcv_conn,
-                llm_client=llm_client, dry_run=dry_run, force=force,
+                llm_client=llm_client, dry_run=dry_run, force=force, no_orders=no_orders,
             )
             is_last = i == len(agent_ids) - 1
             if not dry_run and not fake_llm and not is_last:
@@ -347,10 +359,12 @@ def main() -> None:
     parser.add_argument("--dry-run", dest="dry_run", action="store_true", help="Print the prompt, make no LLM call")
     parser.add_argument("--fake-llm", dest="fake_llm", action="store_true", help="Use FakeLLMClient instead of a real provider")
     parser.add_argument("--force", dest="force", action="store_true", help="Re-run even if decisions already exist")
+    parser.add_argument("--no-orders", dest="no_orders", action="store_true", help="Save decisions but place no orders")
     args = parser.parse_args()
 
     results = run(
-        [args.agent_id], as_of_date=args.date_str, dry_run=args.dry_run, fake_llm=args.fake_llm, force=args.force
+        [args.agent_id], as_of_date=args.date_str, dry_run=args.dry_run, fake_llm=args.fake_llm,
+        force=args.force, no_orders=args.no_orders,
     )
     for agent_id, result in results.items():
         print(f"{agent_id}: {result}")

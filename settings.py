@@ -55,6 +55,16 @@ class Settings:
     BUY_OVERSHOOT_PCT: float = 0.5
     STOP_MAY_ONLY_RISE: bool = True
     MAX_OPEN_POSITIONS_PER_AGENT: int = 5
+    # How valid_for_date is chosen for a new pending order (day 4a). NEXT_TRADING_DAY matches
+    # Plan_v3 §4.3 item 1 literally; SAME_DAY_IF_BEFORE_OPEN is the alternative the task asks
+    # the broker to also support.
+    ORDER_VALIDITY_MODE: str = os.environ.get("ORDER_VALIDITY_MODE", "NEXT_TRADING_DAY")
+    MARKET_OPEN_TIME: str = "09:15"  # cutoff for ORDER_VALIDITY_MODE=SAME_DAY_IF_BEFORE_OPEN
+
+    # --- Broker soft caps (§4.2; non-blocking, logged as CAP_BREACH) (day 4a) ---
+    MAX_RISK_PCT_PER_TRADE: float = 2.0
+    MAX_POSITION_PCT_OF_ACCOUNT: float = 20.0
+    MAX_SECTOR_PCT_OF_ACCOUNT: float = 25.0
 
     # --- LLM providers (§3.2) ---
     LLM_PROVIDER: str = os.environ.get("LLM_PROVIDER", "groq")

@@ -104,7 +104,28 @@ def test_force_rerun_without_pending_orders_replaces_decisions():
     assert count == 1  # replaced, not duplicated
 
 
-def test_force_rerun_refused_when_a_pending_order_references_the_decision():
+def test_force_rerun_refused_when_an_order_is_already_filled():
+    conn = make_portfolio_db()
+    ohlcv = make_ohlcv_db()
+    seed(conn, ohlcv)
+    clock = FakeClock(datetime(2026, 10, 16, 22, 0, 0))
+
+    run(["simons"], as_of_date=RUN_DATE, clock=clock, portfolio_conn=conn, ohlcv_conn=ohlcv,
+        llm_client=FakeLLMClient(responses=[HOLD_RESPONSE]), fake_llm=True)
+    decision_id = conn.execute("SELECT id FROM decisions LIMIT 1").fetchone()["id"]
+    conn.execute(
+        "INSERT INTO pending_orders (agent_id, ticker, side, shares, reserved_amount_paise, "
+        "decision_id, status, valid_for_date, created_at, updated_at) "
+        "VALUES ('simons', 'TATAMOTORS', 'BUY', 10, 100000, ?, 'filled', '2026-10-17', ?, ?)",
+        (decision_id, NOW, NOW),
+    )
+
+    second = run(["simons"], as_of_date=RUN_DATE, clock=clock, portfolio_conn=conn, ohlcv_conn=ohlcv,
+                 llm_client=FakeLLMClient(responses=[HOLD_RESPONSE]), fake_llm=True, force=True)
+    assert second["simons"]["status"] == "REFUSED"
+
+
+def test_force_rerun_cancels_a_merely_pending_order_and_proceeds():
     conn = make_portfolio_db()
     ohlcv = make_ohlcv_db()
     seed(conn, ohlcv)
@@ -122,7 +143,10 @@ def test_force_rerun_refused_when_a_pending_order_references_the_decision():
 
     second = run(["simons"], as_of_date=RUN_DATE, clock=clock, portfolio_conn=conn, ohlcv_conn=ohlcv,
                  llm_client=FakeLLMClient(responses=[HOLD_RESPONSE]), fake_llm=True, force=True)
-    assert second["simons"]["status"] == "REFUSED"
+    assert second["simons"]["status"] == "SUCCESS"
+    # cancel_pending_for_run must have cancelled the old order before decisions were deleted.
+    old_order = conn.execute("SELECT status FROM pending_orders WHERE decision_id = ?", (decision_id,)).fetchone()
+    assert old_order["status"] == "cancelled"
 
 
 def test_llm_calls_row_records_finish_reason():
