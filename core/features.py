@@ -117,8 +117,11 @@ _OPS = {
 def evaluate_predicate(features: Dict[str, Any], predicate: Dict[str, Any]) -> bool:
     """Evaluates a JSON predicate like {"all": [{"feature": "rsi_14", "op": ">=", "value": 55}]}
     against a features dict (ops: > >= < <= == !=; groups: "all"/"any", nestable). A missing
-    (None, or absent) feature makes that leaf condition False. Used for both persona hurdles and
-    heuristic triggers."""
+    (None, or absent) feature makes that leaf condition False. An empty predicate ({}) is
+    vacuously True (e.g. a persona's unused fundamental_hurdles). Used for both persona hurdles
+    and heuristic triggers."""
+    if not predicate:
+        return True
     if "all" in predicate:
         return all(evaluate_predicate(features, child) for child in predicate["all"])
     if "any" in predicate:

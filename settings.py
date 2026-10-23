@@ -70,6 +70,7 @@ class Settings:
     SECTOR_CAP_PER_AGENT: int = 2
     WATCHLIST_TARGET_SIZE_MIN: int = 8
     WATCHLIST_TARGET_SIZE_MAX: int = 10
+    MIN_TURNOVER_RUPEES: int = 50_000_000
 
     # --- Learning (§5) ---
     MIN_CLOSED_TRADES_FOR_REFLECTION: int = 3
