@@ -7,10 +7,12 @@ import argparse
 import json
 import math
 import sqlite3
-from typing import Optional
+from datetime import date
+from typing import List, Optional
 
 import pandas as pd
 
+from core.calendar import is_trading_day
 from core.clock import Clock, SystemClock
 from core.database import get_connection
 from core.features import FEATURE_SCHEMA_VERSION, FeatureSnapshot, allowed_metric_names
@@ -19,6 +21,11 @@ from technical import add_indicators
 
 JOB_NAME = "features"
 MIN_SESSIONS_REQUIRED = 200
+
+# Day-3c data-date integrity guard (see core/build_features.py run()): on a trading day, a
+# ticker whose latest stored OHLCV candle isn't dated as_of_date is "stale". A few stragglers
+# are tolerated (skipped individually); more than this fraction fails the whole job.
+MAX_STALE_FRACTION = 0.05
 
 # Technical columns add_indicators() appends, and how to cast each back from pandas/numpy
 # into a plain JSON-safe Python value (NaN -> None).
@@ -63,6 +70,30 @@ def _non_stale_active_tickers(portfolio_conn, ohlcv_conn, ticker_filter: Optiona
         for r in ohlcv_conn.execute("SELECT ticker FROM ticker_status WHERE status = 'STALE_DATA'").fetchall()
     }
     return [t for t in all_tickers if t not in stale]
+
+
+def _latest_ohlcv_date(ohlcv_conn: sqlite3.Connection, ticker: str) -> Optional[date]:
+    row = ohlcv_conn.execute("SELECT MAX(trade_date) AS d FROM ohlcv WHERE ticker = ?", (ticker,)).fetchone()
+    value = row["d"] if row else None
+    return date.fromisoformat(value) if value else None
+
+
+def check_data_freshness(ohlcv_conn: sqlite3.Connection, portfolio_conn: sqlite3.Connection,
+                          tickers: List[str], as_of_date: str) -> dict:
+    """On a trading day, checks whether each ticker's latest stored OHLCV candle is dated
+    as_of_date. Not applicable (and always passes) on a non-trading day, since no new candle is
+    expected then. Returns {"applicable", "checked", "stale", "stale_tickers", "stale_fraction"}."""
+    as_of = date.fromisoformat(as_of_date)
+    if not is_trading_day(portfolio_conn, as_of):
+        return {"applicable": False, "checked": 0, "stale": 0, "stale_tickers": [], "stale_fraction": 0.0}
+
+    stale_tickers = [t for t in tickers if _latest_ohlcv_date(ohlcv_conn, t) != as_of]
+    checked = len(tickers)
+    stale = len(stale_tickers)
+    return {
+        "applicable": True, "checked": checked, "stale": stale, "stale_tickers": stale_tickers,
+        "stale_fraction": (stale / checked) if checked else 0.0,
+    }
 
 
 def _macro_row(macro_conn, as_of_date: str):
@@ -167,8 +198,23 @@ def run(as_of_date: str = None, clock: Clock = None, ticker: str = None, force: 
             india_vix, regime = _macro_row(macro_conn, run_date)
             tickers = _non_stale_active_tickers(portfolio_conn, ohlcv_conn, ticker)
 
+            freshness = check_data_freshness(ohlcv_conn, portfolio_conn, tickers, run_date)
+            if freshness["applicable"] and freshness["stale_fraction"] > MAX_STALE_FRACTION:
+                detail = (
+                    f"data-date integrity check failed: {freshness['stale']}/{freshness['checked']} "
+                    f"tickers ({freshness['stale_fraction']:.1%}) have a latest OHLCV candle date "
+                    f"other than {run_date} (a trading day); exceeds the {MAX_STALE_FRACTION:.0%} "
+                    f"tolerance. Sample stale tickers: {freshness['stale_tickers'][:10]}"
+                )
+                _finish_run(portfolio_conn, run_date, "FAILED", clock, detail=detail[:500])
+                return {"status": "FAILED", "written": 0, "skipped": 0, "detail": detail}
+            stale_set = set(freshness["stale_tickers"])
+
             written, skipped = 0, 0
             for t in tickers:
+                if t in stale_set:
+                    skipped += 1
+                    continue
                 df = _load_ohlcv(ohlcv_conn, t)
                 if len(df) < MIN_SESSIONS_REQUIRED:
                     skipped += 1

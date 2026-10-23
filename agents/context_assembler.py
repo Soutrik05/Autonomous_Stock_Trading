@@ -5,50 +5,53 @@ See Plan_v3 §3.2.
 import sqlite3
 from typing import Dict, List, Optional, Tuple
 
+from core.features import persona_allowed_metric_names
 from settings import settings
 
-CHARS_PER_TOKEN = 3.5
+# Recalibrated against a real measured Groq call (day 3c): real chars/token was ~2.64 on this
+# prompt style; 3.5 (generic prose) undershot real tokens_in by ~25%. PROMPT_TOKEN_TARGET and
+# PROMPT_TOKEN_CEILING themselves are unchanged -- only this estimator divisor moved.
+CHARS_PER_TOKEN = 2.7
+
+# Shown once in the REGIME line, never repeated per candidate row.
+_REGIME_LEVEL_NAMES = {"india_vix", "regime"}
 
 
 def estimate_tokens(text: str) -> int:
-    """First-pass token estimate: characters / 3.5."""
+    """First-pass token estimate: characters / CHARS_PER_TOKEN."""
     return int(len(text) / CHARS_PER_TOKEN)
-
-
-def _fmt(value, decimals: int = 2, sign: bool = False) -> str:
-    if value is None:
-        return "NA"
-    return f"{value:+.{decimals}f}" if sign else f"{value:.{decimals}f}"
 
 
 def _abbrev_sector(sector: Optional[str]) -> str:
     return (sector or "UNK")[:3].upper()
 
 
-def build_candidate_row(ticker: str, sector: str, features: dict, is_held: bool) -> str:
-    """One compact numeric row per candidate (~100 tokens), in the Plan_v3 §3.2 format:
-    TICKER|SEC|c=..|ema20/50/200=../../..|rsi=..|macdh=+/-..|vs=..|adx=..|atr=..|d52h=..|
-    roce=..|de=..|pe=..|news=+/-..(n)|pos=none|held. A feature not yet available renders as NA."""
-    news_sentiment = features.get("news_sentiment")
-    news_count = features.get("news_article_count")
-    news_part = "NA" if news_sentiment is None else f"{_fmt(news_sentiment, 2, sign=True)}({news_count or 0})"
+def _fmt_value(name: str, value) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, int):
+        return str(value)
+    if name == "macd_hist":
+        return f"{value:+.2f}"
+    if name in ("rsi_14", "adx_14", "dist_52w_high_pct", "dist_52w_low_pct"):
+        return f"{value:.1f}"
+    return f"{value:.2f}"
 
-    return (
-        f"{ticker}|{_abbrev_sector(sector)}|"
-        f"c={_fmt(features.get('close'))}|"
-        f"ema20/50/200={_fmt(features.get('ema_20'))}/{_fmt(features.get('ema_50'))}/{_fmt(features.get('ema_200'))}|"
-        f"rsi={_fmt(features.get('rsi_14'), 1)}|"
-        f"macdh={_fmt(features.get('macd_hist'), 2, sign=True)}|"
-        f"vs={_fmt(features.get('volume_surge'), 2)}|"
-        f"adx={_fmt(features.get('adx_14'), 1)}|"
-        f"atr={_fmt(features.get('atr_14'), 1)}|"
-        f"d52h={_fmt(features.get('dist_52w_high_pct'), 1)}|"
-        f"roce={_fmt(features.get('roce_pct'), 1)}|"
-        f"de={_fmt(features.get('debt_to_equity'))}|"
-        f"pe={_fmt(features.get('pe'), 1)}|"
-        f"news={news_part}|"
-        f"pos={'held' if is_held else 'none'}"
-    )
+
+def build_candidate_row(ticker: str, sector: str, features: dict, is_held: bool, allowed_names: List[str]) -> str:
+    """One compact row per candidate, keyed by the EXACT FeatureSnapshot names in
+    `allowed_names` (see core.features.persona_allowed_metric_names) -- e.g. close=, ema_20=,
+    rsi_14=, macd_hist=. A field whose value is None is omitted entirely, not shown as NA."""
+    parts = [ticker, _abbrev_sector(sector)]
+    for name in allowed_names:
+        if name in _REGIME_LEVEL_NAMES:
+            continue
+        value = features.get(name)
+        if value is None:
+            continue
+        parts.append(f"{name}={_fmt_value(name, value)}")
+    parts.append(f"pos={'held' if is_held else 'none'}")
+    return "|".join(parts)
 
 
 def build_regime_line(india_vix: Optional[float], regime: Optional[str]) -> str:
@@ -105,6 +108,7 @@ def assemble_prompt(
     episodic_block: str,
     portfolio_block: str,
     candidates: List[dict],
+    allowed_names: List[str],
     rag_block: Optional[str] = None,
     ceiling: Optional[int] = None,
 ) -> Tuple[str, dict]:
@@ -112,7 +116,8 @@ def assemble_prompt(
     ({"ticker", "sector", "features", "is_held", "intensity_score"}), trimming to `ceiling`
     (default settings.PROMPT_TOKEN_CEILING) if needed, in order: drop RAG, drop episodic memory,
     drop the lowest-intensity watchlist (non-held) candidates. Open positions are never trimmed.
-    Returns (user_prompt_text, trim_debug_info)."""
+    `allowed_names` (from core.features.persona_allowed_metric_names) decides which keys each
+    candidate row shows. Returns (user_prompt_text, trim_debug_info)."""
     ceiling = settings.PROMPT_TOKEN_CEILING if ceiling is None else ceiling
     held = [c for c in candidates if c["is_held"]]
     not_held = sorted((c for c in candidates if not c["is_held"]), key=lambda c: c.get("intensity_score") or 0)
@@ -120,7 +125,10 @@ def assemble_prompt(
     trimmed = {"rag": False, "episodic": False, "dropped_candidates": []}
 
     def render() -> str:
-        rows = [build_candidate_row(c["ticker"], c["sector"], c["features"], c["is_held"]) for c in held + not_held]
+        rows = [
+            build_candidate_row(c["ticker"], c["sector"], c["features"], c["is_held"], allowed_names)
+            for c in held + not_held
+        ]
         blocks = [regime_line, heuristics_block, episodic_block, portfolio_block]
         if rag_block:
             blocks.append(rag_block)
@@ -203,14 +211,18 @@ def extract_regime(features_by_ticker: Dict[str, dict]) -> Tuple[Optional[float]
 def build_user_prompt(
     portfolio_conn: sqlite3.Connection, agent_id: str, review_pool: List[dict],
     features_by_ticker: Dict[str, dict], sector_by_ticker: Dict[str, str],
-    intensity_by_ticker: Dict[str, float], system_prompt: str, rag_block: Optional[str] = None,
+    intensity_by_ticker: Dict[str, float], system_prompt: str, technical_hurdles: dict,
+    fundamental_hurdles: dict, rag_block: Optional[str] = None,
 ) -> Tuple[str, dict]:
     """End-to-end: pulls portfolio/heuristics/episodic-memory data and assembles the full user
-    prompt for one agent's nightly run. Returns (user_prompt_text, trim_debug_info)."""
+    prompt for one agent's nightly run. `technical_hurdles`/`fundamental_hurdles` (the
+    persona's) decide the candidate rows' field set via persona_allowed_metric_names().
+    Returns (user_prompt_text, trim_debug_info)."""
     cash_paise, holdings = load_portfolio_state(portfolio_conn, agent_id)
     heuristics = load_active_heuristics(portfolio_conn, agent_id)
     closed_positions = load_episodic_memory(portfolio_conn, agent_id)
     india_vix, regime = extract_regime(features_by_ticker)
+    allowed_names = persona_allowed_metric_names(technical_hurdles, fundamental_hurdles)
 
     candidates = [
         {
@@ -230,5 +242,6 @@ def build_user_prompt(
         episodic_block=build_episodic_memory_block(closed_positions),
         portfolio_block=build_portfolio_state_block(cash_paise, holdings),
         candidates=candidates,
+        allowed_names=allowed_names,
         rag_block=rag_block,
     )

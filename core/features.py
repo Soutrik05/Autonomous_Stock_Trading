@@ -64,6 +64,55 @@ def allowed_metric_names() -> List[str]:
     return [f.name for f in FEATURE_REGISTRY]
 
 
+# A persona's candidate rows always show this core technical set (if the value is not None);
+# obv_slope_sign and ema_20_above_50 are shown only when the persona's own hurdles reference
+# them. See agents/context_assembler.py and agents/prompts.py, which both use this so the
+# candidate-row keys and the system prompt's cited-metrics list are generated from one list.
+CORE_TECHNICAL_FIELDS = [
+    "close", "ema_20", "ema_50", "ema_200", "rsi_14", "macd_hist", "volume_surge",
+    "adx_14", "atr_14", "dist_52w_high_pct", "dist_52w_low_pct",
+]
+CONDITIONAL_TECHNICAL_FIELDS = ["obv_slope_sign", "ema_20_above_50"]
+
+
+def predicate_feature_names(predicate: Optional[dict]) -> set:
+    """Recursively collects every 'feature' name referenced anywhere in a core.features
+    evaluate_predicate-style JSON predicate (including nested all/any groups)."""
+    names = set()
+    if not predicate:
+        return names
+    if "all" in predicate:
+        for child in predicate["all"]:
+            names |= predicate_feature_names(child)
+    elif "any" in predicate:
+        for child in predicate["any"]:
+            names |= predicate_feature_names(child)
+    elif "feature" in predicate:
+        names.add(predicate["feature"])
+    return names
+
+
+def persona_allowed_metric_names(technical_hurdles: dict, fundamental_hurdles: dict) -> List[str]:
+    """The exact FeatureSnapshot names a persona's candidate rows and cited_metrics list may
+    use: the core technical set, obv_slope_sign/ema_20_above_50 only if the persona's hurdles
+    reference them, any other (e.g. fundamental) registry name its hurdles reference, and
+    always india_vix/regime (shown in every prompt's REGIME line once macro data exists, which
+    the pipeline guarantees by the time agents run). Order is stable and deterministic."""
+    referenced = predicate_feature_names(technical_hurdles) | predicate_feature_names(fundamental_hurdles)
+    names = list(CORE_TECHNICAL_FIELDS)
+    for name in CONDITIONAL_TECHNICAL_FIELDS:
+        if name in referenced:
+            names.append(name)
+    registry_names = set(allowed_metric_names())
+    for name in sorted(referenced):
+        if name not in names and name in registry_names:
+            names.append(name)
+    for name in ("india_vix", "regime"):
+        if name not in names:
+            names.append(name)
+    return names
+
+
 def _is_number(value: Any) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 

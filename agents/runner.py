@@ -13,16 +13,18 @@ from typing import List, Optional
 from agents.context_assembler import build_user_prompt, estimate_tokens
 from agents.parsers import parse_with_repair
 from agents.personas import get_persona
+from core.build_features import MAX_STALE_FRACTION, check_data_freshness
 from core.clock import Clock, SystemClock
 from core.database import get_connection
 from core.money import rupees_to_paise
-from core.schemas import AdjustDecision, BuyDecision, HoldDecision, SellDecision
+from core.schemas import AdjustDecision, BuyDecision, DecisionBatch, HoldDecision, SellDecision
 from evaluation.faithfulness import compute_faithfulness
 from llm.client import FakeLLMClient, FallbackLLMClient, LLMClient, LLMConfigError, build_provider
 from precompute.watchlist_refresh import get_review_pool
 from settings import settings
 
 JOB_NAME = "agents"
+DECISION_BATCH_SCHEMA = DecisionBatch.model_json_schema()
 
 
 # --- pipeline_runs wiring (same small pattern as ingestion/cli.py, core/build_features.py) ------
@@ -175,14 +177,16 @@ def _insert_decision(conn: sqlite3.Connection, values: dict) -> None:
 
 
 def _insert_llm_call(conn: sqlite3.Connection, agent_id, run_date, model, prompt, response,
-                      tokens_in, tokens_out, latency_ms, parse_status, clock: Clock) -> int:
+                      tokens_in, tokens_out, latency_ms, parse_status, finish_reason,
+                      reasoning_tokens, clock: Clock) -> int:
     cur = conn.execute(
         """
         INSERT INTO llm_calls (agent_id, run_date, model, prompt, response, tokens_in, tokens_out,
-                                latency_ms, parse_status, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                latency_ms, parse_status, finish_reason, reasoning_tokens, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (agent_id, run_date, model, prompt, response, tokens_in, tokens_out, latency_ms, parse_status, clock.now_iso()),
+        (agent_id, run_date, model, prompt, response, tokens_in, tokens_out, latency_ms,
+         parse_status, finish_reason, reasoning_tokens, clock.now_iso()),
     )
     return cur.lastrowid
 
@@ -191,7 +195,8 @@ def _insert_llm_call(conn: sqlite3.Connection, agent_id, run_date, model, prompt
 
 def run_one_agent(
     agent_id: str, run_date: str, clock: Clock, portfolio_conn: sqlite3.Connection,
-    llm_client: Optional[LLMClient] = None, dry_run: bool = False, force: bool = False,
+    ohlcv_conn: Optional[sqlite3.Connection] = None, llm_client: Optional[LLMClient] = None,
+    dry_run: bool = False, force: bool = False,
 ) -> dict:
     persona = get_persona(agent_id)
 
@@ -215,6 +220,19 @@ def run_one_agent(
 
     review_pool = get_review_pool(portfolio_conn, agent_id, run_date)
     tickers = [r["ticker"] for r in review_pool]
+
+    if not dry_run and ohlcv_conn is not None and tickers:
+        freshness = check_data_freshness(ohlcv_conn, portfolio_conn, tickers, run_date)
+        if freshness["applicable"] and freshness["stale_fraction"] > MAX_STALE_FRACTION:
+            detail = (
+                f"data-date integrity check failed: {freshness['stale']}/{freshness['checked']} "
+                f"review-pool tickers ({freshness['stale_fraction']:.1%}) have a latest OHLCV "
+                f"candle date other than {run_date} (a trading day); exceeds the "
+                f"{MAX_STALE_FRACTION:.0%} tolerance. Stale tickers: {freshness['stale_tickers']}"
+            )
+            _upsert_terminal_run(portfolio_conn, run_date, "FAILED", clock, detail=detail[:500])
+            return {"status": "FAILED", "detail": detail}
+
     features_with_ids = _load_features_with_ids(portfolio_conn, tickers, run_date)
     features_by_ticker = {t: f for t, (sid, f) in features_with_ids.items()}
     sector_by_ticker = _sector_by_ticker(portfolio_conn, tickers)
@@ -222,7 +240,7 @@ def run_one_agent(
 
     user_prompt, trim_info = build_user_prompt(
         portfolio_conn, agent_id, review_pool, features_by_ticker, sector_by_ticker,
-        intensity_by_ticker, persona.system_prompt,
+        intensity_by_ticker, persona.system_prompt, persona.technical_hurdles, persona.fundamental_hurdles,
     )
     token_estimate = estimate_tokens(persona.system_prompt) + estimate_tokens(user_prompt)
 
@@ -236,15 +254,23 @@ def run_one_agent(
 
     _start_run(portfolio_conn, run_date, clock)
     try:
-        first_result = llm_client.complete(persona.system_prompt, user_prompt)
-        decisions, parse_status, dropped, final_result = parse_with_repair(
-            llm_client, persona.system_prompt, user_prompt, first_result, tickers
+        first_result = llm_client.complete(
+            persona.system_prompt, user_prompt, reasoning_effort=settings.LLM_REASONING_EFFORT,
+            max_output_tokens=settings.LLM_MAX_OUTPUT_TOKENS, response_schema=DECISION_BATCH_SCHEMA,
+        )
+        decisions, parse_status, dropped, final_result, attempts = parse_with_repair(
+            llm_client, persona.system_prompt, user_prompt, first_result, tickers,
+            response_schema=DECISION_BATCH_SCHEMA,
         )
 
-        llm_call_id = _insert_llm_call(
-            portfolio_conn, agent_id, run_date, final_result.model, user_prompt, final_result.text,
-            final_result.tokens_in, final_result.tokens_out, final_result.latency_ms, parse_status, clock,
-        )
+        llm_call_id = None
+        for attempt in attempts:  # log every actual LLM call made (at most 2), per day-3c
+            result = attempt["result"]
+            llm_call_id = _insert_llm_call(
+                portfolio_conn, agent_id, run_date, result.model, user_prompt, result.text,
+                result.tokens_in, result.tokens_out, result.latency_ms, attempt["parse_status"],
+                result.finish_reason, result.reasoning_tokens, clock,
+            )
 
         for decision in decisions:
             snapshot_id, features = features_with_ids.get(decision.ticker, (None, {}))
@@ -258,13 +284,14 @@ def run_one_agent(
 
     _finish_run(
         portfolio_conn, run_date, "SUCCESS", clock,
-        detail=f"parse_status={parse_status} decisions={len(decisions)} dropped_unknown={dropped}",
+        detail=f"parse_status={parse_status} decisions={len(decisions)} dropped_unknown={dropped} calls={len(attempts)}",
     )
     return {
         "status": "SUCCESS", "parse_status": parse_status, "decisions": len(decisions),
-        "dropped_unknown": dropped, "llm_call_id": llm_call_id,
+        "dropped_unknown": dropped, "llm_call_id": llm_call_id, "calls_made": len(attempts),
         "tokens_in": final_result.tokens_in, "tokens_out": final_result.tokens_out,
         "latency_ms": final_result.latency_ms, "model": final_result.model,
+        "finish_reason": final_result.finish_reason, "reasoning_tokens": final_result.reasoning_tokens,
         "token_estimate": token_estimate,
     }
 
@@ -272,11 +299,14 @@ def run_one_agent(
 def run(
     agent_ids: List[str], as_of_date: str = None, clock: Clock = None, dry_run: bool = False,
     fake_llm: bool = False, force: bool = False, portfolio_conn: sqlite3.Connection = None,
-    llm_client: Optional[LLMClient] = None,
+    ohlcv_conn: Optional[sqlite3.Connection] = None, llm_client: Optional[LLMClient] = None,
 ) -> dict:
     clock = clock or SystemClock()
     owns_conn = portfolio_conn is None
+    owns_ohlcv = ohlcv_conn is None and not dry_run
     portfolio_conn = portfolio_conn or get_connection(settings.PORTFOLIO_DB_PATH)
+    if ohlcv_conn is None and not dry_run:
+        ohlcv_conn = get_connection(settings.OHLCV_DB_PATH)
     try:
         run_date = as_of_date or clock.today().isoformat()
 
@@ -296,7 +326,8 @@ def run(
         results = {}
         for i, agent_id in enumerate(agent_ids):
             results[agent_id] = run_one_agent(
-                agent_id, run_date, clock, portfolio_conn, llm_client=llm_client, dry_run=dry_run, force=force
+                agent_id, run_date, clock, portfolio_conn, ohlcv_conn=ohlcv_conn,
+                llm_client=llm_client, dry_run=dry_run, force=force,
             )
             is_last = i == len(agent_ids) - 1
             if not dry_run and not fake_llm and not is_last:
@@ -305,6 +336,8 @@ def run(
     finally:
         if owns_conn:
             portfolio_conn.close()
+        if owns_ohlcv and ohlcv_conn is not None:
+            ohlcv_conn.close()
 
 
 def main() -> None:
