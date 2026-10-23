@@ -17,7 +17,7 @@ feedparser
 
 # LLM inference
 groq
-google-generativeai
+google-genai
 pydantic
 
 # News agent (FinBERT)

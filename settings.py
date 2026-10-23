@@ -68,10 +68,14 @@ class Settings:
 
     # --- LLM providers (§3.2) ---
     LLM_PROVIDER: str = os.environ.get("LLM_PROVIDER", "groq")
+    LLM_MODEL: str = os.environ.get("LLM_MODEL", "")
     LLM_FALLBACK_PROVIDER: str = os.environ.get("LLM_FALLBACK_PROVIDER", "gemini")
+    LLM_FALLBACK_MODEL: str = os.environ.get("LLM_FALLBACK_MODEL", "")
     LLM_REASONING_EFFORT: str = os.environ.get("LLM_REASONING_EFFORT", "low")
     LLM_MAX_OUTPUT_TOKENS: int = int(os.environ.get("LLM_MAX_OUTPUT_TOKENS", "4000"))
     LLM_TEMPERATURE: float = float(os.environ.get("LLM_TEMPERATURE", "0.2"))
+    # 0 = thinking off, -1 = dynamic/model-chosen budget, >0 = a fixed token budget (Gemini only).
+    LLM_GEMINI_THINKING_BUDGET: int = int(os.environ.get("LLM_GEMINI_THINKING_BUDGET", "1024"))
 
     # --- Prompts (§3.2) ---
     MAX_CANDIDATES_PER_RUN: int = 10

@@ -13,7 +13,7 @@ import time
 from typing import List, Optional
 
 from agents.context_assembler import build_user_prompt, estimate_tokens
-from agents.parsers import parse_with_repair
+from agents.parsers import parse_with_repair_and_fallback
 from agents.personas import get_persona
 from broker.engine import Broker
 from core.build_features import MAX_STALE_FRACTION, check_data_freshness
@@ -22,7 +22,7 @@ from core.database import get_connection
 from core.money import rupees_to_paise
 from core.schemas import AdjustDecision, BuyDecision, DecisionBatch, HoldDecision, SellDecision
 from evaluation.faithfulness import compute_faithfulness
-from llm.client import FakeLLMClient, FallbackLLMClient, LLMClient, LLMConfigError, build_provider
+from llm.client import FakeLLMClient, LLMClient, LLMConfigError, build_provider, require_setting
 from precompute.watchlist_refresh import get_review_pool
 from settings import settings
 
@@ -183,15 +183,18 @@ def _insert_decision(conn: sqlite3.Connection, values: dict) -> None:
 
 def _insert_llm_call(conn: sqlite3.Connection, agent_id, run_date, model, prompt, response,
                       tokens_in, tokens_out, latency_ms, parse_status, finish_reason,
-                      reasoning_tokens, clock: Clock) -> int:
+                      reasoning_tokens, clock: Clock, provider=None, thinking_tokens=None,
+                      fallback_used=False) -> int:
     cur = conn.execute(
         """
         INSERT INTO llm_calls (agent_id, run_date, model, prompt, response, tokens_in, tokens_out,
-                                latency_ms, parse_status, finish_reason, reasoning_tokens, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                latency_ms, parse_status, finish_reason, reasoning_tokens, created_at,
+                                provider, thinking_tokens, fallback_used)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (agent_id, run_date, model, prompt, response, tokens_in, tokens_out, latency_ms,
-         parse_status, finish_reason, reasoning_tokens, clock.now_iso()),
+         parse_status, finish_reason, reasoning_tokens, clock.now_iso(), provider, thinking_tokens,
+         int(fallback_used)),
     )
     return cur.lastrowid
 
@@ -202,6 +205,7 @@ def run_one_agent(
     agent_id: str, run_date: str, clock: Clock, portfolio_conn: sqlite3.Connection,
     ohlcv_conn: Optional[sqlite3.Connection] = None, llm_client: Optional[LLMClient] = None,
     dry_run: bool = False, force: bool = False, no_orders: bool = False,
+    fallback_client: Optional[LLMClient] = None,
 ) -> dict:
     persona = get_persona(agent_id)
 
@@ -260,22 +264,20 @@ def run_one_agent(
 
     _start_run(portfolio_conn, run_date, clock)
     try:
-        first_result = llm_client.complete(
-            persona.system_prompt, user_prompt, reasoning_effort=settings.LLM_REASONING_EFFORT,
-            max_output_tokens=settings.LLM_MAX_OUTPUT_TOKENS, response_schema=DECISION_BATCH_SCHEMA,
-        )
-        decisions, parse_status, dropped, final_result, attempts = parse_with_repair(
-            llm_client, persona.system_prompt, user_prompt, first_result, tickers,
+        decisions, parse_status, dropped, final_result, attempts = parse_with_repair_and_fallback(
+            llm_client, persona.system_prompt, user_prompt, tickers, fallback=fallback_client,
+            reasoning_effort=settings.LLM_REASONING_EFFORT, max_output_tokens=settings.LLM_MAX_OUTPUT_TOKENS,
             response_schema=DECISION_BATCH_SCHEMA,
         )
 
         llm_call_id = None
-        for attempt in attempts:  # log every actual LLM call made (at most 2), per day-3c
+        for attempt in attempts:  # log every actual LLM call made (at most 3), per day-5a
             result = attempt["result"]
             llm_call_id = _insert_llm_call(
                 portfolio_conn, agent_id, run_date, result.model, user_prompt, result.text,
                 result.tokens_in, result.tokens_out, result.latency_ms, attempt["parse_status"],
-                result.finish_reason, result.reasoning_tokens, clock,
+                result.finish_reason, result.reasoning_tokens, clock, provider=result.provider,
+                thinking_tokens=result.thinking_tokens, fallback_used=attempt["fallback_used"],
             )
 
         for decision in decisions:
@@ -303,6 +305,8 @@ def run_one_agent(
         "tokens_in": final_result.tokens_in, "tokens_out": final_result.tokens_out,
         "latency_ms": final_result.latency_ms, "model": final_result.model,
         "finish_reason": final_result.finish_reason, "reasoning_tokens": final_result.reasoning_tokens,
+        "provider": final_result.provider, "thinking_tokens": final_result.thinking_tokens,
+        "fallback_used": attempts[-1]["fallback_used"] if attempts else False,
         "token_estimate": token_estimate, "order_summary": order_summary,
     }
 
@@ -311,7 +315,7 @@ def run(
     agent_ids: List[str], as_of_date: str = None, clock: Clock = None, dry_run: bool = False,
     fake_llm: bool = False, force: bool = False, no_orders: bool = False,
     portfolio_conn: sqlite3.Connection = None, ohlcv_conn: Optional[sqlite3.Connection] = None,
-    llm_client: Optional[LLMClient] = None,
+    llm_client: Optional[LLMClient] = None, fallback_client: Optional[LLMClient] = None,
 ) -> dict:
     clock = clock or SystemClock()
     owns_conn = portfolio_conn is None
@@ -326,20 +330,25 @@ def run(
             if fake_llm:
                 llm_client = FakeLLMClient()
             else:
-                primary = build_provider(settings.LLM_PROVIDER)
+                llm_client = build_provider(
+                    settings.LLM_PROVIDER, model=require_setting(settings.LLM_MODEL, "LLM_MODEL"),
+                )
                 try:
-                    fallback = build_provider(settings.LLM_FALLBACK_PROVIDER)
-                    llm_client = FallbackLLMClient(primary, fallback)
+                    fallback_client = build_provider(
+                        settings.LLM_FALLBACK_PROVIDER,
+                        model=require_setting(settings.LLM_FALLBACK_MODEL, "LLM_FALLBACK_MODEL"),
+                    )
                 except LLMConfigError as exc:
                     print(f"warning: fallback provider {settings.LLM_FALLBACK_PROVIDER!r} unavailable "
                           f"({exc}); continuing with {settings.LLM_PROVIDER!r} only, no fallback.")
-                    llm_client = primary
+                    fallback_client = None
 
         results = {}
         for i, agent_id in enumerate(agent_ids):
             results[agent_id] = run_one_agent(
                 agent_id, run_date, clock, portfolio_conn, ohlcv_conn=ohlcv_conn,
                 llm_client=llm_client, dry_run=dry_run, force=force, no_orders=no_orders,
+                fallback_client=fallback_client if not fake_llm else None,
             )
             is_last = i == len(agent_ids) - 1
             if not dry_run and not fake_llm and not is_last:

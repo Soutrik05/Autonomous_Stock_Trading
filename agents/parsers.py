@@ -3,6 +3,12 @@ Validates the LLM's JSON decision output and performs the single allowed retry: 
 retry (lower reasoning effort, higher max output tokens, no repair message) when the first
 attempt was cut off, or a schema-repair retry (validation error sent back to the model) when it
 wasn't. At most 2 LLM calls total; a second failure always falls through to HOLD-all.
+
+`parse_with_repair_and_fallback` wraps this with Day 5a's fallback rule: the primary gets its
+own 2-call retry budget first; only if it still fails (a raised exception -- network/429-after-
+backoff/5xx -- or the double parse/truncation failure) does the fallback provider get exactly
+one attempt with the ORIGINAL prompt. At most 3 LLM calls total; the fallback is never consulted
+when the primary succeeded.
 See Plan_v3 §3.3.
 """
 import json
@@ -141,3 +147,70 @@ def parse_with_repair(
         except ParseFailure:
             attempts = [{"result": first_result, "parse_status": "FAILED"}, {"result": repair_result, "parse_status": "FAILED"}]
             return _hold_all(candidates), "FAILED", [], repair_result, attempts
+
+
+def parse_with_repair_and_fallback(
+    primary: LLMClient, system_prompt: str, user_prompt: str, candidates: List[str],
+    fallback: Optional[LLMClient] = None, reasoning_effort: Optional[str] = None,
+    max_output_tokens: Optional[int] = None, response_schema: Optional[dict] = None,
+) -> Tuple[List[DecisionUnion], str, List[str], Optional[LLMResult], List[dict]]:
+    """Makes the primary's first call, runs its own retry via `parse_with_repair`, and -- only if
+    the primary raised (after its own HTTP-level backoff) or still failed after its retry -- gives
+    `fallback` exactly one attempt with the original, unmodified prompt. Never touches `fallback`
+    when the primary succeeds, and never gives the primary a third call. Each returned `attempts`
+    entry gains a "fallback_used" key for llm_calls logging."""
+    reasoning_effort = reasoning_effort or settings.LLM_REASONING_EFFORT
+    max_output_tokens = max_output_tokens or settings.LLM_MAX_OUTPUT_TOKENS
+
+    primary_exc = None
+    decisions = status = dropped = final_result = None
+    attempts: List[dict] = []
+    try:
+        first_result = primary.complete(
+            system_prompt, user_prompt, reasoning_effort=reasoning_effort,
+            max_output_tokens=max_output_tokens, response_schema=response_schema,
+        )
+        decisions, status, dropped, final_result, attempts = parse_with_repair(
+            primary, system_prompt, user_prompt, first_result, candidates,
+            reasoning_effort=reasoning_effort, max_output_tokens=max_output_tokens,
+            response_schema=response_schema,
+        )
+    except Exception as exc:
+        primary_exc = exc
+
+    for attempt in attempts:
+        attempt["fallback_used"] = False
+
+    if primary_exc is None and status != "FAILED":
+        return decisions, status, dropped, final_result, attempts
+
+    if fallback is None:
+        if primary_exc is not None:
+            raise primary_exc
+        return decisions, status, dropped, final_result, attempts
+
+    try:
+        fallback_result = fallback.complete(
+            system_prompt, user_prompt, reasoning_effort=reasoning_effort,
+            max_output_tokens=max_output_tokens, response_schema=response_schema,
+        )
+    except Exception as fallback_exc:
+        if primary_exc is not None:
+            raise fallback_exc from primary_exc
+        return decisions, status, dropped, final_result, attempts  # primary's own HOLD-all stands
+
+    if not is_truncated(fallback_result):
+        try:
+            fb_decisions, fb_dropped = parse_decisions(fallback_result.text, candidates)
+            attempts.append({"result": fallback_result, "parse_status": "FALLBACK_SUCCESS", "fallback_used": True})
+            return (
+                fill_missing_with_hold(fb_decisions, candidates), "FALLBACK_SUCCESS", fb_dropped,
+                fallback_result, attempts,
+            )
+        except ParseFailure:
+            pass
+
+    attempts.append({"result": fallback_result, "parse_status": "FAILED", "fallback_used": True})
+    if primary_exc is not None:
+        decisions, status, dropped = _hold_all(candidates), "FAILED", []
+    return decisions, status, dropped, fallback_result, attempts

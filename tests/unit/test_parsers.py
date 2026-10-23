@@ -1,7 +1,8 @@
 """
 Unit tests for agents/parsers.py: clean JSON, code-fenced JSON, the truncation retry (lower
 reasoning effort, higher max tokens, no repair message), the schema-repair retry, double-failure
-HOLD-all, and unknown-ticker dropping. Uses FakeLLMClient only (no network).
+HOLD-all, unknown-ticker dropping, and (day 5a) the primary/fallback orchestration. Uses
+FakeLLMClient only (no network).
 See Plan_v3 §3.3.
 """
 import json
@@ -13,9 +14,10 @@ from agents.parsers import (
     is_truncated,
     parse_decisions,
     parse_with_repair,
+    parse_with_repair_and_fallback,
 )
 from core.schemas import HoldDecision
-from llm.client import FakeLLMClient, LLMResult
+from llm.client import FakeLLMClient, LLMClient, LLMResult
 
 CANDIDATES = ["TATAMOTORS", "RELIANCE"]
 
@@ -167,3 +169,115 @@ def test_fill_missing_with_hold_uses_exact_reason():
     filled = fill_missing_with_hold([], CANDIDATES)
     assert len(filled) == len(CANDIDATES)
     assert all(d.reasoning == NO_DECISION_REASON for d in filled)
+
+
+# --- day 5a: primary/fallback orchestration ---
+
+
+class _RaisingLLMClient(LLMClient):
+    """Simulates a primary whose own HTTP-level retries are already exhausted (a network error,
+    429-after-backoff, or 5xx that escaped _retry_with_backoff)."""
+
+    def __init__(self, exc: Exception):
+        self._exc = exc
+        self.calls = 0
+
+    def complete(self, system, user, reasoning_effort=None, max_output_tokens=None, response_schema=None):
+        self.calls += 1
+        raise self._exc
+
+
+def test_fallback_is_never_called_when_primary_succeeds():
+    primary = FakeLLMClient(responses=[VALID_RESPONSE], provider="groq")
+    fallback = FakeLLMClient(responses=[VALID_RESPONSE], provider="gemini")
+
+    decisions, status, dropped, final_result, attempts = parse_with_repair_and_fallback(
+        primary, "system", "user", CANDIDATES, fallback=fallback,
+    )
+
+    assert status == "SUCCESS"
+    assert len(primary.calls) == 1
+    assert len(fallback.calls) == 0  # never touched
+    assert len(attempts) == 1
+    assert attempts[0]["fallback_used"] is False
+
+
+def test_fallback_answers_after_primary_raises_and_is_logged_as_fallback():
+    primary = _RaisingLLMClient(ConnectionError("network error"))
+    fallback = FakeLLMClient(responses=[VALID_RESPONSE], provider="gemini")
+
+    decisions, status, dropped, final_result, attempts = parse_with_repair_and_fallback(
+        primary, "system", "the original user prompt", CANDIDATES, fallback=fallback,
+    )
+
+    assert status == "FALLBACK_SUCCESS"
+    assert primary.calls == 1
+    assert len(fallback.calls) == 1
+    assert fallback.calls[0]["user"] == "the original user prompt"  # unmodified prompt
+    assert len(attempts) == 1
+    assert attempts[0]["fallback_used"] is True
+    assert attempts[0]["result"].provider == "gemini"
+    tickers = {d.ticker for d in decisions}
+    assert "TATAMOTORS" in tickers
+
+
+def test_fallback_answers_after_primary_double_parse_failure_and_is_logged_as_fallback():
+    primary = FakeLLMClient(responses=["still not json", "still not json"], provider="groq")  # first + retry both bad
+    fallback = FakeLLMClient(responses=[VALID_RESPONSE], provider="gemini")
+
+    decisions, status, dropped, final_result, attempts = parse_with_repair_and_fallback(
+        primary, "system", "user", CANDIDATES, fallback=fallback,
+    )
+
+    assert status == "FALLBACK_SUCCESS"
+    assert len(primary.calls) == 2  # primary used its own full 2-call retry budget first
+    assert len(fallback.calls) == 1  # exactly one fallback attempt
+    assert attempts[-1]["fallback_used"] is True
+    assert attempts[-1]["parse_status"] == "FALLBACK_SUCCESS"
+
+
+def test_both_primary_and_fallback_failing_gives_hold_all():
+    primary = FakeLLMClient(responses=["still not json", "still not json"], provider="groq")
+    fallback = FakeLLMClient(responses=["also not json"], provider="gemini")
+
+    decisions, status, dropped, final_result, attempts = parse_with_repair_and_fallback(
+        primary, "system", "user", CANDIDATES, fallback=fallback,
+    )
+
+    assert status == "FAILED"
+    assert len(decisions) == len(CANDIDATES)
+    assert all(isinstance(d, HoldDecision) for d in decisions)
+    assert attempts[-1]["fallback_used"] is True
+    assert attempts[-1]["parse_status"] == "FAILED"
+
+
+def test_no_fallback_configured_keeps_primary_only_hold_all():
+    primary = FakeLLMClient(responses=["still not json", "still not json"], provider="groq")
+
+    decisions, status, dropped, final_result, attempts = parse_with_repair_and_fallback(
+        primary, "system", "user", CANDIDATES, fallback=None,
+    )
+
+    assert status == "FAILED"
+    assert all(isinstance(d, HoldDecision) for d in decisions)
+    assert all(not a["fallback_used"] for a in attempts)
+
+
+def test_both_primary_and_fallback_raising_chains_the_exception():
+    primary = _RaisingLLMClient(ConnectionError("primary down"))
+    fallback = _RaisingLLMClient(ConnectionError("fallback down"))
+
+    try:
+        parse_with_repair_and_fallback(primary, "system", "user", CANDIDATES, fallback=fallback)
+        assert False, "expected an exception"
+    except ConnectionError as exc:
+        assert str(exc) == "fallback down"
+        assert isinstance(exc.__cause__, ConnectionError)
+        assert str(exc.__cause__) == "primary down"
+
+
+def test_at_most_three_calls_total_across_all_paths():
+    primary = FakeLLMClient(responses=["still not json", "still not json"], provider="groq")
+    fallback = FakeLLMClient(responses=["also not json"], provider="gemini")
+    parse_with_repair_and_fallback(primary, "system", "user", CANDIDATES, fallback=fallback)
+    assert len(primary.calls) + len(fallback.calls) == 3  # 1 + 1 retry + 1 fallback, never more

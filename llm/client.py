@@ -1,8 +1,13 @@
 """
-LLMClient: provider abstraction, retries, and a fallback to a second provider. The model id is
-read from the LLM_MODEL environment variable with no default (raises if unset); API keys are
-read from GROQ_API_KEY/GEMINI_API_KEY and are never printed or logged. Logging each call to
-llm_calls (with agent_id/run_date) is the caller's job (agents/runner.py).
+LLMClient: one provider-agnostic `complete()` call per provider, each with its own HTTP
+retry/backoff. Primary/fallback orchestration (the primary's own truncation/repair retries,
+then one fallback attempt) lives in agents/parsers.py, not here, since it needs the parsed-
+decision outcome to decide whether the primary "still failed". The model id for a given
+provider instance is passed explicitly by the caller (agents/runner.py, from settings.LLM_MODEL
+for the primary or settings.LLM_FALLBACK_MODEL for the fallback); each provider class falls
+back to reading LLM_MODEL itself only when no model id is passed in. API keys are read from
+GROQ_API_KEY/GEMINI_API_KEY and are never printed or logged. Logging each call to llm_calls
+(with agent_id/run_date) is the caller's job (agents/runner.py).
 
 Reasoning-model handling (openai/gpt-oss-120b on Groq, verified against the real API, see
 docs/upstox_findings.md-style day-3c notes): `reasoning_effort` is only accepted by Groq's
@@ -10,6 +15,12 @@ OpenAI-compatible endpoint via `extra_body` -- the installed `groq` SDK (0.24.0)
 kwarg for it. completion_tokens already includes any reasoning tokens; Groq additionally
 reports them separately under usage.completion_tokens_details.reasoning_tokens. A truncated
 reply has finish_reason == "length" (confirmed; content can even come back empty).
+
+Gemini (`google-genai` SDK, verified against the real API): structured output must use
+`response_json_schema` (raw JSON Schema), not `response_schema` (an OpenAPI-3.0 subset that
+rejects our DecisionBatch schema's `additionalProperties: true` in Developer API mode).
+`thinking_config.thinking_budget` controls reasoning (0 off, -1 dynamic, >0 a fixed token
+budget); `usage_metadata.thoughts_token_count` reports it separately from candidates_token_count.
 See Plan_v3 §3.2.
 """
 import os
@@ -45,6 +56,8 @@ class LLMResult:
     model: str
     finish_reason: Optional[str] = None
     reasoning_tokens: Optional[int] = None
+    provider: Optional[str] = None
+    thinking_tokens: Optional[int] = None
 
 
 class LLMClient(ABC):
@@ -63,10 +76,11 @@ class FakeLLMClient(LLMClient):
     Each scripted response is either a plain string (finish_reason='stop') or a dict
     {"text", "finish_reason", "reasoning_tokens"} for simulating truncation etc."""
 
-    def __init__(self, responses: Optional[List] = None, model: str = "fake-model"):
+    def __init__(self, responses: Optional[List] = None, model: str = "fake-model", provider: str = "fake"):
         self._responses = list(responses) if responses else []
         self.calls = []
         self._model = model
+        self._provider = provider
 
     def complete(self, system: str, user: str, reasoning_effort: Optional[str] = None,
                  max_output_tokens: Optional[int] = None, response_schema: Optional[dict] = None) -> LLMResult:
@@ -79,11 +93,13 @@ class FakeLLMClient(LLMClient):
             text = item.get("text", "")
             finish_reason = item.get("finish_reason", "stop")
             reasoning_tokens = item.get("reasoning_tokens")
+            thinking_tokens = item.get("thinking_tokens")
         else:
-            text, finish_reason, reasoning_tokens = item, "stop", None
+            text, finish_reason, reasoning_tokens, thinking_tokens = item, "stop", None, None
         return LLMResult(
             text=text, tokens_in=len(system) + len(user), tokens_out=len(text), latency_ms=0,
             model=self._model, finish_reason=finish_reason, reasoning_tokens=reasoning_tokens,
+            provider=self._provider, thinking_tokens=thinking_tokens,
         )
 
 
@@ -99,6 +115,16 @@ def _require_env(name: str) -> str:
     value = os.environ.get(name)
     if not value:
         raise LLMConfigError(f"{name} is not set in the environment; cannot construct an LLM provider.")
+    return value
+
+
+def require_setting(value: str, name: str) -> str:
+    """Raises a clear LLMConfigError naming `name` if a settings value (e.g. LLM_MODEL for the
+    primary provider, LLM_FALLBACK_MODEL for the fallback) is missing. Needed because a provider
+    class's own model requirement always checks LLM_MODEL regardless of which role it is being
+    constructed for; the caller must check the role-specific setting itself."""
+    if not value:
+        raise LLMConfigError(f"{name} is not set; cannot construct an LLM provider.")
     return value
 
 
@@ -167,62 +193,86 @@ class GroqProvider(LLMClient):
                 model=resp.model,
                 finish_reason=resp.choices[0].finish_reason,
                 reasoning_tokens=reasoning_tokens,
+                provider="groq",
             )
 
         return _retry_with_backoff(_call, self._max_retries, self._backoff_base_sec, self._sleep)
 
 
+_GEMINI_FINISH_REASON_MAP = {"STOP": "stop", "MAX_TOKENS": "length"}
+
+
 class GeminiProvider(LLMClient):
-    """Google's Gemini API via the official `google-generativeai` SDK."""
+    """Google's Gemini API via the official `google-genai` SDK (the new unified client, not the
+    older `google.generativeai`). Structured output uses `response_json_schema` (accepts a raw
+    JSON Schema, including $defs/discriminated unions/`additionalProperties: true`) rather than
+    `response_schema` (an OpenAPI-3.0 subset that rejects `additionalProperties` in Developer API
+    mode) -- confirmed empirically against the real API with our actual DecisionBatch schema."""
 
     def __init__(self, model: str = None, api_key: str = None, max_retries: int = 3,
-                 backoff_base_sec: float = 1.0, sleep_func=time.sleep):
-        import google.generativeai as genai
-        from google.api_core import exceptions as gexc
+                 backoff_base_sec: float = 1.0, sleep_func=time.sleep,
+                 thinking_budget: Optional[int] = None):
+        from google import genai
+        from google.genai import errors as gerrors
+        from google.genai import types as gtypes
 
         self._model_name = model or _require_env("LLM_MODEL")
-        genai.configure(api_key=api_key or _require_env("GEMINI_API_KEY"))
-        self._genai = genai
-        self._retryable_exc = (gexc.ResourceExhausted, gexc.ServiceUnavailable,
-                                gexc.InternalServerError, gexc.DeadlineExceeded)
+        self._client = genai.Client(api_key=api_key or _require_env("GEMINI_API_KEY"))
+        self._types = gtypes
+        self._gerrors = gerrors
+        self._thinking_budget = (
+            thinking_budget if thinking_budget is not None else settings.LLM_GEMINI_THINKING_BUDGET
+        )
         self._max_retries = max_retries
         self._backoff_base_sec = backoff_base_sec
         self._sleep = sleep_func
 
     def complete(self, system: str, user: str, reasoning_effort: Optional[str] = None,
                  max_output_tokens: Optional[int] = None, response_schema: Optional[dict] = None) -> LLMResult:
+        types = self._types
         max_tokens = max_output_tokens or settings.LLM_MAX_OUTPUT_TOKENS
-        generation_config = {"temperature": settings.LLM_TEMPERATURE, "max_output_tokens": max_tokens}
+        config_kwargs = dict(
+            system_instruction=system,
+            temperature=settings.LLM_TEMPERATURE,
+            max_output_tokens=max_tokens,
+            thinking_config=types.ThinkingConfig(thinking_budget=self._thinking_budget),
+        )
         if response_schema is not None:
-            generation_config["response_mime_type"] = "application/json"
-            generation_config["response_schema"] = response_schema
+            config_kwargs["response_mime_type"] = "application/json"
+            config_kwargs["response_json_schema"] = response_schema
+        config = types.GenerateContentConfig(**config_kwargs)
 
         def _call():
             start = time.monotonic()
-            model = self._genai.GenerativeModel(self._model_name, system_instruction=system)
             try:
-                resp = model.generate_content(user, generation_config=generation_config)
-            except self._retryable_exc as exc:
+                resp = self._client.models.generate_content(model=self._model_name, contents=user, config=config)
+            except self._gerrors.ServerError as exc:
                 raise _RetryableError(str(exc)) from exc
+            except self._gerrors.ClientError as exc:
+                if getattr(exc, "code", None) == 429:
+                    raise _RetryableError(str(exc)) from exc
+                raise
             latency_ms = int((time.monotonic() - start) * 1000)
             usage = resp.usage_metadata
             finish_reason = None
             if resp.candidates:
                 raw = getattr(resp.candidates[0], "finish_reason", None)
-                name = getattr(raw, "name", str(raw)) if raw is not None else None
-                finish_reason = {"STOP": "stop", "MAX_TOKENS": "length"}.get(name, (name or "").lower() or None)
+                name = getattr(raw, "name", None) or getattr(raw, "value", None) or (str(raw) if raw else None)
+                finish_reason = _GEMINI_FINISH_REASON_MAP.get(name, "other" if name else None)
             try:
                 text = resp.text
             except Exception:
                 text = ""
             return LLMResult(
                 text=text or "",
-                tokens_in=usage.prompt_token_count,
-                tokens_out=usage.candidates_token_count,
+                tokens_in=usage.prompt_token_count or 0,
+                tokens_out=usage.candidates_token_count or 0,
                 latency_ms=latency_ms,
                 model=self._model_name,
                 finish_reason=finish_reason,
                 reasoning_tokens=None,
+                provider="gemini",
+                thinking_tokens=usage.thoughts_token_count,
             )
 
         return _retry_with_backoff(_call, self._max_retries, self._backoff_base_sec, self._sleep)
@@ -240,22 +290,3 @@ def build_provider(name: str, **kwargs) -> LLMClient:
     except KeyError:
         raise LLMConfigError(f"Unknown LLM provider {name!r}; expected one of {sorted(_PROVIDERS)}") from None
     return provider_cls(**kwargs)
-
-
-class FallbackLLMClient(LLMClient):
-    """Tries `primary`; if it raises, tries `fallback`. Raises the fallback's exception (chained
-    to the primary's) if both fail."""
-
-    def __init__(self, primary: LLMClient, fallback: LLMClient):
-        self._primary = primary
-        self._fallback = fallback
-
-    def complete(self, system: str, user: str, reasoning_effort: Optional[str] = None,
-                 max_output_tokens: Optional[int] = None, response_schema: Optional[dict] = None) -> LLMResult:
-        try:
-            return self._primary.complete(system, user, reasoning_effort, max_output_tokens, response_schema)
-        except Exception as primary_exc:
-            try:
-                return self._fallback.complete(system, user, reasoning_effort, max_output_tokens, response_schema)
-            except Exception as fallback_exc:
-                raise fallback_exc from primary_exc
