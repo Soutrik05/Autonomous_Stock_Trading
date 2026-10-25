@@ -224,6 +224,10 @@ def run_one_agent(
     dry_run: bool = False, force: bool = False, no_orders: bool = False,
     fallback_client: Optional[LLMClient] = None,
 ) -> dict:
+    if agent_id == "baseline-simons-rules":
+        from baselines.simons_rules import run_baseline_simons
+        return run_baseline_simons(run_date, clock, portfolio_conn, dry_run=dry_run, force=force, no_orders=no_orders)
+
     persona = get_persona(agent_id)
 
     if not dry_run:
