@@ -71,7 +71,7 @@ def run(clock: Clock = None, client=None, date_str: str = None, limit: int = Non
         run_client = client or UpstoxClient()
         try:
             sync_ohlcv(run_client, clock, ohlcv_conn=ohlcv_conn, portfolio_conn=conn, limit=limit)
-            sync_macro(run_client, clock, macro_conn=macro_conn, portfolio_conn=conn)
+            sync_macro(run_client, clock, macro_conn=macro_conn, portfolio_conn=conn, as_of_date=run_date_str)
         except Exception as exc:  # noqa: BLE001 - a failed nightly job must still write FAILED, not crash the process
             _finish_run(conn, run_date_str, "FAILED", clock, detail=str(exc)[:500])
             return "FAILED"

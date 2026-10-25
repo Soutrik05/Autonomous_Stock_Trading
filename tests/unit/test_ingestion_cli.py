@@ -91,3 +91,32 @@ def test_cli_runs_and_succeeds_on_a_trading_day():
     assert row["status"] == "SUCCESS"
     assert row["started_at"] is not None
     assert row["finished_at"] is not None
+
+
+def test_cli_runs_with_explicit_date_str_records_macro_for_that_date():
+    conn = make_db()
+    conn.execute(
+        "INSERT INTO symbols (ticker, instrument_key, isin, company_name, sector, is_active) "
+        "VALUES ('TATAMOTORS', 'NSE_EQ|KEY1', 'ISIN0000000', 'Test Co', 'Test Sector', 1)"
+    )
+    # Clock says Monday Oct 19, but we pass date_str for Friday Oct 16
+    clock = FakeClock(datetime(2026, 10, 19, 20, 0, 0))
+    client = FakeClient()
+    ohlcv_conn = sqlite3.connect(":memory:")
+    ohlcv_conn.row_factory = sqlite3.Row
+    ensure_ohlcv_schema(ohlcv_conn)
+    macro_conn = sqlite3.connect(":memory:")
+    macro_conn.row_factory = sqlite3.Row
+    ensure_macro_schema(macro_conn)
+
+    status = run(
+        clock=clock, client=client, date_str="2026-10-16", portfolio_conn=conn,
+        ohlcv_conn=ohlcv_conn, macro_conn=macro_conn,
+    )
+    assert status == "SUCCESS"
+    macro_row = macro_conn.execute(
+        "SELECT trade_date, india_vix FROM macro_daily WHERE trade_date = '2026-10-16'"
+    ).fetchone()
+    assert macro_row is not None
+    assert macro_row["trade_date"] == "2026-10-16"
+    assert macro_row["india_vix"] == 13.5

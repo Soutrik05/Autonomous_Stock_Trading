@@ -47,8 +47,8 @@ def compute_regime(india_vix: float) -> str:
 
 
 def sync_macro(client, clock: Clock, macro_conn: sqlite3.Connection = None,
-               portfolio_conn: sqlite3.Connection = None) -> dict:
-    """Fetches India VIX and writes one macro_daily row for clock.today(). Returns the row
+               portfolio_conn: sqlite3.Connection = None, as_of_date: str = None) -> dict:
+    """Fetches India VIX and writes one macro_daily row for as_of_date (default: clock.today()). Returns the row
     written, as a dict."""
     owns_macro = macro_conn is None
     owns_portfolio = portfolio_conn is None
@@ -58,15 +58,15 @@ def sync_macro(client, clock: Clock, macro_conn: sqlite3.Connection = None,
     if portfolio_conn is None:
         portfolio_conn = get_connection(settings.PORTFOLIO_DB_PATH)
     try:
-        today: date = clock.today()
-        market_closed = 0 if is_trading_day(portfolio_conn, today) else 1
+        target_date: date = date.fromisoformat(as_of_date) if as_of_date else clock.today()
+        market_closed = 0 if is_trading_day(portfolio_conn, target_date) else 1
 
         vix_quote = client.get_india_vix()
         india_vix = vix_quote.get("last_price") if vix_quote else None
         regime = compute_regime(india_vix) if india_vix is not None else "UNKNOWN"
 
         row = {
-            "trade_date": today.isoformat(),
+            "trade_date": target_date.isoformat(),
             "regime": regime,
             "india_vix": india_vix,
             "fii_net_cr": None,

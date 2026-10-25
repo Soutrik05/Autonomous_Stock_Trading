@@ -134,19 +134,47 @@ def test_force_rerun_cancels_a_merely_pending_order_and_proceeds():
     run(["simons"], as_of_date=RUN_DATE, clock=clock, portfolio_conn=conn, ohlcv_conn=ohlcv,
         llm_client=FakeLLMClient(responses=[HOLD_RESPONSE]), fake_llm=True)
     decision_id = conn.execute("SELECT id FROM decisions LIMIT 1").fetchone()["id"]
-    conn.execute(
+    cur = conn.execute(
         "INSERT INTO pending_orders (agent_id, ticker, side, shares, reserved_amount_paise, "
         "decision_id, status, valid_for_date, created_at, updated_at) "
         "VALUES ('simons', 'TATAMOTORS', 'BUY', 10, 100000, ?, 'pending', '2026-10-17', ?, ?)",
         (decision_id, NOW, NOW),
     )
+    order_id = cur.lastrowid
 
     second = run(["simons"], as_of_date=RUN_DATE, clock=clock, portfolio_conn=conn, ohlcv_conn=ohlcv,
                  llm_client=FakeLLMClient(responses=[HOLD_RESPONSE]), fake_llm=True, force=True)
     assert second["simons"]["status"] == "SUCCESS"
-    # cancel_pending_for_run must have cancelled the old order before decisions were deleted.
-    old_order = conn.execute("SELECT status FROM pending_orders WHERE decision_id = ?", (decision_id,)).fetchone()
+    # cancel_pending_for_run cancelled the order, and _delete_decisions cleared decision_id to satisfy FK
+    old_order = conn.execute("SELECT status, decision_id FROM pending_orders WHERE id = ?", (order_id,)).fetchone()
     assert old_order["status"] == "cancelled"
+    assert old_order["decision_id"] is None
+
+
+def test_force_rerun_with_already_cancelled_order_succeeds_without_fk_error():
+    conn = make_portfolio_db()
+    ohlcv = make_ohlcv_db()
+    seed(conn, ohlcv)
+    clock = FakeClock(datetime(2026, 10, 16, 22, 0, 0))
+
+    run(["simons"], as_of_date=RUN_DATE, clock=clock, portfolio_conn=conn, ohlcv_conn=ohlcv,
+        llm_client=FakeLLMClient(responses=[HOLD_RESPONSE]), fake_llm=True)
+    decision_id = conn.execute("SELECT id FROM decisions LIMIT 1").fetchone()["id"]
+    cur = conn.execute(
+        "INSERT INTO pending_orders (agent_id, ticker, side, shares, reserved_amount_paise, "
+        "decision_id, status, valid_for_date, created_at, updated_at) "
+        "VALUES ('simons', 'TATAMOTORS', 'BUY', 10, 100000, ?, 'cancelled', '2026-10-17', ?, ?)",
+        (decision_id, NOW, NOW),
+    )
+    order_id = cur.lastrowid
+
+    # Redoing with --force should succeed without sqlite3.IntegrityError: FOREIGN KEY constraint failed
+    second = run(["simons"], as_of_date=RUN_DATE, clock=clock, portfolio_conn=conn, ohlcv_conn=ohlcv,
+                 llm_client=FakeLLMClient(responses=[HOLD_RESPONSE]), fake_llm=True, force=True)
+    assert second["simons"]["status"] == "SUCCESS"
+    order = conn.execute("SELECT status, decision_id FROM pending_orders WHERE id = ?", (order_id,)).fetchone()
+    assert order["status"] == "cancelled"
+    assert order["decision_id"] is None
 
 
 def test_llm_calls_row_records_finish_reason():

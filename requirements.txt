@@ -1,5 +1,4 @@
 # Core
-yfinance
 pandas
 numpy
 python-dotenv
@@ -27,9 +26,5 @@ feedparser
 rapidfuzz
 requests
 
-# Technical Agent 
-growwapi
-
 # Fundamental Agent
 requests
-beautifulsoup4

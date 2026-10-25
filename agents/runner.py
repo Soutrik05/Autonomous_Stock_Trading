@@ -94,6 +94,23 @@ def _any_order_is_filled(conn, agent_id: str, run_date: str) -> bool:
 
 
 def _delete_decisions(conn, agent_id: str, run_date: str) -> None:
+    decision_rows = conn.execute(
+        "SELECT id FROM decisions WHERE agent_id = ? AND run_date = ?", (agent_id, run_date)
+    ).fetchall()
+    if not decision_rows:
+        return
+    placeholders = ",".join("?" * len(decision_rows))
+    dids = [r["id"] for r in decision_rows]
+
+    conn.execute(
+        f"UPDATE pending_orders SET decision_id = NULL WHERE decision_id IN ({placeholders})", dids
+    )
+    conn.execute(
+        f"DELETE FROM forward_returns WHERE decision_id IN ({placeholders})", dids
+    )
+    conn.execute(
+        f"DELETE FROM heuristic_applications WHERE decision_id IN ({placeholders})", dids
+    )
     conn.execute("DELETE FROM decisions WHERE agent_id = ? AND run_date = ?", (agent_id, run_date))
 
 

@@ -18,6 +18,7 @@ def make_portfolio_db() -> sqlite3.Connection:
     transactions require it; the default (implicit-transaction) mode would raise 'cannot start a
     transaction within a transaction'."""
     conn = sqlite3.connect(":memory:", isolation_level=None)
+    conn.execute("PRAGMA foreign_keys=ON")
     conn.row_factory = sqlite3.Row
     conn.executescript(_SCHEMA_PATH.read_text(encoding="utf-8"))
     for path in sorted(_MIGRATIONS_DIR.glob("*.sql")):
