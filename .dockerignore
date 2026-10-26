@@ -1,0 +1,32 @@
+# Git
+.git
+.gitignore
+
+# Python cache & virtual environments
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+.pytest_cache/
+
+# Local databases and runtime state (mounted as external volumes at runtime)
+data/*.db
+data/*.db-shm
+data/*.db-wal
+state/*.db
+state/*.db-shm
+state/*.db-wal
+state/backups/
+
+# Secrets (injected at runtime via --env-file or environment variables)
+.env
+*.env.local
+
+# Legacy reference files and editor configs
+_legacy_reference/
+.idea/
+.vscode/

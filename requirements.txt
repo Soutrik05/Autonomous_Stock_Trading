@@ -2,6 +2,16 @@
 pandas
 numpy
 python-dotenv
+apscheduler
+pydantic
+requests
+httpx
+rapidfuzz
+openpyxl
+
+# LLM Providers
+groq
+google-genai
 
 # LangChain / LangGraph
 langchain
@@ -9,22 +19,11 @@ langchain-core
 langchain-groq
 langgraph
 
-# RAG 
+# RAG & Embeddings
 faiss-cpu
 sentence-transformers
 feedparser
-
-# LLM inference
-groq
-google-genai
-pydantic
-
-# News agent (FinBERT)
 transformers
-openpyxl
-feedparser
-rapidfuzz
-requests
 
-# Fundamental Agent
-requests
+# Testing
+pytest
