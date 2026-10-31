@@ -11,13 +11,14 @@ import sqlite3
 
 from agents.runner import run as run_agents
 from broker.engine import Broker
-from core.build_features import run as run_build_features
+from features.builder import run as run_build_features
 from core.clock import FakeClock
 from core.money import rupees_to_paise
 from ingestion.cli import run as run_ingestion
 from llm.client import FakeLLMClient
-from precompute.watchlist_refresh import run as run_watchlist_refresh
+from watchlist.watchlist_refresh import run as run_watchlist_refresh
 from scripts.backup import backup_portfolio_db
+from tests.conftest import make_passing_simons_features
 
 RUN_DATE = "2026-10-19"
 
@@ -77,15 +78,20 @@ def test_nightly_pipeline_batch_flow(
     # Here we set rsi_14, macd_hist, and volume_surge so downstream filters (watchlist & Simons rules)
     # naturally produce BUY candidates.
     raw_feats = json.loads(snapshot["features_json"])
-    raw_feats["close"] = 1000.0
-    raw_feats["ema_20"] = 990.0
-    raw_feats["ema_50"] = 980.0
-    raw_feats["ema_200"] = 950.0
-    raw_feats["ema_20_above_50"] = True
-    raw_feats["rsi_14"] = 62.4
-    raw_feats["macd_hist"] = 2.0
-    raw_feats["volume_surge"] = 1.5
-    raw_feats["atr_14"] = 20.0
+    raw_feats.update(
+        make_passing_simons_features(
+            close=1000.0,
+            ema_20=990.0,
+            ema_50=980.0,
+            ema_200=950.0,
+            rsi_14=62.4,
+            macd_hist=2.0,
+            volume_surge=1.5,
+            atr_14=20.0,
+            adx_14=25.0,
+            kaufman_er_20=0.45,
+        )
+    )
     portfolio_conn.execute(
         "UPDATE feature_snapshots SET features_json = ? WHERE ticker = 'TATAMOTORS' AND as_of_date = ?",
         (json.dumps(raw_feats), RUN_DATE),
@@ -134,7 +140,7 @@ def test_nightly_pipeline_batch_flow(
     # Step 5: 22:00 IST - Agent runner (Simons with FakeLLM + Baseline Simons Rules)
     # LLM is scripted only for "simons"; "baseline-simons-rules" executes pure Python rules with zero LLM calls.
     # All monetary amounts are handled strictly in integer paise via core.money helpers.
-    simons_shares = 10
+    simons_shares = 8
     simons_entry_low_paise = rupees_to_paise(995.0)
     simons_entry_high_paise = rupees_to_paise(1005.0)
     simons_stop_paise = rupees_to_paise(960.0)

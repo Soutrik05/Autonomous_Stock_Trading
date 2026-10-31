@@ -4,10 +4,17 @@ prompt budgets, funnel and learning thresholds.
 See Plan_v3 §Settings.
 """
 import os
+import sys
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Dict, List
 
 from dotenv import load_dotenv
+
+# Ensure 'src' directory is in sys.path for all modules and scripts
+_SRC_DIR = Path(__file__).resolve().parent / "src"
+if _SRC_DIR.is_dir() and str(_SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(_SRC_DIR))
 
 load_dotenv()  # loads .env into the environment once; safe to call even if .env is absent
 
@@ -67,15 +74,21 @@ class Settings:
     MAX_SECTOR_PCT_OF_ACCOUNT: float = 25.0
 
     # --- LLM providers (§3.2) ---
-    LLM_PROVIDER: str = os.environ.get("LLM_PROVIDER", "groq")
-    LLM_MODEL: str = os.environ.get("LLM_MODEL", "")
-    LLM_FALLBACK_PROVIDER: str = os.environ.get("LLM_FALLBACK_PROVIDER", "gemini")
-    LLM_FALLBACK_MODEL: str = os.environ.get("LLM_FALLBACK_MODEL", "")
+    LLM_PROVIDER: str = os.environ.get("LLM_PROVIDER", "gemini")
+    LLM_MODEL: str = os.environ.get("LLM_MODEL", "gemini-3.5-flash-lite")
+    LLM_FALLBACK_PROVIDER: str = os.environ.get("LLM_FALLBACK_PROVIDER", "groq")
+    LLM_FALLBACK_MODEL: str = os.environ.get("LLM_FALLBACK_MODEL", "llama-3.3-70b-versatile")
     LLM_REASONING_EFFORT: str = os.environ.get("LLM_REASONING_EFFORT", "low")
     LLM_MAX_OUTPUT_TOKENS: int = int(os.environ.get("LLM_MAX_OUTPUT_TOKENS", "4000"))
     LLM_TEMPERATURE: float = float(os.environ.get("LLM_TEMPERATURE", "0.2"))
     # 0 = thinking off, -1 = dynamic/model-chosen budget, >0 = a fixed token budget (Gemini only).
     LLM_GEMINI_THINKING_BUDGET: int = int(os.environ.get("LLM_GEMINI_THINKING_BUDGET", "1024"))
+
+    # --- Reflection LLM providers ---
+    REFLECTION_LLM_PROVIDER: str = os.environ.get("REFLECTION_LLM_PROVIDER", "gemini")
+    REFLECTION_LLM_MODEL: str = os.environ.get("REFLECTION_LLM_MODEL", "gemini-3.8-flash")
+    REFLECTION_LLM_FALLBACK_PROVIDER: str = os.environ.get("REFLECTION_LLM_FALLBACK_PROVIDER", "groq")
+    REFLECTION_LLM_FALLBACK_MODEL: str = os.environ.get("REFLECTION_LLM_FALLBACK_MODEL", "openai/gpt-oss-120b")
 
     # --- Prompts (§3.2) ---
     MAX_CANDIDATES_PER_RUN: int = 10
@@ -95,7 +108,7 @@ class Settings:
 
     # --- Learning (§5) ---
     MIN_CLOSED_TRADES_FOR_REFLECTION: int = 3
-    FORWARD_HORIZONS: List[int] = field(default_factory=lambda: [1, 5, 10, 20])
+    FORWARD_HORIZONS: List[int] = field(default_factory=lambda: [1, 5, 8, 10, 20, 60, 90, 120])
     HEURISTIC_ACTIVE_MIN_APPLICATIONS: int = 3
     HEURISTIC_ACTIVE_MIN_SUCCESS_RATE: float = 0.6
     HEURISTIC_REINFORCED_MIN_APPLICATIONS: int = 10
@@ -117,10 +130,14 @@ class Settings:
 
     # --- Paths ---
     TIMEZONE: str = "Asia/Kolkata"
-    PORTFOLIO_DB_PATH: str = os.environ.get("PORTFOLIO_DB_PATH", "state/portfolio.db")
-    MARKET_DB_DIR: str = os.environ.get("MARKET_DB_DIR", "data")
-    OHLCV_DB_PATH: str = os.environ.get("OHLCV_DB_PATH", "data/ohlcv.db")
-    MACRO_DB_PATH: str = os.environ.get("MACRO_DB_PATH", "data/macro.db")
+    PORTFOLIO_DB_PATH: str = os.environ.get("PORTFOLIO_DB_PATH", "storage/ledger/portfolio.db")
+    MARKET_DB_DIR: str = os.environ.get("MARKET_DB_DIR", "storage/market")
+    OHLCV_DB_PATH: str = os.environ.get("OHLCV_DB_PATH", "storage/market/ohlcv.db")
+    MACRO_DB_PATH: str = os.environ.get("MACRO_DB_PATH", "storage/market/macro.db")
+    FUNDAMENTAL_DB_PATH: str = os.environ.get("FUNDAMENTAL_DB_PATH", "storage/market/fundamental.db")
+    NEWS_DB_PATH: str = os.environ.get("NEWS_DB_PATH", "storage/market/news.db")
+    BACKUP_DIR: str = os.environ.get("BACKUP_DIR", "backups")
+    FUNDAMENTAL_REFETCH_DAYS: int = 14
     DB_BUSY_TIMEOUT_MS: int = 5000
     UPSTOX_BASE_URL: str = "https://api.upstox.com"
 

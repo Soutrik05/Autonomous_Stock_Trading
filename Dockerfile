@@ -6,7 +6,8 @@ FROM python:3.11-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    TZ=Asia/Kolkata
+    TZ=Asia/Kolkata \
+    PYTHONPATH=/app/src:/app
 
 WORKDIR /app
 
@@ -23,8 +24,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy codebase
 COPY . .
 
-# Ensure state and data persistence directories exist
-RUN mkdir -p data state/backups
+# Ensure storage and backups persistence directories exist
+RUN mkdir -p storage/market storage/ledger backups
 
 # Default entrypoint: persistent APScheduler
 CMD ["python", "scheduler.py"]

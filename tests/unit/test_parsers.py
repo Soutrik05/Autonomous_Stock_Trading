@@ -10,13 +10,15 @@ import json
 from agents.parsers import (
     DOUBLE_FAILURE_REASON,
     NO_DECISION_REASON,
+    calibrate_buy_decision,
+    calibrate_decisions,
     fill_missing_with_hold,
     is_truncated,
     parse_decisions,
     parse_with_repair,
     parse_with_repair_and_fallback,
 )
-from core.schemas import HoldDecision
+from core.schemas import BuyDecision, HoldDecision
 from llm.client import FakeLLMClient, LLMClient, LLMResult
 
 CANDIDATES = ["TATAMOTORS", "RELIANCE"]
@@ -281,3 +283,104 @@ def test_at_most_three_calls_total_across_all_paths():
     fallback = FakeLLMClient(responses=["also not json"], provider="gemini")
     parse_with_repair_and_fallback(primary, "system", "user", CANDIDATES, fallback=fallback)
     assert len(primary.calls) + len(fallback.calls) == 3  # 1 + 1 retry + 1 fallback, never more
+
+
+def test_calibrate_buy_decision_widens_tight_stop_and_resizes_shares():
+    buy = BuyDecision(
+        ticker="TATAMOTORS", action="BUY", shares=100,
+        entry_low=200.0, entry_high=205.0,
+        stop_loss_price=198.0, target_price=230.0,  # distance = 2.0
+        pre_mortem_risk="slowdown", reasoning="uptrend",
+    )
+    # ATR = 5.0. Min mult = 2.0 -> min stop dist = 10.0. Clamped stop = 190.0.
+    # Risk per share = 205.0 - 190.0 = 15.0.
+    # Account = 100,000:
+    # 1% risk = 1,000 -> max shares by risk = 1000 // 15 = 66.
+    # 20% position = 20,000 -> max shares by position = 20000 // 205 = 97.
+    # Expected shares = min(100, 66, 97) = 66.
+    calibrated = calibrate_buy_decision(
+        buy, atr_14=5.0, min_atr_multiplier=2.0, account_value_rupees=100000.0, max_risk_pct=1.0,
+    )
+    assert calibrated.stop_loss_price == 190.0
+    assert calibrated.shares == 66
+
+
+def test_calibrate_buy_decision_leaves_adequate_stop():
+    buy = BuyDecision(
+        ticker="TATAMOTORS", action="BUY", shares=20,
+        entry_low=200.0, entry_high=205.0,
+        stop_loss_price=185.0, target_price=230.0,  # distance = 15.0
+        pre_mortem_risk="slowdown", reasoning="uptrend",
+    )
+    # ATR = 5.0. Min mult = 2.0 -> min stop dist = 10.0. 15.0 >= 10.0 -> no stop change (remains 185.0).
+    # Risk per share = 205.0 - 185.0 = 20.0.
+    # Max shares by risk = 1000 // 20 = 50. Position cap = 20000 // 205 = 97.
+    # Since original shares (20) <= 50 and <= 97, shares remain 20.
+    calibrated = calibrate_buy_decision(
+        buy, atr_14=5.0, min_atr_multiplier=2.0, account_value_rupees=100000.0, max_risk_pct=1.0,
+    )
+    assert calibrated.stop_loss_price == 185.0
+    assert calibrated.shares == 20
+
+
+def test_calibrate_buy_decision_handles_missing_atr():
+    buy = BuyDecision(
+        ticker="TATAMOTORS", action="BUY", shares=15,
+        entry_low=1000.0, entry_high=1010.0,
+        stop_loss_price=980.0, target_price=1100.0,
+        pre_mortem_risk="slowdown", reasoning="uptrend",
+    )
+    calibrated = calibrate_buy_decision(buy, atr_14=None, min_atr_multiplier=2.0, account_value_rupees=100000.0)
+    assert calibrated.stop_loss_price == 980.0
+    assert calibrated.shares == 15
+
+
+def test_calibrate_decisions_batch():
+    buy1 = BuyDecision(
+        ticker="TATAMOTORS", action="BUY", shares=50,
+        entry_low=1000.0, entry_high=1010.0,
+        stop_loss_price=990.0, target_price=1100.0,
+        pre_mortem_risk="risk1", reasoning="reason1",
+    )
+    hold = HoldDecision(ticker="INFY", action="HOLD", reasoning="sideways")
+    features = {
+        "TATAMOTORS": {"atr_14": 20.0},
+        "INFY": {"atr_14": 15.0},
+    }
+    calibrated = calibrate_decisions([buy1, hold], features, min_atr_multiplier=1.5, account_value_rupees=100000.0)
+    assert len(calibrated) == 2
+    # 1.5 * 20 = 30.0 -> stop = 1000 - 30 = 970.0.
+    assert calibrated[0].stop_loss_price == 970.0
+    assert isinstance(calibrated[1], HoldDecision)
+
+
+def test_counterfactual_buy_and_fidelity_score():
+    from agents.parsers import calculate_counterfactual_buy, compute_sizing_fidelity_score
+
+    buy = BuyDecision(
+        ticker="TATAMOTORS", action="BUY", shares=25,
+        entry_low=1000.0, entry_high=1005.0,
+        stop_loss_price=980.0, target_price=1080.0,
+        pre_mortem_risk="risk", reasoning="reason",
+    )
+    # atr=20.0, min_atr_multiplier=1.5 -> stop=1000 - 30 = 970.0 (stop_dist = 1005 - 970 = 35.0)
+    # account_value=100,000, target_risk_pct=0.75% -> risk_budget=750 Rs
+    # shares_by_risk = 750 // 35 = 21 shares
+    # position_cap = 10% of 100,000 = 10,000 Rs // 1005 = 9 shares
+    # shares = min(21, 9) = 9 shares
+    cf_shares, cf_stop_p, cf_target_p = calculate_counterfactual_buy(
+        buy, atr_14=20.0, account_value_rupees=100000.0,
+        min_atr_multiplier=1.5, target_risk_pct=0.75, max_position_pct=10.0,
+    )
+    assert cf_shares == 9
+    assert cf_stop_p == 97000
+    assert cf_target_p == 106500  # 1005 + 3*20 = 1065.0 -> 106500 paise
+
+    # Exact match -> fidelity 1.0
+    assert compute_sizing_fidelity_score(9, 9) == 1.0
+    # LLM output 12 shares vs 9 expected -> diff = 3 -> 1 - (3/9) = 0.6667
+    assert compute_sizing_fidelity_score(12, 9) == 0.6667
+    # 0 or negative -> 0.0
+    assert compute_sizing_fidelity_score(0, 9) == 0.0
+
+

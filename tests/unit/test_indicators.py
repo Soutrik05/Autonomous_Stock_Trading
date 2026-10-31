@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from technical import add_indicators, atr_wilder, ema, rsi_wilder
+from features.indicators import add_indicators, atr_wilder, ema, rsi_wilder
 
 
 def make_df(closes, highs=None, lows=None, volumes=None):
@@ -77,8 +77,28 @@ def test_add_indicators_produces_every_expected_column():
         "ema_20", "ema_50", "ema_200", "ema_20_above_50", "rsi_14", "macd_hist",
         "atr_14", "adx_14", "volume_surge", "obv", "obv_slope_sign",
         "dist_52w_high_pct", "dist_52w_low_pct",
+        "kaufman_er_20", "zscore_close_20", "parkinson_vol_ratio", "skew_60",
     ]:
         assert col in enriched.columns
+
+
+def test_quant_indicators_values():
+    # Strictly monotonically increasing series: KER should be exactly 1.0
+    closes = [100.0 + i for i in range(100)]
+    highs = [c + 1.0 for c in closes]
+    lows = [c - 1.0 for c in closes]
+    df = make_df(closes, highs=highs, lows=lows)
+    enriched = add_indicators(df)
+    tail = enriched.iloc[-1]
+
+    # KER on monotonic trend = 1.0
+    assert tail["kaufman_er_20"] == pytest.approx(1.0, abs=1e-4)
+    # Z-score on strong monotonic trend is positive
+    assert tail["zscore_close_20"] > 1.5
+    # Parkinson volatility is positive
+    assert tail["parkinson_vol_ratio"] > 0.0
+    # Skewness is finite
+    assert np.isfinite(tail["skew_60"])
 
 
 def test_dist_52w_high_is_never_positive_and_low_never_negative():

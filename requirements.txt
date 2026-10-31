@@ -13,17 +13,18 @@ openpyxl
 groq
 google-genai
 
-# LangChain / LangGraph
-langchain
-langchain-core
-langchain-groq
-langgraph
+# # LangChain / LangGraph
+# langchain
+# langchain-core
+# langchain-groq
+# langgraph
 
-# RAG & Embeddings
-faiss-cpu
-sentence-transformers
-feedparser
+# NLP & Sentiment
+torch
 transformers
+# faiss-cpu
+# sentence-transformers
+# feedparser
 
 # Testing
 pytest

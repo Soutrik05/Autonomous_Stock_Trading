@@ -126,11 +126,177 @@ class MockUpstoxClient:
             "NSE_INDEX:India VIX": {"last_price": 14.5, "symbol": "India VIX"},
         }
 
+    def get_intraday_daily_candle(self, instrument_key: str):
+        return [["2026-10-19T15:30:00+05:30", 1000.0, 1010.0, 990.0, 1000.0, 150_000, 0]]
+
     def get_india_vix(self):
         return {"last_price": 14.5}
+
+    def get_fii_data(self, data_type: str = "NSE_EQ|CASH", interval: str = "1D"):
+        return [{"time_stamp": 1792348200000, "buy_amount": 10000.0, "sell_amount": 9000.0}]
+
+    def get_dii_data(self, data_type: str = "NSE_EQ|CASH", interval: str = "1D"):
+        return [{"time_stamp": 1792348200000, "buy_amount": 8000.0, "sell_amount": 7500.0}]
+
+    def get_corporate_actions(self, isin: str):
+        return [{"name": "Dividend", "expiry_date": "2026-10-19", "amount": 5.0, "ratio": None, "event_details": []}]
+
+    def get_news(self, instrument_keys):
+        return {key: [] for key in instrument_keys}
+
+    def get_key_ratios(self, isin: str):
+        return [
+            {"name": "P/E", "company_value": 20.0},
+            {"name": "P/B", "company_value": 2.5},
+            {"name": "ROCE", "company_value": 18.0},
+            {"name": "ROE", "company_value": 15.0},
+        ]
+
+    def get_income_statement(self, isin: str, time_period: str = "yearly"):
+        return {
+            "income_statement": [
+                {"category": "net_profit", "history": [{"change": 15.0}]},
+                {"category": "revenue", "history": [{"change": 12.0}]},
+            ],
+            "full_statement": [
+                {"category": "Profit After Tax", "history": [{"amount": 5000.0}]},
+            ],
+        }
+
+    def get_balance_sheet(self, isin: str):
+        return {
+            "full_statement": [
+                {"category": "Equity Capital", "history": [{"amount": 10000.0}]},
+                {"category": "Current Liabilities", "history": [{"amount": 2000.0}]},
+                {"category": "Non-Current Liabilities", "history": [{"amount": 1000.0}]},
+            ]
+        }
+
+    def get_cash_flow(self, isin: str):
+        return {
+            "full_statement": [
+                {"category": "Cash flow from Operations", "history": [{"amount": 6000.0}]},
+            ]
+        }
+
+    def get_share_holdings(self, isin: str):
+        return [
+            {"category": "promoters", "history": [{"value": 52.0}]},
+            {"category": "fii", "history": [{"value": 20.0}]},
+            {"category": "dii", "history": [{"value": 15.0}]},
+        ]
 
 
 @pytest.fixture
 def mock_upstox_client() -> MockUpstoxClient:
     """Mock Upstox client returning deterministic candle and quote fixtures."""
     return MockUpstoxClient()
+
+
+# =================================================================================================
+# Canonical Synthetic Feature Snapshot Builders for Unit and Integration Testing
+# Ensures all persona Stage 1 hurdles and Stage 2 ranker inputs are cleanly satisfied by default.
+# =================================================================================================
+
+def make_passing_simons_features(**overrides) -> dict:
+    """Features satisfying Jim Simons quant-momentum hurdles and Stage 2 inputs."""
+    feat = {
+        "close": 1000.0,
+        "ema_20": 990.0,
+        "ema_50": 980.0,
+        "ema_200": 920.0,
+        "ema_20_above_50": True,
+        "rsi_14": 60.0,
+        "volume_surge": 1.5,
+        "macd_hist": 1.5,
+        "atr_14": 15.0,
+        "adx_14": 25.0,
+        "kaufman_er_20": 0.50,
+        "obv_slope_sign": 1,
+    }
+    feat.update(overrides)
+    return feat
+
+
+def make_passing_lynch_features(**overrides) -> dict:
+    """Features satisfying Peter Lynch GARP hurdles and Stage 2 inputs."""
+    feat = {
+        "close": 500.0,
+        "ema_200": 480.0,
+        "peg": 0.65,
+        "roce_pct": 22.0,
+        "debt_to_equity": 0.4,
+        "cfo_to_pat": 1.2,
+        "pat_growth_yoy_pct": 18.0,
+        "rsi_14": 52.0,
+        "volume_surge": 1.1,
+    }
+    feat.update(overrides)
+    return feat
+
+
+def make_passing_marks_features(**overrides) -> dict:
+    """Features satisfying Howard Marks contrarian quality-oversold hurdles."""
+    feat = {
+        "close": 120.0,
+        "ema_200": 150.0,  # Trading below 200 EMA during distress
+        "rsi_14": 26.0,
+        "dist_52w_low_pct": 6.0,
+        "roce_pct": 18.0,
+        "debt_to_equity": 0.3,
+        "cfo_to_pat": 1.1,
+        "regime": "NORMAL",
+    }
+    feat.update(overrides)
+    return feat
+
+
+def make_passing_rj_features(**overrides) -> dict:
+    """Features satisfying Rakesh Jhunjhunwala compounder hurdles and Stage 2 inputs."""
+    feat = {
+        "close": 400.0,
+        "ema_200": 360.0,
+        "ema_20_above_50": True,
+        "volume_surge": 1.6,
+        "promoter_holding_pct": 54.0,
+        "pat_growth_yoy_pct": 22.0,
+        "roce_pct": 20.0,
+        "fii_dii_qoq_delta_pct": 1.5,
+        "atr_14": 10.0,
+    }
+    feat.update(overrides)
+    return feat
+
+
+def make_passing_varsity_features(**overrides) -> dict:
+    """Features satisfying StockMinds Core / Varsity balanced confluence hurdles."""
+    feat = {
+        "close": 250.0,
+        "ema_200": 230.0,
+        "ema_20_above_50": True,
+        "rsi_14": 56.0,
+        "volume_surge": 1.3,
+        "roce_pct": 18.0,
+        "roe_pct": 16.0,
+        "debt_to_equity": 0.5,
+        "dcf_discount_pct": 15.0,
+        "news_sentiment": 0.2,
+    }
+    feat.update(overrides)
+    return feat
+
+
+CANONICAL_FEATURE_BUILDERS = {
+    "simons": make_passing_simons_features,
+    "lynch": make_passing_lynch_features,
+    "marks": make_passing_marks_features,
+    "jhunjhunwala": make_passing_rj_features,
+    "varsity": make_passing_varsity_features,
+}
+
+
+def make_canonical_features(agent_id: str, **overrides) -> dict:
+    """Returns canonical passing features for the specified agent persona."""
+    builder = CANONICAL_FEATURE_BUILDERS.get(agent_id, make_passing_simons_features)
+    return builder(**overrides)
+

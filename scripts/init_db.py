@@ -4,12 +4,17 @@ See Plan_v3 §7.
 """
 import re
 import sqlite3
+import sys
 from pathlib import Path
 from typing import List, Tuple
 
+WORKSPACE_ROOT = Path(__file__).resolve().parent.parent
+if str(WORKSPACE_ROOT) not in sys.path:
+    sys.path.insert(0, str(WORKSPACE_ROOT))
+
+from settings import settings
 from core.clock import Clock, SystemClock
 from core.database import get_connection
-from settings import settings
 
 MIGRATIONS_DIR = Path(__file__).resolve().parent.parent / "db" / "migrations"
 
@@ -19,7 +24,7 @@ AGENTS: List[Tuple[str, str, str, str]] = [
     ("lynch", "Peter Lynch", "GARP (Growth At a Reasonable Price)", "LLM"),
     ("marks", "Howard Marks", "Contrarian", "LLM"),
     ("jhunjhunwala", "Rakesh Jhunjhunwala", "Growth & Promoter Quality", "LLM"),
-    ("stockminds-core", "StockMinds Core", "Zerodha Varsity Balanced", "LLM"),
+    ("varsity", "StockMinds Core", "Zerodha Varsity Balanced", "LLM"),
     ("baseline-simons-rules", "Baseline Simons Rules", "Rules-only momentum baseline", "BASELINE"),
 ]
 
@@ -55,7 +60,14 @@ def apply_migrations(conn: sqlite3.Connection, clock: Clock, migrations_dir: Pat
     for version, path in discover_migrations(migrations_dir):
         if version in already_applied:
             continue
-        conn.executescript(path.read_text(encoding="utf-8"))
+        try:
+            conn.executescript(path.read_text(encoding="utf-8"))
+        except sqlite3.OperationalError as exc:
+            err_msg = str(exc).lower()
+            if "duplicate column name" in err_msg or "already exists" in err_msg:
+                pass
+            else:
+                raise
         conn.execute(
             "INSERT OR IGNORE INTO schema_version (version, applied_at) VALUES (?, ?)",
             (version, clock.now_iso()),

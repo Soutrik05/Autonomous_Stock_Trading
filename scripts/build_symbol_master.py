@@ -5,15 +5,20 @@ See Plan_v3 §1.2.
 import csv
 import gzip
 import io
+import sys
 from pathlib import Path
 from typing import Dict, List, Tuple
 
+WORKSPACE_ROOT = Path(__file__).resolve().parent.parent
+if str(WORKSPACE_ROOT) not in sys.path:
+    sys.path.insert(0, str(WORKSPACE_ROOT))
+
 import requests
 
-from core.database import get_connection
 from settings import settings
+from core.database import get_connection
 
-NIFTY500_CSV = Path(__file__).resolve().parent.parent / "data" / "nifty500_constituents.csv"
+NIFTY500_CSV = Path(__file__).resolve().parent.parent / "storage" / "market" / "nifty500_constituents.csv"
 UPSTOX_INSTRUMENTS_URL = "https://assets.upstox.com/market-quote/instruments/exchange/NSE.csv.gz"
 
 

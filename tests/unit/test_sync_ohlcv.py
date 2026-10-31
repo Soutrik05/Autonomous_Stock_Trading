@@ -55,16 +55,25 @@ def insert_open_position(conn, agent_id, ticker):
 
 
 class FakeClient:
-    def __init__(self, candles_by_key=None, raise_for_keys=None):
+    def __init__(self, candles_by_key=None, raise_for_keys=None, intraday_by_key=None, raise_intraday_for_keys=None):
         self.candles_by_key = candles_by_key or {}
         self.raise_for_keys = raise_for_keys or set()
+        self.intraday_by_key = intraday_by_key or {}
+        self.raise_intraday_for_keys = raise_intraday_for_keys or set()
         self.calls = []
+        self.intraday_calls = []
 
     def get_daily_candles(self, instrument_key, from_date, to_date):
         self.calls.append((instrument_key, from_date, to_date))
         if instrument_key in self.raise_for_keys:
             raise UpstoxAPIError("simulated failure")
-        return self.candles_by_key.get(instrument_key, [])
+        return list(self.candles_by_key.get(instrument_key, []))
+
+    def get_intraday_daily_candle(self, instrument_key):
+        self.intraday_calls.append(instrument_key)
+        if instrument_key in self.raise_intraday_for_keys:
+            raise UpstoxAPIError("simulated intraday failure")
+        return list(self.intraday_by_key.get(instrument_key, []))
 
 
 def test_sync_is_idempotent():
@@ -151,3 +160,48 @@ def test_locked_circuit_when_latest_volume_is_zero():
     status = sync_ticker(client, ohlcv, portfolio, "FROZENSTOCK", "NSE_EQ|KEY3", clock)
 
     assert status == "LOCKED_CIRCUIT"
+
+
+def test_merges_intraday_today_candle_when_historical_storage_lacks_today():
+    portfolio = make_portfolio_db()
+    ohlcv = make_ohlcv_db()
+    insert_symbol(portfolio, "RELIANCE", "NSE_EQ|KEY_RELIANCE")
+    # Historical storage only has candles up to yesterday (2026-10-25)
+    hist_candles = [["2026-10-25T00:00:00+05:30", 1180, 1200, 1170, 1190, 500000, 0]]
+    # Intraday endpoint has today's finalized candle (2026-10-26)
+    intra_candle = [["2026-10-26T00:00:00+05:30", 1190, 1210, 1185, 1205, 600000, 0]]
+    client = FakeClient(
+        candles_by_key={"NSE_EQ|KEY_RELIANCE": hist_candles},
+        intraday_by_key={"NSE_EQ|KEY_RELIANCE": intra_candle},
+    )
+    clock = FakeClock(datetime(2026, 10, 26, 20, 0, 0))
+
+    status = sync_ticker(client, ohlcv, portfolio, "RELIANCE", "NSE_EQ|KEY_RELIANCE", clock)
+
+    assert status == "OK"
+    assert len(client.intraday_calls) == 1
+    # Verify today's candle was written to ohlcv.db
+    today_row = ohlcv.execute("SELECT * FROM ohlcv WHERE ticker='RELIANCE' AND trade_date='2026-10-26'").fetchone()
+    assert today_row is not None
+    assert today_row["close"] == 1205
+    assert today_row["volume"] == 600000
+
+
+def test_handles_intraday_failure_gracefully_when_historical_present():
+    portfolio = make_portfolio_db()
+    ohlcv = make_ohlcv_db()
+    insert_symbol(portfolio, "INFY", "NSE_EQ|KEY_INFY")
+    hist_candles = [["2026-10-25T00:00:00+05:30", 1500, 1520, 1490, 1510, 300000, 0]]
+    client = FakeClient(
+        candles_by_key={"NSE_EQ|KEY_INFY": hist_candles},
+        raise_intraday_for_keys={"NSE_EQ|KEY_INFY"},
+    )
+    clock = FakeClock(datetime(2026, 10, 26, 20, 0, 0))
+
+    status = sync_ticker(client, ohlcv, portfolio, "INFY", "NSE_EQ|KEY_INFY", clock)
+
+    # Intraday error does not abort pipeline if historical candles exist
+    assert status == "OK"
+    row = ohlcv.execute("SELECT * FROM ohlcv WHERE ticker='INFY' AND trade_date='2026-10-25'").fetchone()
+    assert row is not None
+    assert row["close"] == 1510

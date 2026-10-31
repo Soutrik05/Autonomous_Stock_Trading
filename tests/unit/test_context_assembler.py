@@ -5,7 +5,7 @@ watchlist candidates) -- held positions are never trimmed.
 See Plan_v3 §3.2.
 """
 from agents.context_assembler import assemble_prompt, build_candidate_row, estimate_tokens
-from core.features import persona_allowed_metric_names
+from features.contracts import persona_allowed_metric_names
 
 SIMONS_HURDLES = {
     "all": [
@@ -67,16 +67,14 @@ def test_no_trim_needed_when_under_ceiling():
         portfolio_block="PORTFOLIO: cash=Rs100,000, no open positions.",
         candidates=candidates,
         allowed_names=ALLOWED_NAMES,
-        rag_block="Some RAG snippet.",
         ceiling=100_000,
     )
-    assert trimmed == {"rag": False, "episodic": False, "dropped_candidates": []}
+    assert trimmed == {"episodic": False, "headlines": False, "dropped_candidates": []}
     assert "HELD1" in text
     assert "WL1" in text
-    assert "Some RAG snippet." in text
 
 
-def test_trim_order_rag_then_episodic_then_lowest_intensity_never_held():
+def test_trim_order_episodic_then_headlines_then_lowest_intensity_never_held():
     # Two held positions (must survive no matter what) and several watchlist names with
     # distinct intensity so we can verify the lowest-intensity ones go first.
     candidates = [
@@ -86,11 +84,10 @@ def test_trim_order_rag_then_episodic_then_lowest_intensity_never_held():
         make_candidate("WLMID", False, intensity=5.0),
         make_candidate("WLLOW", False, intensity=1.0),
     ]
-    big_rag = "RAG: " + ("x" * 2000)
     big_episodic = "RECENT CLOSED TRADES (most recent first):\n" + "\n".join(f"- TICK{i} closed" for i in range(50))
 
-    # Ceiling chosen so that: with everything, over budget; drop RAG -> still maybe over;
-    # drop episodic -> still over; must then drop WLLOW, then WLMID, but never HELD1/HELD2.
+    # Ceiling chosen so that: with everything, over budget; drop episodic -> still over;
+    # must then drop WLLOW, then WLMID, but never HELD1/HELD2.
     text, trimmed = assemble_prompt(
         system_prompt="short",
         regime_line="REGIME: NORMAL (India VIX: 14.00).",
@@ -99,18 +96,15 @@ def test_trim_order_rag_then_episodic_then_lowest_intensity_never_held():
         portfolio_block="PORTFOLIO: cash=Rs100,000, no open positions.",
         candidates=candidates,
         allowed_names=ALLOWED_NAMES,
-        rag_block=big_rag,
         ceiling=120,
     )
 
-    assert trimmed["rag"] is True
     assert trimmed["episodic"] is True
     assert "WLLOW" in trimmed["dropped_candidates"]
     assert "HELD1" not in trimmed["dropped_candidates"]
     assert "HELD2" not in trimmed["dropped_candidates"]
     assert "HELD1" in text
     assert "HELD2" in text
-    assert "x" * 2000 not in text  # RAG block gone
 
 
 def test_held_candidates_survive_even_at_an_impossibly_small_ceiling():
@@ -127,3 +121,42 @@ def test_held_candidates_survive_even_at_an_impossibly_small_ceiling():
     )
     assert "WL1" in trimmed["dropped_candidates"]
     assert "HELD1" in text
+
+
+def test_headlines_block_rendering_and_trimming():
+    candidate_with_news = make_candidate("TATA", False)
+    candidate_with_news["headlines"] = [
+        {"relative_age": "today", "sentiment_score": 0.85, "heading": "Quarterly revenue jumps 20%"},
+        {"relative_age": "3d ago", "sentiment_score": -0.40, "heading": "Raw material costs rise"},
+    ]
+
+    text, trimmed = assemble_prompt(
+        system_prompt="short",
+        regime_line="REGIME: NORMAL (India VIX: 14.00).",
+        heuristics_block="ACTIVE HEURISTICS: none yet.",
+        episodic_block="RECENT CLOSED TRADES: none yet.",
+        portfolio_block="PORTFOLIO: cash=Rs100,000, no open positions.",
+        candidates=[candidate_with_news],
+        allowed_names=ALLOWED_NAMES,
+        ceiling=10_000,
+    )
+
+    assert "RECENT HEADLINES:" in text
+    assert "• [today | score: +0.85] Quarterly revenue jumps 20%" in text
+    assert "• [3d ago | score: -0.40] Raw material costs rise" in text
+    assert trimmed.get("headlines", False) is False
+
+    # When ceiling is tight, headlines are trimmed before dropping candidates
+    text_tight, trimmed_tight = assemble_prompt(
+        system_prompt="short",
+        regime_line="REGIME: NORMAL (India VIX: 14.00).",
+        heuristics_block="ACTIVE HEURISTICS: none yet.",
+        episodic_block="RECENT CLOSED TRADES: none yet.",
+        portfolio_block="PORTFOLIO: cash=Rs100,000, no open positions.",
+        candidates=[candidate_with_news],
+        allowed_names=ALLOWED_NAMES,
+        ceiling=75,
+    )
+    assert trimmed_tight.get("headlines") is True
+    assert "RECENT HEADLINES:" not in text_tight
+

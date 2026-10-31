@@ -1,5 +1,5 @@
 """
-Unit tests for core/build_features.py's day-3c data-date integrity guard: check_data_freshness()
+Unit tests for features/builder.py's day-3c data-date integrity guard: check_data_freshness()
 and the job-level FAIL-vs-skip behaviour around the 5% stale-ticker tolerance.
 See Plan_v3 §1.4, §2.1.
 """
@@ -8,7 +8,7 @@ from datetime import datetime
 
 import pytest
 
-from core.build_features import check_data_freshness, run
+from features.builder import check_data_freshness, run
 from core.clock import FakeClock
 from ingestion.sync_ohlcv import ensure_schema as ensure_ohlcv_schema
 from tests.conftest import make_portfolio_db

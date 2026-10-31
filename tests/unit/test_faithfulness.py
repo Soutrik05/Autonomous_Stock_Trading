@@ -5,7 +5,7 @@ including None handling. Also covers evaluation/faithfulness.py's compute_faithf
 scoring itself: a wrong value, an unregistered name, and citing fewer than 3 metrics.
 See Plan_v3 §3.3.
 """
-from core.features import evaluate_predicate, matches
+from features.contracts import evaluate_predicate, matches
 from evaluation.faithfulness import compute_faithfulness
 
 

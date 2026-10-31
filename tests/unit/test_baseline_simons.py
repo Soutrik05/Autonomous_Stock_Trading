@@ -1,5 +1,5 @@
 """
-Unit tests for baselines/simons_rules.py: rules-only baseline agent.
+Unit tests for agents/baselines/simons_rules.py: rules-only baseline agent.
 See Plan_v3 §6.1.
 """
 from datetime import datetime
@@ -92,11 +92,11 @@ def test_baseline_buys_when_all_rules_pass():
     assert tata_dec["action"] == "BUY"
     # Entry low = 1000 - 0.25*20 = 995 -> 99500 paise
     # Entry high = 1000 + 0.25*20 = 1005 -> 100500 paise
-    # Stop = 1000 - 2*20 = 960 -> 96000 paise
+    # Stop = 1000 - 1.5*20 = 970 -> 97000 paise (aligned 1.5x ATR)
     # Target = 1000 + 3*20 = 1060 -> 106000 paise
     assert tata_dec["entry_low_paise"] == 99500
     assert tata_dec["entry_high_paise"] == 100500
-    assert tata_dec["stop_paise"] == 96000
+    assert tata_dec["stop_paise"] == 97000
     assert tata_dec["target_paise"] == 106000
     # Sizing: 10% of 100,000 = 10,000 Rs / 1005 = 9 shares
     assert tata_dec["shares"] == 9

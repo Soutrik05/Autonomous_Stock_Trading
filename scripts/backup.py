@@ -1,15 +1,20 @@
 """
-Nightly backup of portfolio.db to state/backups/ using the SQLite backup API; keeps the last 14 copies.
+Nightly backup of portfolio.db to backups/ using the SQLite backup API; keeps the last 14 copies.
 See Plan_v3 §1.4, §1.5.
 """
 import argparse
 import logging
 import sqlite3
+import sys
 from pathlib import Path
 from typing import Optional
 
-from core.clock import Clock, SystemClock
+WORKSPACE_ROOT = Path(__file__).resolve().parent.parent
+if str(WORKSPACE_ROOT) not in sys.path:
+    sys.path.insert(0, str(WORKSPACE_ROOT))
+
 from settings import settings
+from core.clock import Clock, SystemClock
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +32,7 @@ def backup_portfolio_db(
         logger.warning("Source database %s does not exist; skipping backup.", src)
         return None
 
-    b_dir = Path(backup_dir or (src.parent / "backups"))
+    b_dir = Path(backup_dir or settings.BACKUP_DIR)
     b_dir.mkdir(parents=True, exist_ok=True)
 
     today_str = clock.today().isoformat()

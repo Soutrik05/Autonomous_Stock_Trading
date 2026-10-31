@@ -5,13 +5,15 @@
 *.xlsx
 *.xls
 *.csv
-!data/nifty500_constituents.csv
+!storage/market/nifty500_constituents.csv
 *.db
 *.sqlite
-data/*.db
-data/*_backup.db
-state/*.db
-state/backups/
+*.db-wal
+*.db-shm
+storage/market/*.db
+storage/market/*_backup.db
+storage/ledger/*.db
+backups/*.db
 
 # Results & Artifacts
 results/
@@ -21,14 +23,7 @@ _legacy_reference/
 !README.md
 !CLAUDE.md
 !docs/
-!docs/*.md
-
-# Cache
-fundamental/cache/
-news_sentiment/data/
-rag_db/*.json
-rag_db/*.index
-rag_db/*.pkl
+!docs/**
 
 # Python
 __pycache__/
@@ -43,7 +38,7 @@ venv/
 # Frontend
 node_modules/
 dist/
-web/.vite/
+dashboard/.vite/
 
 # Editors
 .idea/

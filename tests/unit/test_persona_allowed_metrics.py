@@ -1,11 +1,11 @@
 """
-Unit tests for core.features.persona_allowed_metric_names() -- the per-persona allowed list
+Unit tests for features.contracts.persona_allowed_metric_names() -- the per-persona allowed list
 that agents/context_assembler.py (candidate row keys) and agents/prompts.py (the cited-metrics
 list) both generate from, so they can never drift apart.
 See Plan_v3 §3.2, §3.3.
 """
 from agents.personas.simons import SIMONS_FUNDAMENTAL_HURDLES, SIMONS_TECHNICAL_HURDLES
-from core.features import CORE_TECHNICAL_FIELDS, persona_allowed_metric_names, predicate_feature_names
+from features.contracts import CORE_TECHNICAL_FIELDS, persona_allowed_metric_names, predicate_feature_names
 
 
 def test_predicate_feature_names_collects_nested_all_any():
@@ -44,3 +44,8 @@ def test_allowed_names_ignore_unregistered_feature_names():
     technical = {"feature": "not_a_real_metric", "op": ">", "value": 0}
     names = persona_allowed_metric_names(technical, {})
     assert "not_a_real_metric" not in names
+
+
+def test_allowed_names_include_extra_metrics():
+    names = persona_allowed_metric_names({}, {}, extra_metrics=["news_sentiment"])
+    assert "news_sentiment" in names
