@@ -1,14 +1,29 @@
 # Credentials
 .env
 
-# Data
+# Data & SQLite Databases
 *.xlsx
 *.xls
 *.csv
-!data/nifty500_constituents.csv
+!storage/market/nifty500_constituents.csv
+*.db
+*.sqlite
+*.db-wal
+*.db-shm
+storage/market/*.db
+storage/market/*_backup.db
+storage/ledger/*.db
+backups/*.db
 
-# Cache
-fundamental_agent/cache
+# Results & Artifacts
+results/
+_legacy_archive/
+_legacy_reference/
+*.md
+!README.md
+!CLAUDE.md
+!docs/
+!docs/**
 
 # Python
 __pycache__/
@@ -20,7 +35,12 @@ __pycache__/
 venv/
 .venv/
 
-# RAG Data
-rag_db/*.json
-rag_db/*.index
-rag_db/*.pkl
+# Frontend
+node_modules/
+dist/
+dashboard/.vite/
+
+# Editors
+.idea/
+.vscode/
+.venv/

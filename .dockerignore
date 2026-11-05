@@ -1,0 +1,25 @@
+.git
+.github
+.gitignore
+__pycache__
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.vscode/
+.idea/
+_legacy_reference/
+docs/
+tests/
+deploy/
+# Runtime state lives on the host disk and is bind-mounted, never baked into the image
+storage/
+backups/
+data/
+state/
+# Secrets are injected at runtime
+.env
+*.env.local
+# Dashboard is built in its own image stage
+dashboard/node_modules
+dashboard/dist

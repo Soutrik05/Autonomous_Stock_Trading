@@ -1,33 +1,33 @@
 # Core
-yfinance
 pandas
 numpy
 python-dotenv
-
-# LangChain / LangGraph
-langchain
-langchain-core
-langchain-groq
-langgraph
-
-# RAG 
-faiss-cpu
-sentence-transformers
-feedparser
-
-# LLM inference 
-groq
-
-# News agent (FinBERT)
-transformers
-openpyxl
-feedparser
+apscheduler
+pydantic
+requests
+httpx
 rapidfuzz
-requests
+openpyxl
+fastapi
+uvicorn[standard]
+boto3
 
-# Technical Agent 
-growwapi
+# LLM Providers
+groq
+google-genai
 
-# Fundamental Agent
-requests
-beautifulsoup4
+# # LangChain / LangGraph
+# langchain
+# langchain-core
+# langchain-groq
+# langgraph
+
+# NLP & Sentiment
+torch
+transformers
+# faiss-cpu
+# sentence-transformers
+# feedparser
+
+# Testing
+pytest
