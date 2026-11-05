@@ -58,6 +58,24 @@ def backup_portfolio_db(
     return str(dest)
 
 
+def upload_backup_to_s3(path: str, bucket: Optional[str] = None) -> bool:
+    """Uploads a backup file to s3://<bucket>/portfolio-backups/. No-op when S3_BACKUP_BUCKET is unset.
+    Credentials come from the EC2 instance role, never from .env. Returns True on success."""
+    bucket = bucket or settings.S3_BACKUP_BUCKET
+    if not bucket or not path:
+        return False
+    try:
+        import boto3
+
+        key = f"portfolio-backups/{Path(path).name}"
+        boto3.client("s3").upload_file(path, bucket, key)
+        logger.info("Uploaded backup to s3://%s/%s", bucket, key)
+        return True
+    except Exception as exc:  # never let an upload failure break the local backup
+        logger.error("S3 backup upload failed: %s", exc)
+        return False
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Nightly portfolio.db backup.")
     parser.add_argument("--source", default=None, help="Source db path")
@@ -66,6 +84,8 @@ def main() -> None:
 
     out = backup_portfolio_db(source_path=args.source, backup_dir=args.backup_dir)
     print(f"backup: {out}")
+    if out:
+        upload_backup_to_s3(out)
 
 
 if __name__ == "__main__":

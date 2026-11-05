@@ -1,32 +1,25 @@
-# Git
 .git
+.github
 .gitignore
-
-# Python cache & virtual environments
 __pycache__
 *.py[cod]
-*$py.class
-*.so
-.Python
-env/
-venv/
 .venv/
+venv/
 .pytest_cache/
-
-# Local databases and runtime state (mounted as external volumes at runtime)
-data/*.db
-data/*.db-shm
-data/*.db-wal
-state/*.db
-state/*.db-shm
-state/*.db-wal
-state/backups/
-
-# Secrets (injected at runtime via --env-file or environment variables)
+.vscode/
+.idea/
+_legacy_reference/
+docs/
+tests/
+deploy/
+# Runtime state lives on the host disk and is bind-mounted, never baked into the image
+storage/
+backups/
+data/
+state/
+# Secrets are injected at runtime
 .env
 *.env.local
-
-# Legacy reference files and editor configs
-_legacy_reference/
-.idea/
-.vscode/
+# Dashboard is built in its own image stage
+dashboard/node_modules
+dashboard/dist

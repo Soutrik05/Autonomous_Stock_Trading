@@ -1,0 +1,69 @@
+name: Deploy to AWS
+
+# Manual on purpose: the live paper-trading clock should not restart on every push.
+# Runs from v2-ATA (the only branch the AWS role trusts). Make sure CI is green first.
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push images
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          TAG=${GITHUB_SHA::12}
+          docker build -t $REGISTRY/stockminds:$TAG -f Dockerfile .
+          docker build -t $REGISTRY/stockminds-web:$TAG -f deploy/caddy.Dockerfile .
+          docker push $REGISTRY/stockminds:$TAG
+          docker push $REGISTRY/stockminds-web:$TAG
+          echo "TAG=$TAG" >> $GITHUB_ENV
+
+      - name: Roll out on EC2 via SSM
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          COMPOSE_B64=$(base64 -w0 docker-compose.yml)
+          cat > cmds.json <<EOF
+          {"commands": [
+            "set -e",
+            "cd /opt/stockminds",
+            "echo $COMPOSE_B64 | base64 -d > docker-compose.yml",
+            "printf 'STOCKMINDS_IMAGE=$REGISTRY/stockminds:$TAG\nSTOCKMINDS_WEB_IMAGE=$REGISTRY/stockminds-web:$TAG\n' > deploy.env",
+            "aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $REGISTRY",
+            "docker compose --env-file .env --env-file deploy.env pull",
+            "docker compose --env-file .env --env-file deploy.env up -d --no-build",
+            "docker image prune -f",
+            "sleep 15 && curl -fsS http://localhost/api/health"
+          ]}
+          EOF
+          CMD_ID=$(aws ssm send-command --instance-ids "${{ vars.EC2_INSTANCE_ID }}" \
+            --document-name AWS-RunShellScript --parameters file://cmds.json \
+            --query Command.CommandId --output text)
+          for i in $(seq 1 90); do
+            STATUS=$(aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "${{ vars.EC2_INSTANCE_ID }}" \
+              --query Status --output text 2>/dev/null || echo Pending)
+            case "$STATUS" in Success|Failed|Cancelled|TimedOut) break;; esac
+            sleep 10
+          done
+          aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "${{ vars.EC2_INSTANCE_ID }}" \
+            --query '{Status:Status,Out:StandardOutputContent,Err:StandardErrorContent}'
+          [ "$STATUS" = "Success" ]

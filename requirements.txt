@@ -8,6 +8,9 @@ requests
 httpx
 rapidfuzz
 openpyxl
+fastapi
+uvicorn[standard]
+boto3
 
 # LLM Providers
 groq

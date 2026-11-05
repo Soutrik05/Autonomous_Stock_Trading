@@ -43,3 +43,4 @@ dashboard/.vite/
 # Editors
 .idea/
 .vscode/
+.venv/

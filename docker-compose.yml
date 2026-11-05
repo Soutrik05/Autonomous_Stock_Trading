@@ -1,15 +1,49 @@
-version: "3.8"
+# Production stack for one EC2 host. `docker compose up -d --build` also works locally.
+# State: ./storage and ./backups (bind mounts on the host disk). Secrets: .env (never in the image).
+x-app: &app
+  image: ${STOCKMINDS_IMAGE:-stockminds:latest}
+  build:
+    context: .
+    dockerfile: Dockerfile
+  env_file: .env
+  restart: unless-stopped
+  volumes:
+    - ./storage:/app/storage
+    - ./backups:/app/backups
+  logging:
+    driver: json-file
+    options: { max-size: "10m", max-file: "5" }
 
 services:
   scheduler:
+    <<: *app
+    container_name: stockminds_scheduler
+    command: ["python", "scheduler.py"]
+
+  api:
+    <<: *app
+    container_name: stockminds_api
+    command: ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+    expose: ["8000"]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  web:
     build:
       context: .
-      dockerfile: Dockerfile
-    image: stockminds:latest
-    container_name: stockminds_scheduler
+      dockerfile: deploy/caddy.Dockerfile
+    image: ${STOCKMINDS_WEB_IMAGE:-stockminds-web:latest}
+    container_name: stockminds_web
     restart: unless-stopped
-    env_file:
-      - .env
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    ports: ["80:80", "443:443"]
     volumes:
-      - ./data:/app/data
-      - ./state:/app/state
+      - caddy_data:/data
+    depends_on: [api]
+
+volumes:
+  caddy_data:

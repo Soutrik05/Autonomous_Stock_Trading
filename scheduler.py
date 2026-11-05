@@ -18,7 +18,7 @@ from core.clock import Clock, SystemClock
 from core.database import get_connection
 from ingestion.cli import run as run_ingestion
 from watchlist.watchlist_refresh import run as run_watchlist_refresh
-from scripts.backup import backup_portfolio_db
+from scripts.backup import backup_portfolio_db, upload_backup_to_s3
 from settings import settings
 
 logging.basicConfig(
@@ -229,6 +229,8 @@ def job_nightly_backup() -> None:
         clock = SystemClock()
         res = backup_portfolio_db(clock=clock)
         logger.info("Nightly portfolio.db backup: %s", res)
+        if res:
+            upload_backup_to_s3(res)
     except Exception as exc:
         logger.exception("Nightly backup failed: %s", exc)
 

@@ -141,5 +141,18 @@ class Settings:
     DB_BUSY_TIMEOUT_MS: int = 5000
     UPSTOX_BASE_URL: str = "https://api.upstox.com"
 
+    # --- Evaluation & API (Plan_v3 Part IV) ---
+    TRADING_DAYS_PER_YEAR: int = 252
+    RISK_FREE_RATE_ANNUAL: float = 0.065
+    SMALL_SAMPLE_MIN_NAV_DAYS: int = 30
+    SMALL_SAMPLE_MIN_CLOSED_TRADES: int = 10
+    COMPARISON_LLM_AGENT_ID: str = "simons"
+    COMPARISON_BASELINE_AGENT_ID: str = "baseline-simons-rules"
+    API_DEFAULT_PAGE_SIZE: int = 50
+    API_MAX_PAGE_SIZE: int = 500
+    API_KEY: str = os.environ.get("API_KEY", "")  # empty = public read-only API
+    API_CORS_ORIGINS: str = os.environ.get("API_CORS_ORIGINS", "http://localhost:5173")
+    S3_BACKUP_BUCKET: str = os.environ.get("S3_BACKUP_BUCKET", "")
+
 
 settings = Settings()
