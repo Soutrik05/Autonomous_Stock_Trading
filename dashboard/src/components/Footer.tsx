@@ -1,45 +1,45 @@
-import { ShieldAlert, Terminal, Info } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export default function Footer() {
   return (
-    <footer className="border-t border-white/10 bg-[#090B10]/90 backdrop-blur-md py-10 text-slate-400 text-xs mt-20 font-sans">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
-        {/* Core Disclaimer Box - Translucent Glass Callout */}
-        <div className="arena-glass p-5 flex flex-col md:flex-row items-start gap-4">
-          <ShieldAlert className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-          <div className="space-y-1.5">
-            <h4 className="font-bold text-white flex items-center gap-2 text-sm">
-              <span>Academic Research & Paper-Trading Simulation Disclaimer</span>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/30">
-                Integer Paise Ledger
-              </span>
-            </h4>
-            <p className="leading-relaxed text-xs text-slate-400">
-              StockMinds is an academic evaluation experiment investigating whether LLM trading personas can trade Indian equities with prompt discipline, mathematical faithfulness, and measurable cognitive alpha over rules-only baselines and the Nifty 500 benchmark. <strong>All capital, positions, and orders are simulated paper trades denominated in integer paise</strong>. None of the signals, rationale, or outputs constitute financial advice, SEBI-registered research recommendations, or solicitations to buy or sell securities.
+    <footer className="border-t border-white/[0.08] bg-black text-zinc-400 font-sans mt-24 pt-12 pb-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+        
+        {/* Top Brand & Navigation Grid */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          <div className="space-y-1">
+            <span className="font-serif text-lg text-white tracking-tight">StockMinds Arena</span>
+            <p className="text-xs font-mono text-zinc-500">
+              Autonomous Multi-Agent Paper-Trading Evaluation · NSE Nifty 500
             </p>
           </div>
-        </div>
 
-        {/* System Meta & Architectural Guarantees */}
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-xs pt-4 border-t border-white/10">
-          <div className="flex flex-wrap items-center gap-3 text-slate-500 font-mono">
-            <span className="flex items-center gap-1.5">
-              <Terminal className="w-3.5 h-3.5 text-slate-400" />
-              <span>Branch: <code className="text-slate-300 font-medium">dashboard</code></span>
-            </span>
-            <span className="hidden md:inline text-white/10">|</span>
-            <span>Accounting: <code className="text-slate-300">Integer Paise (Zero Floats)</code></span>
-            <span className="hidden md:inline text-white/10">|</span>
-            <span>Clock: <code className="text-slate-300">Asia/Kolkata (IST)</code></span>
-            <span className="hidden md:inline text-white/10">|</span>
-            <span>Significance Threshold: <code className="text-slate-300">N &ge; 30 trades</code></span>
-          </div>
-
-          <div className="flex items-center gap-2 text-slate-500 font-mono">
-            <Info className="w-3.5 h-3.5 text-slate-400" />
-            <span>StockMinds Autonomous Arena</span>
+          <div className="flex flex-wrap items-center gap-6 font-mono text-xs">
+            <Link to="/" className="text-zinc-400 hover:text-white transition-colors">Overview</Link>
+            <Link to="/leaderboard" className="text-zinc-400 hover:text-white transition-colors">Leaderboard</Link>
+            <Link to="/comparison" className="text-zinc-400 hover:text-white transition-colors">Comparison</Link>
+            <Link to="/backtest" className="text-zinc-400 hover:text-white transition-colors">Backtest Lab</Link>
+            <Link to="/pulse" className="text-zinc-400 hover:text-white transition-colors">Telemetry Pulse</Link>
           </div>
         </div>
+
+        {/* Standard Trading & Research Advisory */}
+        <div className="pt-8 border-t border-white/[0.06] space-y-3">
+          <div className="text-[10px] font-mono uppercase tracking-widest text-zinc-500">
+            Advisory & Regulatory Disclosure
+          </div>
+          <p className="text-xs text-zinc-500 leading-relaxed font-sans max-w-4xl">
+            StockMinds is an academic research experiment evaluating autonomous agent behavior, decision explainability, and cognitive edge. All portfolios, orders, and execution ledgers are simulated paper-trading records denominated in integer paise. This platform does not provide financial advice, SEBI-registered investment recommendations, portfolio management services, or solicitations to buy or sell securities. Simulated performance and backtested models do not guarantee real-market returns. Use at your own risk.
+          </p>
+          <div className="text-[11px] font-mono text-zinc-600 pt-2 flex flex-wrap gap-4">
+            <span>© 2026 StockMinds Project</span>
+            <span>·</span>
+            <span>Zero-Float Integer Paise Ledger</span>
+            <span>·</span>
+            <span>Deterministic Faithfulness Verified</span>
+          </div>
+        </div>
+
       </div>
     </footer>
   );

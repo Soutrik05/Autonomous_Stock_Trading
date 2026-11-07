@@ -102,6 +102,7 @@ export interface Decision {
   decisionDate: string;
   action: 'BUY' | 'HOLD' | 'SELL';
   rationale: string;
+  preMortemRisk?: string;
   citedMetrics: CitedMetric[];
   faithfulnessScore: number; // 0.0 to 1.0 (or %)
   sizingFidelityScore: number;

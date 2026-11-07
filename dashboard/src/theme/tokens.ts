@@ -8,51 +8,49 @@
 import type { ForensicTag, EventSeverity } from '../types';
 
 export const THEME_COLORS = {
-  // Canvas & Surfaces (Institutional Obsidian Slate)
-  canvas: '#090B10',                          // Deep matte obsidian
-  surface: 'rgba(16, 20, 29, 0.75)',         // Matte institutional slate glass
-  surfaceSubdued: 'rgba(255, 255, 255, 0.025)',// Data wells & table headers
-  surfaceHover: 'rgba(255, 255, 255, 0.05)',  // Micro hover
-  surfaceInset: 'rgba(0, 0, 0, 0.4)',         // Recessed wells
+  // Canvas & Surfaces (True Pitch Black #000000 Architecture)
+  canvas: '#000000',                          // True pitch black void
+  surface: '#0A0A0E',                         // Deep onyx surface
+  surfaceGlass: 'rgba(10, 10, 14, 0.85)',     // Translucent onyx glass
+  surfaceSubdued: '#050507',                  // Recessed data wells & headers
+  surfaceHover: '#141419',                    // Micro row/card hover
+  surfaceInset: '#030304',                    // Inset metric wells
 
-  // Borders & Hairlines
-  border: 'rgba(255, 255, 255, 0.08)',       // Structural micro-border
+  // Hairline Borders & Dividers
+  border: 'rgba(255, 255, 255, 0.08)',       // Crisp structural micro-border
   borderSubdued: 'rgba(255, 255, 255, 0.04)',  // Inner dividers
-  borderStrong: 'rgba(255, 255, 255, 0.16)',   // Focused / active border
+  borderStrong: 'rgba(255, 255, 255, 0.16)',   // Active/focused borders
 
-  // Typography Ink
-  inkPrimary: '#FFFFFF',                      // Solid high-contrast white
-  inkSecondary: '#94A3B8',                    // Steely slate secondary
-  inkSubdued: '#64748B',                      // Muted tertiary & units
+  // Typography Ink (High-legibility monochrome)
+  inkPrimary: '#FFFFFF',                      // High-contrast white
+  inkSecondary: '#A1A1AA',                    // Zinc-400 secondary
+  inkSubdued: '#71717A',                      // Zinc-500 captions & units
 
-  // Semantic Signals: Institutional Cobalt (Brand Accent)
-  accent: '#2563EB',                          // Institutional royal cobalt
-  accentHover: '#1D4ED8',                     // Deepened cobalt hover
-  accentSubdued: 'rgba(37, 99, 235, 0.10)',   // Subtle cobalt background
+  // Functional Signals (No neon glows)
+  accent: '#2563EB',                          // Institutional cobalt
+  accentHover: '#1D4ED8',                     // Cobalt hover
+  accentSubdued: 'rgba(37, 99, 235, 0.12)',   // Subtle cobalt background
   accentBorder: 'rgba(37, 99, 235, 0.30)',   // Subtle cobalt border
 
-  // Semantic Signals: Tabular Emerald (Profit / Positive Alpha)
-  profit: '#10B981',                          // Muted crisp emerald
-  profitSubdued: 'rgba(16, 185, 129, 0.10)',  // Emerald background tint
-  profitBorder: 'rgba(16, 185, 129, 0.25)',   // Emerald border
+  profit: '#10B981',                          // Tabular emerald
+  profitSubdued: 'rgba(16, 185, 129, 0.10)',
+  profitBorder: 'rgba(16, 185, 129, 0.25)',
 
-  // Semantic Signals: Tabular Crimson (Loss / Drawdown)
-  loss: '#EF4444',                            // Crisp tabular crimson
-  lossSubdued: 'rgba(239, 68, 68, 0.10)',     // Crimson background tint
-  lossBorder: 'rgba(239, 68, 68, 0.25)',      // Crimson border
+  loss: '#EF4444',                            // Tabular crimson
+  lossSubdued: 'rgba(239, 68, 68, 0.10)',
+  lossBorder: 'rgba(239, 68, 68, 0.25)',
 
-  // Architecture Layer Badges
-  llmBadge: '#3B82F6',                        // Cobalt blue for LLM
-  llmBadgeSubdued: 'rgba(59, 130, 246, 0.10)',
-  llmBadgeBorder: 'rgba(59, 130, 246, 0.25)',
+  // Architecture Badges
+  llmBadge: '#3B82F6',
+  llmBadgeSubdued: 'rgba(59, 130, 246, 0.12)',
+  llmBadgeBorder: 'rgba(59, 130, 246, 0.30)',
 
-  rulesBadge: '#64748B',                      // Slate for Rules controls
-  rulesBadgeSubdued: 'rgba(100, 116, 139, 0.10)',
-  rulesBadgeBorder: 'rgba(100, 116, 139, 0.25)',
+  rulesBadge: '#71717A',
+  rulesBadgeSubdued: 'rgba(113, 113, 122, 0.12)',
+  rulesBadgeBorder: 'rgba(113, 113, 122, 0.30)',
 
-  // Guardrail Badges
-  provisional: '#F59E0B',                     // Amber alert (<30 closed trades)
-  backtestDerived: '#8B5CF6',                 // Violet for backtest simulation
+  provisional: '#F59E0B',
+  backtestDerived: '#8B5CF6',
   backtestSubdued: 'rgba(139, 92, 246, 0.10)',
   backtestBorder: 'rgba(139, 92, 246, 0.25)',
 } as const;

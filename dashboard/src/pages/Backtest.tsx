@@ -41,7 +41,7 @@ export default function Backtest() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-fade-in font-sans">
       {/* Header */}
-      <div className="border-b border-white/10 pb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="border-b border-white/[0.08] pb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xs font-mono text-purple-400 flex items-center gap-1.5 font-medium">
@@ -50,17 +50,14 @@ export default function Backtest() {
             </span>
             <BacktestDerivedBadge size="sm" />
           </div>
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
-            Historical Walk-Forward Backtesting Lab
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+            Historical Backtesting Lab
           </h1>
-          <p className="text-sm text-slate-400 mt-1 max-w-3xl leading-relaxed">
-            Multi-regime 180-day rolling simulation windows with isolated state storage and persistent inference caching. Validates complete holding cycles for long-horizon personas (Jhunjhunwala 90–180d, Lynch 60–120d).
-          </p>
         </div>
 
         {/* Evidence Isolation Notice */}
-        <div className="arena-glass-subdued px-4 py-2.5 text-xs font-mono max-w-xs border-purple-500/30 text-purple-300">
-          <strong>Strict Isolation Guardrail:</strong> Evaluated against daily OHLCV bands and permanently isolated from live pilot records.
+        <div className="arena-glass-subdued px-3 py-1.5 text-xs font-mono border-purple-500/30 text-purple-300">
+          Strict Isolation: OHLCV Simulation Only
         </div>
       </div>
 

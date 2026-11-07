@@ -58,20 +58,17 @@ export default function Pulse() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 animate-fade-in font-sans">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 animate-fade-in font-sans">
       {/* Header */}
-      <div className="border-b border-white/10 pb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="border-b border-white/[0.08] pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <div className="flex items-center gap-2 text-xs font-mono text-slate-400 mb-1 font-semibold uppercase tracking-wider">
+          <div className="flex items-center gap-2 text-xs font-mono text-zinc-400 mb-1 font-semibold uppercase tracking-wider">
             <Activity className="w-3.5 h-3.5 text-blue-400" />
-            <span>Real-Time Audit & Transparency Stream</span>
+            <span>Audit & Telemetry Stream</span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
             System Pulse
           </h1>
-          <p className="text-sm text-slate-400 mt-1 max-w-2xl leading-relaxed">
-            Real-time chronological telemetry across all agent reasoning loops, broker order lifecycles, prompt-level risk cap breaches, and weekly reflection forensics.
-          </p>
         </div>
 
         {/* Live Status Pill */}

@@ -73,7 +73,7 @@ class Settings(BaseSettings):
     # --- LLM providers (§3.2) ---
     EXECUTION_MODE: str = "backtest"
     LLM_PROVIDER: str = "gemini"
-    LLM_MODEL: str = "gemini-3.5-flash-lite"
+    LLM_MODEL: str = "gemini-3.1-flash-lite"
     LLM_FALLBACK_PROVIDER: str = "groq"
     LLM_FALLBACK_MODEL: str = "openai/gpt-oss-120b"
     LLM_REASONING_EFFORT: str = "medium"
@@ -84,7 +84,7 @@ class Settings(BaseSettings):
 
     # --- Reflection LLM providers ---
     REFLECTION_LLM_PROVIDER: str = "gemini"
-    REFLECTION_LLM_MODEL: str = "gemini-3.5-flash-lite"
+    REFLECTION_LLM_MODEL: str = "gemini-3.1-flash-lite"
     REFLECTION_LLM_FALLBACK_PROVIDER: str = "groq"
     REFLECTION_LLM_FALLBACK_MODEL: str = "openai/gpt-oss-120b"
 

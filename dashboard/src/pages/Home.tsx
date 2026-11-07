@@ -1,28 +1,67 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  ArrowRight,
-  Scale,
-  ShieldCheck,
-  Terminal,
-  Activity,
-  Layers,
-  CheckCircle2,
-} from 'lucide-react';
-import type { AgentLeaderboardEntry } from '../types';
+import { ArrowRight, ShieldCheck, Terminal, Sparkles } from 'lucide-react';
+import type { AgentLeaderboardEntry, Decision } from '../types';
 import { apiService } from '../services/api';
-import WatchlistFunnel from '../components/WatchlistFunnel';
-import ExplainabilitySpotlight from '../components/ExplainabilitySpotlight';
+import { formatPct } from '../utils/formatters';
+
+const PHILOSOPHIES = [
+  {
+    name: 'Quant Momentum',
+    inspiration: 'Inspired by Jim Simons / Renaissance Technologies',
+    summary:
+      'Trades confirmed statistical trend efficiency and volume dynamics over short horizons. Relies strictly on quantifiable mathematical edges—never prediction, narrative, or sentiment.',
+  },
+  {
+    name: 'Growth at a Reasonable Price (GARP)',
+    inspiration: 'Inspired by Peter Lynch',
+    summary:
+      'Seeks understandable, well-run businesses with sustainable earnings growth, high returns on capital, low debt, and strong operating cash generation, held through short-term price noise.',
+  },
+  {
+    name: 'Contrarian Value',
+    inspiration: 'Inspired by Howard Marks',
+    summary:
+      'Applies second-level thinking to buy solvent, high-quality businesses suffering from excessive market pessimism or cyclical despair, demanding an asymmetric margin of safety.',
+  },
+  {
+    name: 'High-Conviction Growth',
+    inspiration: 'Inspired by Rakesh Jhunjhunwala',
+    summary:
+      'Backs ambitious promoters with significant skin in the game, durable domestic consumer moats, and institutional sponsorship, holding patiently across multi-quarter compounding cycles.',
+  },
+  {
+    name: 'Dual-Confluence Balanced',
+    inspiration: 'Inspired by Zerodha Varsity (Karthik Rangappa)',
+    summary:
+      'Requires fundamentals to dictate what to trade (solvency and DCF intrinsic value) and classical technical analysis to dictate when to trade, entering only when both sides agree.',
+  },
+];
+
+const PERSONA_NAMES: Record<string, string> = {
+  simons: 'Jim Simons · Quant Momentum',
+  lynch: 'Peter Lynch · GARP',
+  marks: 'Howard Marks · Contrarian Value',
+  jhunjhunwala: 'Rakesh Jhunjhunwala · High-Conviction Growth',
+  'stockminds-core': 'StockMinds Core · Dual-Confluence Balanced',
+  'baseline-simons-rules': 'Simons · Rules Control Baseline',
+};
 
 export default function Home() {
   const [agents, setAgents] = useState<AgentLeaderboardEntry[]>([]);
+  const [decisions, setDecisions] = useState<Decision[]>([]);
+  const [activeDecisionIdx, setActiveDecisionIdx] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
       try {
-        const data = await apiService.getLeaderboard();
-        setAgents(data);
+        const [leaderboardData, decisionData] = await Promise.all([
+          apiService.getLeaderboard(),
+          apiService.getAgentDecisions('all'),
+        ]);
+        setAgents(leaderboardData);
+        setDecisions(decisionData);
       } finally {
         setLoading(false);
       }
@@ -30,236 +69,282 @@ export default function Home() {
     load();
   }, []);
 
-  const simonsLlm = agents.find((a) => a.id === 'simons');
-  const simonsRules = agents.find((a) => a.id === 'baseline-simons-rules');
-  const simonsAlphaSpread =
-    simonsLlm && simonsRules ? (simonsLlm.returnPct - simonsRules.returnPct).toFixed(2) : '3.10';
+  // Auto-rotate through live decisions every 5 seconds
+  useEffect(() => {
+    if (decisions.length === 0) return;
+    const interval = setInterval(() => {
+      setActiveDecisionIdx((prev) => (prev + 1) % decisions.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [decisions.length]);
+
+  const currentDecision = decisions[activeDecisionIdx];
+  const sortedAgents = [...agents].sort((a, b) => b.returnPct - a.returnPct);
 
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-24 flex justify-center items-center">
-        <div className="flex items-center gap-3 text-slate-400 font-mono text-sm">
-          <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          <span>Synchronizing arena state...</span>
+      <div className="max-w-7xl mx-auto px-4 py-28 flex justify-center items-center">
+        <div className="flex items-center gap-3 text-zinc-500 font-mono text-xs">
+          <div className="w-4 h-4 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin" />
+          <span>Synchronizing arena records...</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-16 space-y-16 animate-fade-in font-sans">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-20 space-y-28 animate-fade-in font-sans">
       
-      {/* 1. ASYMMETRIC INSTITUTIONAL HERO (Stripe/J.P. Morgan Discipline on Obsidian Slate) */}
-      <section className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-start">
+      {/* 1. EDITORIAL ASYMMETRIC HERO */}
+      <section className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-start">
         
-        {/* Left Column: Authoritative Editorial Pitch & Core Empirical Delta */}
-        <div className="lg:col-span-7 space-y-6">
+        {/* Left Column: Editorial Display Typography & Single Action */}
+        <div className="lg:col-span-7 space-y-8">
           
-          {/* Eyebrow Label */}
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded bg-white/[0.04] border border-white/10 text-slate-300 text-xs font-mono font-medium">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-            <span>NSE Nifty 500 · 10 Parallel Personas · Immutable Integer Ledger</span>
+          {/* Eyebrow */}
+          <div className="text-xs font-mono text-zinc-500 tracking-widest lowercase">
+            a study on nse's nifty 500
           </div>
 
-          {/* Solid Dignified Headline (No gradient text) */}
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white leading-[1.12]">
-            Can Autonomous LLMs Out-Trade Hard Rules?
+          {/* Large High-Contrast Display Serif Headline */}
+          <h1 className="font-serif text-5xl sm:text-6xl lg:text-7xl font-normal tracking-tight text-white leading-[1.08]">
+            Can judgment beat <br />
+            its own rulebook?
           </h1>
 
-          {/* Clear, Measured Proposition */}
-          <p className="text-base sm:text-lg text-slate-400 max-w-xl leading-relaxed">
-            Five autonomous LLM investor personas benchmarked head-to-head against five identical deterministic rule controls and the Nifty 500 index. Verified point-in-time on an integer-paise paper ledger with zero float accounting.
+          {/* Narrative Lead */}
+          <p className="text-base sm:text-lg text-zinc-400 font-sans leading-relaxed max-w-xl">
+            Five LLMs embodying five different investing philosophies trade against each other and their rules-based counterparts on the Nifty 500 universe. We bring the contest to you. Each trade and decision - tracked and analysed.
           </p>
 
-          {/* Solid Institutional Actions */}
-          <div className="flex flex-wrap items-center gap-3 pt-1">
+          {/* Single Action Button */}
+          <div className="pt-2">
             <Link
               to="/leaderboard"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition-colors cursor-pointer"
+              className="inline-flex items-center gap-2.5 px-6 py-3 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-white border border-white/15 hover:border-[#D4AF37]/50 font-mono text-xs font-medium tracking-wide transition-all cursor-pointer group"
             >
-              <span>Explore Strategy Leaderboard</span>
-              <ArrowRight className="w-4 h-4" />
+              <span>Enter the Arena</span>
+              <ArrowRight className="w-3.5 h-3.5 text-[#D4AF37] group-hover:translate-x-0.5 transition-transform" />
             </Link>
-
-            <Link
-              to="/comparison"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded border border-white/15 bg-white/[0.03] hover:bg-white/[0.07] text-slate-200 font-medium text-sm transition-colors cursor-pointer"
-            >
-              <Scale className="w-4 h-4 text-slate-400" />
-              <span>Paired Baseline Comparison</span>
-            </Link>
-          </div>
-
-          {/* Core Empirical Delta Card (Simons LLM vs Rules Baseline) */}
-          <div className="arena-glow-card p-6 mt-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
-              <div className="flex items-center gap-2 text-xs font-mono text-slate-400 uppercase tracking-wider">
-                <Activity className="w-3.5 h-3.5 text-blue-400" />
-                <span>The Central Empirical Delta</span>
-              </div>
-              <span className="text-[11px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 font-medium">
-                +{simonsAlphaSpread}% Alpha Spread
-              </span>
-            </div>
-
-            <div className="space-y-1">
-              <h3 className="text-lg font-bold text-white">
-                LLM Simons vs. Rules-Only Simons Baseline
-              </h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Both strategies ingest the exact same candidate list from the Stage-3 screener and execute through the identical simulated broker with 10 bps slippage.
-              </p>
-            </div>
-
-            {/* Structured Financial Triad */}
-            <div className="grid grid-cols-3 gap-3 pt-2">
-              <div className="p-3 rounded bg-white/[0.02] border border-white/[0.06]">
-                <span className="text-[10px] font-mono text-slate-400 block">LLM SIMONS</span>
-                <span className="text-xl font-bold font-mono text-blue-400 mt-0.5 block">
-                  +{simonsLlm?.returnPct ?? 4.25}%
-                </span>
-                <span className="text-[10px] text-slate-500 block mt-0.5">Cognitive layer</span>
-              </div>
-
-              <div className="p-3 rounded bg-white/[0.02] border border-white/[0.06]">
-                <span className="text-[10px] font-mono text-slate-400 block">RULES SIMONS</span>
-                <span className="text-xl font-bold font-mono text-slate-300 mt-0.5 block">
-                  +{simonsRules?.returnPct ?? 1.15}%
-                </span>
-                <span className="text-[10px] text-slate-500 block mt-0.5">Static control</span>
-              </div>
-
-              <div className="p-3 rounded bg-white/[0.02] border border-white/[0.06]">
-                <span className="text-[10px] font-mono text-slate-400 block">NET SPREAD</span>
-                <span className="text-xl font-bold font-mono text-emerald-400 mt-0.5 block">
-                  +{simonsAlphaSpread}%
-                </span>
-                <span className="text-[10px] text-emerald-500/80 block mt-0.5">Empirical edge</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Sub-hero Guarantees Ticker */}
-          <div className="pt-2 flex flex-wrap items-center gap-6 text-xs font-mono text-slate-500">
-            <span className="flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
-              <span>Zero float accounting (Integer paise)</span>
-            </span>
-            <span className="text-white/10">|</span>
-            <span className="flex items-center gap-1.5">
-              <Terminal className="w-3.5 h-3.5 text-slate-400" />
-              <span>100% Deterministic faithfulness check</span>
-            </span>
-            <span className="text-white/10">|</span>
-            <span className="flex items-center gap-1.5">
-              <Layers className="w-3.5 h-3.5 text-slate-400" />
-              <span>Point-in-time EOD ingestion</span>
-            </span>
           </div>
         </div>
 
-        {/* Right Column: Live Institutional Arena Telemetry Window (Product Proof) */}
+        {/* Right Column: Live Auto-Rotating Decision Blotter (No charts/graphs) */}
         <div className="lg:col-span-5">
-          <div className="arena-glass overflow-hidden border border-white/[0.12] shadow-2xl">
-            {/* Window Title Bar */}
-            <div className="px-4 py-3 bg-white/[0.03] border-b border-white/[0.08] flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-white/20" />
-                <span className="w-2.5 h-2.5 rounded-full bg-white/20" />
-                <span className="w-2.5 h-2.5 rounded-full bg-white/20" />
-                <span className="ml-2 text-xs font-mono text-slate-300 font-medium">
-                  arena-telemetry.nse · paper feed
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5 text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span>10 ACTIVE PERSONAS</span>
-              </div>
-            </div>
-
-            {/* Standings Micro-Ledger */}
-            <div className="p-4 space-y-3 font-mono text-xs">
-              <div className="flex items-center justify-between text-[11px] text-slate-500 uppercase tracking-wider pb-1 border-b border-white/[0.06]">
-                <span>Strategy Persona</span>
-                <span className="text-right">Return / Sharpe</span>
-              </div>
-
-              {agents.slice(0, 4).map((ag) => {
-                const isControl = ag.id.startsWith('baseline-');
-                return (
-                  <div
-                    key={ag.id}
-                    className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-white/[0.03] transition-colors"
-                  >
-                    <div className="flex items-center gap-2.5">
+          {currentDecision ? (
+            <div className="rounded-lg border border-white/10 bg-[#09090C] p-6 space-y-5 shadow-2xl relative">
+              
+              {/* Blotter Header */}
+              <div className="flex items-center justify-between border-b border-white/[0.06] pb-3 text-[10px] font-mono">
+                <div className="flex items-center gap-2 text-zinc-400">
+                  <Terminal className="w-3.5 h-3.5 text-[#D4AF37]" />
+                  <span className="uppercase tracking-widest">Live Decision Blotter</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-zinc-500">
+                    {activeDecisionIdx + 1} of {decisions.length}
+                  </span>
+                  <div className="flex gap-1">
+                    {decisions.map((_, i) => (
                       <span
-                        className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${
-                          !isControl
-                            ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
-                            : 'bg-slate-700/30 text-slate-400 border border-slate-700/50'
+                        key={i}
+                        className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                          i === activeDecisionIdx ? 'bg-[#D4AF37]' : 'bg-white/10'
                         }`}
-                      >
-                        {isControl ? 'RULES' : 'LLM'}
-                      </span>
-                      <span className="font-semibold text-slate-200">{ag.name}</span>
-                    </div>
-                    <div className="text-right">
-                      <span
-                        className={`font-bold ${
-                          ag.returnPct >= 0 ? 'text-emerald-400' : 'text-rose-400'
-                        }`}
-                      >
-                        {ag.returnPct >= 0 ? `+${ag.returnPct}%` : `${ag.returnPct}%`}
-                      </span>
-                      <span className="text-slate-500 text-[10px] ml-2">SR {ag.sharpeRatio}</span>
-                    </div>
+                      />
+                    ))}
                   </div>
+                </div>
+              </div>
+
+              {/* Persona & Ticker Pill */}
+              <div className="space-y-2">
+                <div className="text-[11px] font-mono text-zinc-400">
+                  {PERSONA_NAMES[currentDecision.agentId] || currentDecision.agentId}
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="font-mono text-xl font-bold text-white tracking-tight">
+                    {currentDecision.symbol}
+                  </span>
+                  <span
+                    className={`font-mono text-xs px-2 py-0.5 rounded font-semibold border ${
+                      currentDecision.action === 'BUY'
+                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                        : currentDecision.action === 'SELL'
+                        ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                        : 'bg-zinc-800 text-zinc-300 border-zinc-700'
+                    }`}
+                  >
+                    {currentDecision.action}
+                  </span>
+                  <span className="text-zinc-500 font-mono text-[11px] ml-auto">
+                    {currentDecision.decisionDate}
+                  </span>
+                </div>
+              </div>
+
+              {/* One-Line Reasoning */}
+              <div className="space-y-1.5 bg-black/40 p-3.5 rounded border border-white/[0.04]">
+                <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider block">
+                  Verbatim Decision Rationale
+                </span>
+                <p className="text-xs text-zinc-300 leading-relaxed font-sans">
+                  &ldquo;{currentDecision.rationale}&rdquo;
+                </p>
+              </div>
+
+              {/* Pre-Mortem Risk Underneath */}
+              <div className="space-y-1 bg-white/[0.02] p-3 rounded border border-white/[0.04]">
+                <div className="flex items-center gap-1.5 text-[10px] font-mono text-amber-400/90 uppercase tracking-wider">
+                  <Sparkles className="w-3 h-3" />
+                  <span>Pre-Mortem Failure Risk</span>
+                </div>
+                <p className="text-[11px] text-zinc-400 leading-relaxed font-sans">
+                  {currentDecision.preMortemRisk ||
+                    'Broad market trend reversal or sudden volatility expansion breaching stop bounds.'}
+                </p>
+              </div>
+
+              {/* Verification Stamp */}
+              <div className="flex items-center justify-between pt-2 border-t border-white/[0.06] text-[10px] font-mono text-zinc-500">
+                <div className="flex items-center gap-1 text-emerald-400">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>100% Deterministic Citation Match</span>
+                </div>
+                <span>Auto-cycling feed</span>
+              </div>
+
+            </div>
+          ) : (
+            <div className="p-8 border border-white/10 rounded-lg text-zinc-500 font-mono text-xs text-center">
+              Awaiting live feed...
+            </div>
+          )}
+        </div>
+
+      </section>
+
+      {/* 2. THE FIVE PHILOSOPHIES (Direct from Prompts — Zero Internal Numbers) */}
+      <section className="space-y-8 pt-4">
+        <div className="border-b border-white/[0.08] pb-4 flex items-center justify-between">
+          <div className="text-xs font-mono text-zinc-500 tracking-widest uppercase">
+            Five Philosophies · One Benchmark
+          </div>
+          <span className="text-[11px] font-mono text-zinc-500">
+            Nifty 500 Universe
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+          {PHILOSOPHIES.map((phi, idx) => (
+            <div
+              key={phi.name}
+              className="space-y-3 p-4 rounded-md bg-white/[0.015] border border-white/[0.06] hover:border-white/20 transition-colors"
+            >
+              <div className="text-[10px] font-mono text-zinc-600">
+                0{idx + 1}
+              </div>
+              <h3 className="font-serif text-lg font-normal text-white tracking-tight">
+                {phi.name}
+              </h3>
+              <div className="text-[10px] font-mono text-[#D4AF37]/90 leading-tight">
+                {phi.inspiration}
+              </div>
+              <p className="text-xs text-zinc-400 leading-relaxed font-sans pt-1">
+                {phi.summary}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* 3. MINIMALIST LEADERBOARD PREVIEW (Matching Reference Image 2 & 3) */}
+      <section className="space-y-6 pt-4">
+        <div className="border-b border-white/[0.08] pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-baseline gap-2">
+          <h2 className="font-serif text-2xl sm:text-3xl font-normal tracking-tight text-white">
+            Leaderboard
+          </h2>
+          <span className="text-xs font-mono text-zinc-500">
+            10 strategies · ranked by return
+          </span>
+        </div>
+
+        {/* Minimalist Editorial Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs font-mono">
+            <thead>
+              <tr className="border-b border-white/10 text-zinc-500 text-[11px]">
+                <th className="py-3 px-3 text-left font-normal w-12">Rank</th>
+                <th className="py-3 px-4 text-left font-normal">Agent</th>
+                <th className="py-3 px-4 text-left font-normal">Philosophy</th>
+                <th className="py-3 px-3 text-right font-normal">Return</th>
+                <th className="py-3 px-3 text-right font-normal">Sharpe</th>
+                <th className="py-3 px-3 text-right font-normal">Max DD</th>
+                <th className="py-3 px-4 text-right font-normal">Δ vs. Nifty 500</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/[0.04]">
+              {sortedAgents.map((ag, idx) => {
+                const isTop = idx === 0;
+                return (
+                  <tr
+                    key={ag.id}
+                    className="hover:bg-white/[0.02] transition-colors group"
+                  >
+                    <td
+                      className={`py-3.5 px-3 font-semibold ${
+                        isTop ? 'text-[#D4AF37]' : 'text-zinc-500'
+                      }`}
+                    >
+                      0{idx + 1}
+                    </td>
+
+                    <td className="py-3.5 px-4 font-sans font-medium text-white group-hover:text-[#D4AF37] transition-colors">
+                      <Link to={`/portfolio/${ag.id}`}>{ag.name}</Link>
+                    </td>
+
+                    <td className="py-3.5 px-4 text-zinc-400 truncate max-w-[220px]">
+                      {ag.philosophy}
+                    </td>
+
+                    <td
+                      className={`py-3.5 px-3 text-right font-bold ${
+                        ag.returnPct >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                      }`}
+                    >
+                      {formatPct(ag.returnPct)}
+                    </td>
+
+                    <td className="py-3.5 px-3 text-right text-zinc-300">
+                      {ag.sharpeRatio.toFixed(2)}
+                    </td>
+
+                    <td className="py-3.5 px-3 text-right text-zinc-400">
+                      {formatPct(ag.maxDrawdownPct)}
+                    </td>
+
+                    <td
+                      className={`py-3.5 px-4 text-right ${
+                        ag.alphaVsBenchmarkPct >= 0
+                          ? 'text-emerald-400'
+                          : 'text-zinc-500'
+                      }`}
+                    >
+                      {ag.alphaVsBenchmarkPct >= 0
+                        ? `+${formatPct(ag.alphaVsBenchmarkPct)}`
+                        : formatPct(ag.alphaVsBenchmarkPct)}
+                    </td>
+                  </tr>
                 );
               })}
-            </div>
-
-            {/* Verified Trade Rationale Audit Block */}
-            <div className="p-4 bg-black/40 border-t border-white/[0.08] space-y-2 font-mono text-xs">
-              <div className="flex items-center justify-between text-[10px] text-slate-400">
-                <span className="flex items-center gap-1.5 text-blue-400">
-                  <Terminal className="w-3 h-3" />
-                  <span>EXECUTION AUDIT · BEML</span>
-                </span>
-                <span className="text-slate-500">15:15 IST</span>
-              </div>
-
-              <p className="text-[11px] text-slate-300 leading-relaxed font-sans bg-white/[0.02] p-2.5 rounded border border-white/[0.04]">
-                &quot;Momentum breakout confirmed by 20-day volume surge (1.8x). PE of 34.2 is within quantitative sector boundary. Sized at 120 shares at ₹4,180.50 (418,050 paise).&quot;
-              </p>
-
-              <div className="grid grid-cols-2 gap-2 text-[10px] pt-1">
-                <div className="flex items-center gap-1 text-slate-400">
-                  <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                  <span>Faithfulness: 100% OK</span>
-                </div>
-                <div className="text-right text-slate-500">
-                  Debit: 50,166,000 paise
-                </div>
-              </div>
-            </div>
-
-            {/* Bottom Status Bar */}
-            <div className="px-4 py-2 bg-white/[0.02] border-t border-white/[0.06] flex items-center justify-between text-[10px] font-mono text-slate-500">
-              <span>ZERO FLOAT DRIFT</span>
-              <span>LATENCY: 142MS</span>
-            </div>
-          </div>
+            </tbody>
+          </table>
         </div>
-      </section>
 
-      {/* 2. INTERACTIVE WATCHLIST SCREENING FUNNEL */}
-      <section className="space-y-4">
-        <WatchlistFunnel />
-      </section>
-
-      {/* 3. EXPLAINABILITY & FAITHFULNESS AUDIT SPOTLIGHT */}
-      <section className="space-y-4">
-        <ExplainabilitySpotlight />
+        {/* Micro-caption matching Reference Image 2 */}
+        <div className="pt-2 text-[11px] font-mono text-zinc-600">
+          Figures update nightly upon EOD market close. Rows carry a visible divider; columns a quieter one.
+        </div>
       </section>
 
     </div>

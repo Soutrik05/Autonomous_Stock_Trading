@@ -46,3 +46,7 @@ dashboard/.vite/
 # Editors
 .idea/
 .vscode/
+
+# Agent Skills
+skills-lock.json
+.agents/

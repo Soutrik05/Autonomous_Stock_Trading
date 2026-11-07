@@ -56,19 +56,21 @@ export default function Comparison() {
   }));
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-fade-in font-sans">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 animate-fade-in font-sans">
       {/* Header */}
-      <div className="border-b border-white/10 pb-6">
-        <div className="flex items-center gap-2 text-xs font-mono text-slate-400 mb-1 font-semibold uppercase tracking-wider">
-          <Scale className="w-3.5 h-3.5 text-blue-400" />
-          <span>Paired Experimental Benchmark</span>
+      <div className="border-b border-white/[0.08] pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-mono text-zinc-400 mb-1 font-semibold uppercase tracking-wider">
+            <Scale className="w-3.5 h-3.5 text-blue-400" />
+            <span>Paired Experimental Benchmark</span>
+          </div>
+          <h1 className="font-serif text-3xl sm:text-4xl font-normal tracking-tight text-white">
+            Cognitive Alpha vs. Deterministic Rules
+          </h1>
         </div>
-        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
-          Cognitive Alpha vs. Deterministic Rules
-        </h1>
-        <p className="text-sm text-slate-400 mt-1 max-w-3xl leading-relaxed">
-          Evaluating the central research hypothesis: <em>Does an LLM cognitive layer add measurable value over identical hard-coded rules and the market index?</em> Both strategies evaluate the exact same candidate list through the same simulated broker.
-        </p>
+        <div className="text-xs font-mono text-zinc-400">
+          Hypothesis: LLM vs Rules (Simons Control)
+        </div>
       </div>
 
       <SmallSampleNotice closedTradesCount={data.llmSimons.trades} threshold={30} />

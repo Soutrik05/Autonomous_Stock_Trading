@@ -105,7 +105,7 @@ export default function Portfolio() {
           <select
             value={currentAgentId}
             onChange={(e) => navigate(`/portfolio/${e.target.value}`)}
-            className="bg-[#090B10] border border-white/10 text-white rounded px-3 py-1.5 font-mono text-xs cursor-pointer focus:ring-1 focus:ring-blue-500"
+            className="bg-[#0A0A0E] border border-white/10 text-white rounded px-3 py-1.5 font-mono text-xs cursor-pointer focus:ring-1 focus:ring-blue-500"
           >
             {AGENT_LIST.map((ag) => (
               <option key={ag.id} value={ag.id}>

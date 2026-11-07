@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import {
-  Award,
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
@@ -71,20 +70,16 @@ export default function Leaderboard() {
   const totalPaise = agents.reduce((sum, a) => sum + a.navPaise, 0);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-fade-in font-sans">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 animate-fade-in font-sans">
       {/* Header */}
-      <div className="border-b border-white/10 pb-6 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+      <div className="border-b border-white/[0.08] pb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <div className="flex items-center gap-2 text-xs font-mono text-slate-400 uppercase tracking-wider mb-1 font-semibold">
-            <Award className="w-3.5 h-3.5 text-blue-400" />
-            <span>Autonomous Trading Strategy Arena</span>
+          <div className="text-xs font-mono text-zinc-500 uppercase tracking-widest mb-1">
+            Arena Standings · 10 Parallel Portfolios
           </div>
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
-            Strategy Leaderboard
+          <h1 className="font-serif text-3xl sm:text-4xl font-normal tracking-tight text-white">
+            Leaderboard
           </h1>
-          <p className="text-sm text-slate-400 mt-1 max-w-2xl leading-relaxed">
-            Comparative performance ranking of all 10 autonomous strategies (5 cognitive LLM personas + 5 matching rules baselines) trading separate ₹1,00,000 paper accounts on the NSE Nifty 500 universe.
-          </p>
         </div>
 
         {/* Strategy Category Filter Chips */}
@@ -93,10 +88,10 @@ export default function Leaderboard() {
             <button
               key={filter}
               onClick={() => setStrategyFilter(filter)}
-              className={`px-3.5 py-1.5 rounded font-medium transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded font-medium transition-all cursor-pointer ${
                 strategyFilter === filter
-                  ? 'bg-blue-600 text-white font-semibold'
-                  : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
+                  ? 'bg-white/[0.12] text-[#D4AF37] font-semibold border border-[#D4AF37]/30'
+                  : 'text-zinc-400 hover:text-white hover:bg-white/[0.04]'
               }`}
             >
               {filter === 'ALL'
@@ -209,12 +204,12 @@ export default function Leaderboard() {
                   >
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-2.5">
-                        <span className="text-slate-500 text-xs w-4">
-                          #{idx + 1}
+                        <span className={`text-xs w-6 font-mono font-semibold ${idx === 0 ? 'text-[#D4AF37]' : 'text-zinc-500'}`}>
+                          0{idx + 1}
                         </span>
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="font-semibold text-white text-sm group-hover:text-blue-400 transition-colors">
+                            <span className="font-semibold text-white text-sm group-hover:text-[#D4AF37] transition-colors">
                               {agent.name}
                             </span>
                             <span

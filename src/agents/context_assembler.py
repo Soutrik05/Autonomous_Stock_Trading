@@ -62,14 +62,30 @@ def build_regime_line(india_vix: float | None, regime: str | None) -> str:
     return f"REGIME: {regime} (India VIX: {vix_part})."
 
 
-def build_heuristics_block(heuristics: list[dict]) -> str:
+def build_heuristics_block(heuristics: list[dict], current_regime: str | None = None) -> str:
     if not heuristics:
-        return "ACTIVE HEURISTICS: none yet."
+        return "ACTIVE HEURISTICS: none currently active for this regime."
     lines = ["ACTIVE HEURISTICS (Mandatory Learned Discipline):"]
+    if current_regime:
+        lines.append(f"Current Market Regime Context: {current_regime}")
     for h in heuristics:
         ctx = h.get("context") or "ENTRY"
         act = f" -> Action: {h.get('prescribed_action')}" if h.get("prescribed_action") else ""
-        lines.append(f"- [{ctx} {h['kind']}] {h['heuristic_text']} (confidence {h['confidence']:.2f}){act}")
+
+        # Format natural language scope
+        scope = "Universal"
+        trig_str = str(h.get("trigger_json") or "")
+        h_text = h.get("heuristic_text", "")
+        if "RANGE_BOUND" in trig_str or "range-bound" in h_text.lower():
+            scope = "Range-Bound Consolidation"
+        elif "HIGH_VOLATILITY" in trig_str or "high volatility" in h_text.lower():
+            scope = "High Volatility Correction"
+        elif "BULL_TREND" in trig_str or "bull" in h_text.lower():
+            scope = "Bull Trend Continuation"
+        elif "india_vix" in trig_str or "vix" in h_text.lower():
+            scope = "Elevated Volatility (VIX)"
+
+        lines.append(f"- [{ctx} {h['kind']} | Scope: {scope}] {h['heuristic_text']} (confidence {h['confidence']:.2f}){act}")
     return "\n".join(lines)
 
 
@@ -283,14 +299,69 @@ def load_portfolio_state(conn: sqlite3.Connection, agent_id: str) -> tuple[int, 
     return cash_paise, holdings
 
 
-def load_active_heuristics(conn: sqlite3.Connection, agent_id: str) -> list[dict]:
-    rows = conn.execute(
-        "SELECT kind, context, heuristic_text, prescribed_action, confidence FROM agent_memory "
-        "WHERE agent_id = ? AND status IN ('active', 'reinforced') "
-        "ORDER BY confidence DESC LIMIT ?",
-        (agent_id, settings.MAX_ACTIVE_HEURISTICS_IN_PROMPT),
-    ).fetchall()
-    return [dict(r) for r in rows]
+def load_active_heuristics(
+    conn: sqlite3.Connection,
+    agent_id: str,
+    current_regime: str | None = None,
+    current_vix: float | None = None,
+) -> list[dict]:
+    try:
+        rows = conn.execute(
+            "SELECT kind, context, heuristic_text, prescribed_action, confidence, trigger_json, status FROM agent_memory "
+            "WHERE agent_id = ? AND status IN ('active', 'reinforced') "
+            "ORDER BY confidence DESC LIMIT 20",
+            (agent_id,),
+        ).fetchall()
+    except sqlite3.OperationalError:
+        rows = conn.execute(
+            "SELECT kind, context, heuristic_text, prescribed_action, confidence FROM agent_memory "
+            "WHERE agent_id = ? AND status IN ('active', 'reinforced') "
+            "ORDER BY confidence DESC LIMIT ?",
+            (agent_id, settings.MAX_ACTIVE_HEURISTICS_IN_PROMPT),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    is_fundamental_persona = agent_id in ("jhunjhunwala", "marks", "lynch")
+    results = []
+
+    for r in rows:
+        d = dict(r)
+        trig_str = str(d.get("trigger_json") or "")
+        ctx = d.get("context") or "ENTRY"
+        kind = d.get("kind") or "AVOID"
+
+        # 1. Horizon Protection for Fundamental Personas:
+        # Suppress fast daily technical oscillator exit rules for long-term compounders
+        if is_fundamental_persona and ctx == "EXIT":
+            fast_indicators = ("macd_hist", "rsi_14", "ema_20", "zscore_close_20", "volume_surge")
+            fundamental_indicators = ("roce_pct", "roe_pct", "pe", "peg", "debt_to_equity", "cfo_to_pat", "pat_growth_yoy_pct")
+            has_fast = any(f'"{ind}"' in trig_str for ind in fast_indicators)
+            has_fund = any(f'"{ind}"' in trig_str for ind in fundamental_indicators)
+            if has_fast and not has_fund:
+                continue
+
+        # 2. Dynamic Regime Gating:
+        if current_regime:
+            if '"regime"' in trig_str:
+                if '"RANGE_BOUND"' in trig_str and current_regime != "RANGE_BOUND":
+                    continue
+                if '"HIGH_VOLATILITY"' in trig_str and current_regime != "HIGH_VOLATILITY":
+                    continue
+                if '"BULL_TREND"' in trig_str and current_regime != "BULL_TREND":
+                    continue
+
+            # In BULL_TREND, suppress overextension entry filters that choke off momentum
+            if current_regime == "BULL_TREND" and ctx == "ENTRY" and kind == "AVOID":
+                if ('"rsi_14"' in trig_str and (">" in trig_str or ">=" in trig_str)) or \
+                   ('"zscore_close_20"' in trig_str and (">" in trig_str or ">=" in trig_str)) or \
+                   ('"adx_14"' in trig_str and (">" in trig_str or ">=" in trig_str)):
+                    continue
+
+        results.append(d)
+        if len(results) >= settings.MAX_ACTIVE_HEURISTICS_IN_PROMPT:
+            break
+
+    return results
 
 
 def load_episodic_memory(conn: sqlite3.Connection, agent_id: str) -> list[dict]:
@@ -331,9 +402,9 @@ def build_user_prompt(
     with relative timestamps and FinBERT scores.
     Returns (user_prompt_text, trim_debug_info)."""
     cash_paise, holdings = load_portfolio_state(portfolio_conn, agent_id)
-    heuristics = load_active_heuristics(portfolio_conn, agent_id)
-    closed_positions = load_episodic_memory(portfolio_conn, agent_id)
     india_vix, regime = extract_regime(features_by_ticker)
+    heuristics = load_active_heuristics(portfolio_conn, agent_id, current_regime=regime, current_vix=india_vix)
+    closed_positions = load_episodic_memory(portfolio_conn, agent_id)
     extras = list(extra_metrics or [])
     if news_lookback_days > 0 and "news_sentiment" not in extras:
         extras.append("news_sentiment")
@@ -388,7 +459,7 @@ def build_user_prompt(
     return assemble_prompt(
         system_prompt=system_prompt,
         regime_line=build_regime_line(india_vix, regime),
-        heuristics_block=build_heuristics_block(heuristics),
+        heuristics_block=build_heuristics_block(heuristics, current_regime=regime),
         episodic_block=build_episodic_memory_block(closed_positions),
         portfolio_block=build_portfolio_state_block(cash_paise, holdings, kelly_context=kelly_context),
         candidates=candidates,
