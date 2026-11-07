@@ -43,7 +43,7 @@
 ## Navigational Index
 - [System Overview & Foundation](#system-overview--foundation)
 - [Part I — Data Engine & Shared Substrate](#part-i--data-engine--shared-substrate)
-- [Part II — Personas, Broker & Learning](#part-ii--personas-broker--learning)
+- [Part II — Personas, Broker, Learning & Backtest](#part-ii--personas-broker--learning)
 - [Part III — Database, Configuration & Repository Tree](#part-iii--database-configuration--repository-tree)
 - [Part IV — REST API & Frontend](#part-iv--rest-api--frontend)
 - [Part V — Roadmap & Definition of Done](#part-v--roadmap--definition-of-done)
@@ -81,12 +81,13 @@ Retail investors can see that different investing styles give different returns,
 4. **Execution discipline.** The broker blocks invalid orders (price logic, cash, short selling). Prompt-level risk caps (2% risk per trade, 5% drawdown, 25% sector) are **not** blocking. Breaches are logged as `CAP_BREACH`, so we can measure how well each persona follows its own rules.
 5. **Complete data capture.** Every night's feature snapshots, decisions, orders and NAV are stored. A missed night cannot be recreated, so capture is part of the first live run.
 
+
 ### System Limitations
 - **Daily-candle decisions.** Agents decide on closed daily candles at night.
 - **Polling resolution.** The monitor polls every 10 minutes (`MONITOR_INTERVAL_MIN`). Fills and stops happen at the prevailing poll price, so gaps between polls are not captured.
 - **Modelled costs.** Statutory charges are exact. Slippage is a fixed estimate (`SLIPPAGE_BPS`), not market impact.
-- **Small samples.** Long-horizon personas (Lynch 30–90 days) will have few closed trades. Sharpe ratio and win rate are labelled "provisional" until at least 30 trades exist.
-- **One market regime.** An 8-week test sees one slice of the market. Results describe behaviour in this period, not "the best strategy".
+- **Small samples.** Long-horizon personas (Lynch 30–90 days, RJ 90–180 days) will have few or zero closed trades in the live pilot.
+- **One market regime.** An 8-week live test sees one slice of the market. The walk-forward backtest module resolves this structural limitation by systematically evaluating agents across multiple historical regimes (`BULL_TREND`, `RANGE_BOUND`, `HIGH_VOLATILITY`).
 - **LLM randomness.** Every prompt and response is stored in `llm_calls`, so any decision can be inspected.
 - **Upstox verification.** Endpoint paths and response fields are checked in the Day-1 spike. Findings are written to `docs/upstox_findings.md`.
 - **Educational use only.** This is a paper-trading research system. No real funds are managed. Every UI page carries a disclaimer.
@@ -509,6 +510,30 @@ Runs on Sunday at 10:00 IST:
   - `active`/`testing` → `deprecated`: $\ge 3$ resolved applications and success rate $<40\%$, or has not fired in 30 days.
 - Up to 5 active and reinforced heuristics are injected into nightly prompt context.
 
+### 5.6 Historical Walk-Forward Backtest Module (`src/backtest/`)
+
+#### The Architectural Problem & The "Why"
+StockMinds runs five LLM personas whose holding horizons range from 1–14 trading days (Simons) to 90–180 trading days (Rakesh Jhunjhunwala). The live paper-trading pilot runs for approximately 8 weeks (~40–42 trading sessions). For the longer-horizon personas—RJ, Lynch (30–90d), and Marks (21–120d)—the live pilot structurally cannot complete even one full holding cycle for most of their positions. This is a calendar constraint, not a sample-size issue: a 180-day thesis cannot resolve in 42 trading sessions.
+
+This forces a strict split between two distinct research questions:
+- **Question A — "Is the agent correctly embodying its assigned philosophy?"** Fully answerable from day one of the live pilot for every agent with zero closed trades required. Evidence: Stage-1 hurdle gating, metric faithfulness (`faithfulness_score`), sizing fidelity arithmetic, qualitative thesis resistance to noise, and dual-confluence enforcement.
+- **Question B — "Does this philosophy, as implemented, make money?"** Requires closed trades with resolved P&L, measured over a horizon long enough for the persona's own thesis to mature. The live pilot cannot answer Question B for slow personas. The backtest module exists specifically to answer Question B for these personas.
+
+#### Core Deliverables & Priorities
+1. **Full Holding Cycle Resolution (Priority 1):** Every backtest window spans at least 180 trading sessions, ensuring even Rakesh Jhunjhunwala's 90–180 day positions reach complete trade resolution.
+2. **Multiple Independent Samples (Priority 2):** Uses rolling fixed 180-day windows shifted by 30 trading sessions across the 522 historical sessions in `storage/market/ohlcv.db` (Jan 2025 to Oct 2026), generating multiple independent samples per slow persona rather than a single pass.
+3. **Multi-Market Regime Coverage (Priority 3):** Systematically covers distinct market regimes to test philosophy durability outside the single regime the live pilot experiences:
+   - `rolling_w1` (`BULL_TREND`, 2025-10-21 to 2026-07-15): Post-correction recovery and strong upward momentum.
+   - `rolling_w2` (`RANGE_BOUND`, 2025-12-04 to 2026-08-26): Sector rotation, range-bound consolidation.
+   - `rolling_w3` (`HIGH_VOLATILITY`, 2026-01-19 to 2026-10-09): Market correction with elevated India VIX.
+4. **Learning Loop Validation (Secondary Goal):** The walk-forward runner steps a `SimulatedClock` day-by-day. Reflection runs on simulated Sundays at 10:00 IST via `src/learning/engine.py` whenever eligible closed trades $\ge \text{MIN\_CLOSED\_TRADES\_FOR\_REFLECTION}$ (3), testing whether the learning and watermark mechanism works for slow personas.
+5. **Persona-Specific Decision Cadence:** Decouples agent LLM decision runs from a rigid daily schedule to mirror embodied investment horizons and reduce redundant LLM calls by ~65% (Simons/Baseline: daily; Varsity: 2x/week; Marks/Lynch: weekly; RJ: bi-weekly; or immediately on position closure). Broker order fills, stop liquidation, expiry, and settlement remain 100% daily.
+
+#### Non-Negotiable Guardrails
+- **Not a Substitute for Live Pilot:** Backtest fills use daily OHLCV ranges rather than true 10-minute intraday polling, and historical data may carry subtle lookahead exposure from indicator tuning.
+- **Strict Evidence Isolation:** Backtest runs execute into dedicated SQLite databases (`storage/backtest/<window_id>.db`) matching `portfolio.db` schema. All results in reports, API endpoints, and dashboard views are permanently tagged `BACKTEST_DERIVED` and never blended with live results. Small-sample notices (`PROVISIONAL` when closed trades $< 30$) remain mandatory.
+- **Persistent LLM Cache:** An SQLite cache (`storage/cache/llm_cache.db`) stores responses keyed by `(agent_id, run_date, candidate_set, model)`, eliminating redundant API spend across repeated runs.
+
 ## 6. Watchlist Curation Funnel (`src/watchlist/`)
 
 ```text
@@ -928,6 +953,15 @@ Autonomous_Stock_Trading/
 │   │   ├── engine.py              # Weekly reflection job (Sunday 10:00 IST) with watermark tracking
 │   │   └── memory_manager.py      # Nightly heuristic trigger evaluation & lifecycle state management
 │   │
+│   ├── backtest/                  # Historical walk-forward simulation & Question B validation
+│   │   ├── __init__.py
+│   │   ├── config.py              # 180-day multi-regime rolling window generator & persona horizons
+│   │   ├── cache.py               # Persistent SQLite LLM inference response cache
+│   │   ├── broker_sim.py          # Daily candle matching, stops, targets & mark-to-market settlement
+│   │   ├── engine.py              # Day-by-day SimulatedClock walk-forward runner with Sunday reflection
+│   │   ├── runner.py              # CLI entry point (--window, --all-rolling, --fake-llm)
+│   │   └── reports.py             # Question B performance reporting & markdown synthesis
+│   │
 │   ├── evaluation/                # Performance measurement & benchmarking
 │   │   ├── __init__.py
 │   │   ├── faithfulness.py        # Deterministic cited-metric verification against FeatureSnapshot
@@ -946,7 +980,8 @@ Autonomous_Stock_Trading/
 │
 ├── storage/                       # Persistent runtime database storage (git-ignored)
 │   ├── market/                    # Rebuildable market caches (ohlcv.db, fundamental.db, news.db, macro.db)
-│   └── ledger/                    # Irreplaceable application state (portfolio.db, simulation.db)
+│   ├── ledger/                    # Irreplaceable application state (portfolio.db, simulation.db)
+│   └── backtest/                  # Isolated walk-forward backtest SQLite runs (rolling_wX.db)
 │
 ├── backups/                       # Local point-in-time SQLite backups (sibling to storage/ on same volume)
 │   └── portfolio_YYYY-MM-DD.db
@@ -1032,26 +1067,36 @@ Pages: Leaderboard, Agent Detail, Baseline Compare, Activity Feed. Every page ca
   - Co-located prompts within persona modules, removing dead re-export stubs.
   - Automated CI test workflow (`.github/workflows/ci.yml`). 307 of 307 tests passing.
 
-### Week 3 — Learning Loop, Heuristics & Performance Evaluation
-- Forward-return multi-horizon backfill (`src/evaluation/forward_returns.py`).
-- Weekly reflection engine with watermark tracking (`src/learning/engine.py`).
-- Machine-checkable heuristic trigger evaluator, forward-return scoring, and testing/active/reinforced/deprecated lifecycle management (`src/learning/memory_manager.py`).
-- Performance evaluation module: Sharpe ratio, maximum drawdown, alpha vs Nifty 500, win rate (`src/evaluation/performance.py`).
-- Paired comparison engine: LLM Simons vs Rules Simons vs Nifty 500, and forward-return deltas (`src/evaluation/comparison.py`).
-- Review first 2 weeks of live/replay execution telemetry: parse failure rate, missed fills, faithfulness, token use.
+### Week 3 — Learning Component: Reflection, Forensics & Heuristics (Soutrik)
+- **Rule-based trade forensics (`src/learning/forensics.py`):** Deterministic classification of closed trades into loss and win categories.
+- **Weekly reflection engine with watermark tracking (`src/learning/engine.py`):** Gated by `MIN_CLOSED_TRADES_FOR_REFLECTION = 3`, advances `last_position_id_reviewed` watermark on completion.
+- **Machine-checkable heuristic trigger evaluator & lifecycle (`src/learning/memory_manager.py`):** Pydantic `TriggerPredicate` validation over `FeatureSnapshot` metrics, resolution of `SEEK` / `AVOID` applications from forward returns, and state promotion (`testing` → `active` → `reinforced` / `deprecated`).
+- **Comprehensive unit test suites (`tests/unit/test_forensics.py`, `tests/unit/test_heuristic_triggers.py`).**
 
-### Week 4 — REST API & Dashboard (STATUS: UPCOMING)
-- FastAPI read-only endpoints mounted in `src/api/` (`leaderboard.py`, `portfolio.py`, `activity.py`, `baseline.py`, `memory.py`, `health.py`).
-- React dashboard (`dashboard/`) with Vite, Tailwind CSS, Recharts equity curves, and small-sample labels.
-- Health monitor page and system telemetry.
+### Week 4 — Evaluation & Historical Walk-Forward Backtest Module (Aritro)
+- **Multi-horizon forward return backfill (`src/evaluation/forward_returns.py`):** Calculates stock and benchmark proxy returns over `FORWARD_HORIZONS` ([1, 5, 8, 10, 20, 60, 90, 120] days).
+- **Quantitative performance evaluation (`src/evaluation/performance.py`):** Annualized Sharpe ratio, maximum percentage drawdown, win rate, profit factor, average hold duration, and mandatory `is_provisional` small-sample flag (<30 closed trades).
+- **Paired comparison engine (`src/evaluation/comparison.py`):** Direct head-to-head performance of LLM Simons vs `baseline-simons-rules` vs Nifty 500, plus candidate selection alpha (BUY vs HOLD forward returns).
+- **Historical walk-forward backtest engine (`src/backtest/engine.py`, `config.py`, `broker_sim.py`):** 180-day multi-regime rolling windows (30-day shift) resolving full holding cycles for all personas (including RJ 90–180d).
+- **Persistent SQLite LLM cache (`src/backtest/cache.py`) & Question B reporting synthesis (`src/backtest/reports.py`):** Eliminates duplicate LLM API costs and synthesizes empirical holding durations.
+- **Strict Evidence Isolation:** All outputs stored in `storage/backtest/<window_id>.db` and permanently tagged `BACKTEST_DERIVED`.
 
-### Weeks 5–6 — Soak, tuning and hardening
-- All six agents live. Fix issues found in real runs. Settings changes are recorded with the date (so results can be split before and after).
-- Test coverage for the broker, features and heuristic triggers. Corporate-action freeze tested with a fake split.
+### Week 5 — REST API & Dashboard Parallel Build (STATUS: UPCOMING)
+- **Joint Build:** Backend routes and frontend UI developed in parallel.
+- **FastAPI read-only REST endpoints (`src/api/routes/`):**
+  - Live pilot routes: `/api/leaderboard`, `/api/agents/{id}/positions`, `/api/agents/{id}/orders`, `/api/agents/{id}/decisions`, `/api/agents/{id}/nav`, `/api/agents/{id}/memory`, `/api/baseline/comparison`, `/api/activity`, `/api/health`.
+  - Backtest routes (`src/api/routes/backtest.py`): `/api/backtest/windows`, `/api/backtest/runs`, `/api/backtest/runs/{id}/leaderboard`, `/api/backtest/runs/{id}/nav`, `/api/backtest/runs/{id}/positions`.
+- **React Dashboard (`dashboard/`):** Vite, Tailwind CSS, Recharts multi-agent equity curves, Agent Detail inspection, Live transparency feed, and a dedicated `/backtest` Historical Backtest page with regime comparison cards and empirical holding duration resolution tables.
 
-### Weeks 7–8 — Evidence, report and demo
-- Final comparison tables, example post-mortems, a worked heuristic from rule to outcome.
-- Report, demo rehearsal, and buffer.
+### Week 6 — Live Paper Pilot Run & System Tuning / Hardening (STATUS: UPCOMING)
+- **Live Paper Pilot Launch:** All 5 LLM personas and 1 Baseline rules agent actively trade live on daily market EOD data.
+- **System Tuning & Hardening:** Intraday 10-minute broker monitoring, order expiry at 15:30 IST, settlement at 15:35 IST, nightly backup verification.
+- **Telemetry Review:** Parse failure rates, missed fills, execution slippage, token consumption, and prompt-level risk cap breaches (`CAP_BREACH`).
+
+### Week 7 — Evaluation Continuation, Cross-Validation & Project Report Preparation (STATUS: UPCOMING)
+- **Live Pilot Evaluation (Question A):** Validate philosophy embodiment, Stage-1 hurdle fidelity, and cited-metric faithfulness across all agents.
+- **Cross-Validation (Question A vs Question B):** Synthesize Question A live pilot findings against Question B backtest resolved returns across 180-day cycles.
+- **Final Project Deliverables:** Final comparison tables, worked heuristic case studies from inception to promotion/deprecation, comprehensive project defense report, and demo rehearsal.
 
 ### Definition of Done
 1. All six agents complete each nightly run with no unhandled exceptions over at least 15 consecutive trading days.
@@ -1062,6 +1107,8 @@ Pages: Leaderboard, Agent Detail, Baseline Compare, Activity Feed. Every page ca
 6. The comparison page shows LLM Simons vs rules Simons vs Nifty 500, and the forward-return comparison for all decisions.
 7. At least one heuristic has a machine-checked trigger with resolved applications.
 8. The report states the limitations in the Overview section.
+9. The historical walk-forward backtest engine executes across rolling 180-day multi-regime windows, completing at least one resolved holding cycle per persona (including RJ 90–180d) with persistent LLM inference caching.
+10. All backtest outputs, API endpoints, and dashboard views are strictly isolated in `storage/backtest/` and permanently labeled `BACKTEST_DERIVED`.
 
 ---
 
