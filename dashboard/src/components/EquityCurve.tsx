@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import {
   ResponsiveContainer,
   LineChart,
@@ -19,9 +19,9 @@ interface EquityCurveProps {
   isBacktest?: boolean;
 }
 
-export default function EquityCurve({
+function EquityCurveComponent({
   data,
-  title = 'Multi-Agent Portfolio Equity Curves',
+  title = 'Multi-agent portfolio equity curves',
   isBacktest = false,
 }: EquityCurveProps) {
   // Active series visibility
@@ -54,19 +54,19 @@ export default function EquityCurve({
   };
 
   return (
-    <div className="porcelain-card p-5 space-y-4">
+    <div className="chart-frame p-5 space-y-4">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
-          <h3 className="text-base font-serif font-bold text-[#111827] flex items-center gap-2">
+          <h3 className="text-base font-serif font-bold text-[#151B26] flex items-center gap-2">
             <span>{title}</span>
             {isBacktest && (
-              <span className="text-[10px] px-2 py-0.5 rounded bg-purple-100 text-purple-800 font-mono font-semibold border border-purple-200">
-                BACKTEST_DERIVED
+              <span className="text-[10px] px-2 py-0.5 rounded-[2px] bg-[#F4F0F9] text-[#5E4B7A] font-mono font-medium border border-[#D3C6E5]">
+                Backtest simulation
               </span>
             )}
           </h3>
-          <p className="text-xs text-[#4B5563]">
-            Net Asset Value starting at ₹1,00,000.00 base. Hover any curve or chip to focus.
+          <p className="text-xs text-[#7C8698]">
+            Net asset value indexed to ₹1,00,000.00 base. Hover any curve or chip to focus.
           </p>
         </div>
 
@@ -83,12 +83,12 @@ export default function EquityCurve({
                 onClick={() => toggleSeries(pointKey)}
                 onMouseEnter={() => setHoveredSeries(pointKey)}
                 onMouseLeave={() => setHoveredSeries(null)}
-                className={`px-2 py-0.5 rounded-full border transition-all cursor-pointer flex items-center gap-1.5 ${
+                className={`px-2 py-0.5 rounded-[2px] border transition-all cursor-pointer flex items-center gap-1.5 ${
                   isEnabled
                     ? isHovered
-                      ? 'ring-2 ring-offset-1 ring-amber-500 font-bold'
+                      ? 'ring-1 ring-[#151B26] font-semibold text-white'
                       : 'border-transparent text-white'
-                    : 'bg-[#F4F2EC] text-[#9CA3AF] border-[#E5E2D9] opacity-50'
+                    : 'bg-[#F6F4EF] text-[#7C8698] border-[#DCD7CC] opacity-60'
                 }`}
                 style={{
                   backgroundColor: isEnabled ? config.color : undefined,
@@ -102,13 +102,13 @@ export default function EquityCurve({
         </div>
       </div>
 
-      <div className="w-full h-80 sm:h-96">
+      <div className="w-full h-80 sm:h-96 min-h-[320px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#E5E2D9" strokeOpacity={0.7} />
-            <XAxis dataKey="date" stroke="#9CA3AF" fontSize={11} tickMargin={8} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#DCD7CC" strokeOpacity={0.6} />
+            <XAxis dataKey="date" stroke="#7C8698" fontSize={11} tickMargin={8} />
             <YAxis
-              stroke="#9CA3AF"
+              stroke="#7C8698"
               fontSize={11}
               domain={['dataMin - 1000', 'dataMax + 1000']}
               tickFormatter={(v) => formatPaiseCompact(v * 100)}
@@ -117,9 +117,9 @@ export default function EquityCurve({
               content={({ active, payload, label }) => {
                 if (active && payload && payload.length) {
                   return (
-                    <div className="porcelain-card p-3 shadow-lg text-xs space-y-1 bg-white border border-[#E5E2D9]">
-                      <p className="font-serif font-bold text-[#111827] border-b pb-1 mb-1 border-[#EDEAE2]">
-                        Trading Date: {label}
+                    <div className="ledger-panel p-3 shadow-md text-xs space-y-1 bg-white border border-[#DCD7CC]">
+                      <p className="font-serif font-bold text-[#151B26] border-b pb-1 mb-1 border-[#E7E3D9]">
+                        Trading date: {label}
                       </p>
                       {payload.map((item) => {
                         const themeKey = seriesMap[item.dataKey as string] || 'nifty500';
@@ -136,7 +136,7 @@ export default function EquityCurve({
                               />
                               <span>{config.shortName}:</span>
                             </span>
-                            <span className="font-semibold text-[#111827]">
+                            <span className="font-semibold text-[#151B26]">
                               {formatPaiseToRupees(Number(item.value) * 100)}
                             </span>
                           </div>
@@ -174,7 +174,7 @@ export default function EquityCurve({
                   strokeOpacity={opacity}
                   strokeDasharray={config.strokeDasharray}
                   dot={{ r: isHovered ? 4 : 2, fill: config.color }}
-                  activeDot={{ r: 6 }}
+                  activeDot={{ r: 5 }}
                 />
               );
             })}
@@ -184,3 +184,5 @@ export default function EquityCurve({
     </div>
   );
 }
+
+export default memo(EquityCurveComponent);

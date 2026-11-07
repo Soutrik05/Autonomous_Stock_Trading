@@ -8,54 +8,48 @@ interface PodiumCardsProps {
 }
 
 export default function PodiumCards({ topAgents }: PodiumCardsProps) {
-  const podiumStyles = [
+  const leaders = topAgents.slice(0, 3);
+
+  const rankAccents = [
     {
-      rank: 1,
-      badge: 'GOLD #1',
-      badgeBg: 'bg-amber-100 text-amber-900 border-amber-300',
-      border: 'border-amber-400/80 ring-1 ring-amber-400/20',
-      sparkColor: '#D97706',
-      iconColor: 'text-amber-500',
+      label: 'Rank 1 · Top Alpha',
+      badgeClass: 'bg-[#F3EFE6] text-[#8A7441] border-[#D6C7A1]',
+      borderClass: 'border-[#8A7441]/60',
     },
     {
-      rank: 2,
-      badge: 'SILVER #2',
-      badgeBg: 'bg-stone-200 text-stone-800 border-stone-300',
-      border: 'border-stone-300',
-      sparkColor: '#64748B',
-      iconColor: 'text-stone-400',
+      label: 'Rank 2 · Runner Up',
+      badgeClass: 'bg-[#F6F4EF] text-[#475060] border-[#DCD7CC]',
+      borderClass: 'border-[#DCD7CC]',
     },
     {
-      rank: 3,
-      badge: 'BRONZE #3',
-      badgeBg: 'bg-orange-100 text-orange-900 border-orange-300',
-      border: 'border-orange-300',
-      sparkColor: '#B45309',
-      iconColor: 'text-orange-600',
+      label: 'Rank 3 · Contender',
+      badgeClass: 'bg-[#F6F4EF] text-[#7C8698] border-[#DCD7CC]',
+      borderClass: 'border-[#DCD7CC]',
     },
   ];
-
-  const leaders = topAgents.slice(0, 3);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       {leaders.map((agent, i) => {
-        const style = podiumStyles[i] || podiumStyles[2];
+        const style = rankAccents[i] || rankAccents[2];
+        const isPositiveReturn = agent.returnPct >= 0;
+        const isPositiveAlpha = agent.alphaVsBenchmarkPct >= 0;
+
         return (
           <div
             key={agent.id}
-            className={`porcelain-card p-5 transition-all hover:shadow-md relative flex flex-col justify-between ${style.border}`}
+            className={`ledger-panel p-5 relative flex flex-col justify-between transition-colors hover:bg-[#FAF9F6] ${style.borderClass}`}
           >
             <div>
-              {/* Card Header with Rank Pill */}
+              {/* Card Meta Bar with Sentence Case Rank */}
               <div className="flex justify-between items-center mb-3">
                 <span
-                  className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border uppercase tracking-wider ${style.badgeBg}`}
+                  className={`px-2 py-0.5 rounded-[2px] text-[10px] font-mono font-medium border ${style.badgeClass}`}
                 >
-                  {style.badge}
+                  {style.label}
                 </span>
 
-                <span className="text-[10px] font-mono text-[#9CA3AF]">
+                <span className="text-[11px] font-mono text-[#7C8698]">
                   {agent.closedTrades} closed trades
                 </span>
               </div>
@@ -63,48 +57,50 @@ export default function PodiumCards({ topAgents }: PodiumCardsProps) {
               {/* Agent Identity */}
               <Link
                 to={`/portfolio/${agent.id}`}
-                className="group flex items-center justify-between"
+                className="group flex items-start justify-between mt-1"
               >
                 <div>
-                  <h4 className="font-serif font-bold text-lg text-[#111827] group-hover:text-amber-700 transition-colors">
+                  <h4 className="font-serif font-bold text-lg text-[#151B26] group-hover:text-[#8A7441] transition-colors leading-tight">
                     {agent.name}
                   </h4>
-                  <p className="text-xs text-[#4B5563] truncate max-w-[200px]">
+                  <p className="text-xs text-[#475060] truncate max-w-[220px] mt-0.5">
                     {agent.philosophy}
                   </p>
                 </div>
-                <ArrowUpRight className="w-4 h-4 text-stone-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <ArrowUpRight className="w-4 h-4 text-[#7C8698] group-hover:text-[#8A7441] transition-colors mt-0.5" />
               </Link>
 
               {/* Return Metrics */}
-              <div className="mt-4 pt-3 border-t border-[#EDEAE2] flex items-baseline justify-between">
+              <div className="mt-4 pt-3 border-t border-[#E7E3D9] flex items-baseline justify-between">
                 <div>
-                  <div className="text-[10px] uppercase font-mono text-[#9CA3AF]">Total Return</div>
-                  <div className="text-2xl font-bold font-mono text-emerald-600">
+                  <div className="text-[11px] font-sans text-[#7C8698]">Total return</div>
+                  <div
+                    className={`text-2xl font-bold font-mono tracking-tight ${
+                      isPositiveReturn ? 'text-[#1E6548]' : 'text-[#933835]'
+                    }`}
+                  >
                     {formatPct(agent.returnPct)}
                   </div>
                 </div>
 
                 <div className="text-right">
-                  <div className="text-[10px] uppercase font-mono text-[#9CA3AF]">Alpha vs N500</div>
-                  <div className="text-sm font-semibold font-mono text-emerald-600/90">
-                    +{formatPct(agent.alphaVsBenchmarkPct)}
+                  <div className="text-[11px] font-sans text-[#7C8698]">Alpha vs Nifty 500</div>
+                  <div
+                    className={`text-sm font-semibold font-mono ${
+                      isPositiveAlpha ? 'text-[#1E6548]' : 'text-[#933835]'
+                    }`}
+                  >
+                    {isPositiveAlpha ? `+${formatPct(agent.alphaVsBenchmarkPct)}` : formatPct(agent.alphaVsBenchmarkPct)}
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Bottom active pick */}
-            <div className="mt-4 pt-2.5 border-t border-[#EDEAE2] flex items-center justify-between text-xs font-mono">
-              <span className="text-[#9CA3AF]">Top Pick:</span>
-              <span className="font-bold text-[#111827] bg-[#F4F2EC] px-2 py-0.5 rounded border border-[#E5E2D9]">
-                {agent.id === 'simons'
-                  ? 'ANANDRATHI'
-                  : agent.id === 'marks'
-                  ? 'SCHAEFFLER'
-                  : agent.id === 'jhunjhunwala'
-                  ? 'CRISIL'
-                  : 'HBLENGINE'}
+            <div className="mt-4 pt-2.5 border-t border-[#E7E3D9] flex items-center justify-between text-xs font-mono">
+              <span className="text-[#7C8698]">Target horizon:</span>
+              <span className="font-medium text-[#151B26] bg-[#F6F4EF] px-2 py-0.5 rounded-[2px] border border-[#DCD7CC]">
+                {agent.horizonDays}
               </span>
             </div>
           </div>

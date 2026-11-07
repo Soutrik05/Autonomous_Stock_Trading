@@ -1,60 +1,66 @@
 /**
  * Single Source of Truth (SSOT) for StockMinds Design System
  * 
- * Changing any token here updates all components, charts, and pages across the application.
+ * Visual intent: Cool Vellum / Archival Stone canvas, charcoal-navy ink,
+ * muted aged brass accents, mineral pine (positive alpha), and oxidized iron rust (risk/drawdown).
+ * Role-differentiated surfaces instead of generic SaaS cards.
  */
 
 import type { ForensicTag, EventSeverity } from '../types';
 
 export const THEME_COLORS = {
-  // Canvas & Surfaces
-  canvas: '#FAF9F6',          // Warm porcelain base background
-  surface: '#FFFFFF',         // Pure white cards and panels
-  surfaceSubdued: '#F4F2EC',  // Insets, table headers, and pill backgrounds
-  surfaceHover: '#F7F5EE',    // Hover state for rows and cards
+  // Canvas & Surfaces (Archival Stone / Cool Vellum)
+  canvas: '#F0EEE9',          // Cool vellum archival base
+  surface: '#FFFFFF',         // Crisp pure white ledger panels
+  surfaceSubdued: '#F6F4EF',  // Muted ledger insets and table headers
+  surfaceHover: '#ECE8E0',    // Subtle row hover
+  surfaceInset: '#EAE6DC',    // Sunken data wells / sparkline frames
 
   // Borders & Dividers
-  border: '#E5E2D9',          // Crisp warm border
-  borderSubdued: '#EDEAE2',   // Subtle dividers and gridlines
-  borderHover: '#D5D0C3',     // Border on hover / focus
+  border: '#DCD7CC',          // Primary structural hairline
+  borderSubdued: '#E7E3D9',   // Light inner row dividers
+  borderStrong: '#BEB7A6',    // Emphasized container borders
 
   // Typography Ink
-  inkPrimary: '#111827',      // Deep slate black for titles and data
-  inkSecondary: '#4B5563',    // Neutral slate for descriptions and labels
-  inkSubdued: '#9CA3AF',      // Muted captions and tertiary indicators
+  inkPrimary: '#151B26',      // Deep charcoal navy for titles and ledger figures
+  inkSecondary: '#475060',    // Steely secondary slate for descriptions and labels
+  inkSubdued: '#7C8698',      // Muted captions, units, and tertiary labels
 
-  // Semantic Financial Signals
-  accent: '#D97706',          // Amber Gold - Academic brand accent
-  accentHover: '#B45309',     // Amber dark hover
-  accentSubdued: '#FEF3C7',   // Amber light pill background
-  
-  profit: '#059669',          // Emerald Green - Positive return & alpha
-  profitSubdued: '#ECFDF5',   // Light emerald badge background
-  profitBorder: '#A7F3D0',    // Emerald border
+  // Semantic Signals: Muted Aged Brass (Brand Accent)
+  accent: '#8A7441',          // Muted aged brass
+  accentHover: '#6D5B31',     // Deep bronze brass hover
+  accentSubdued: '#F3EFE6',   // Brass tint container
+  accentBorder: '#D6C7A1',    // Brass border
 
-  loss: '#DC2626',            // Crimson Red - Negative return, stop hit
-  lossSubdued: '#FEF2F2',     // Light crimson badge background
-  lossBorder: '#FECACA',      // Crimson border
+  // Semantic Signals: Mineral Pine (Profit / Positive Alpha)
+  profit: '#1E6548',          // Deep mineral pine / spruce
+  profitSubdued: '#EBF5F0',   // Pine tint background
+  profitBorder: '#A3D4BE',    // Pine hairline border
 
-  // Strategy Badges
-  llmBadge: '#2563EB',        // Royal Blue - Cognitive LLM layer
-  llmBadgeSubdued: '#EFF6FF', 
-  llmBadgeBorder: '#BFDBFE',
+  // Semantic Signals: Oxidized Iron Rust (Loss / Downside / Risk)
+  loss: '#933835',            // Oxidized brick / iron rust
+  lossSubdued: '#FBF0F0',     // Rust tint background
+  lossBorder: '#E5ACAA',      // Rust hairline border
 
-  rulesBadge: '#475569',      // Slate Gray - Control rules baseline
-  rulesBadgeSubdued: '#F1F5F9',
-  rulesBadgeBorder: '#CBD5E1',
+  // Architecture Layer Badges
+  llmBadge: '#2A4B7C',        // Slate navy - Cognitive reasoning layer
+  llmBadgeSubdued: '#EDF2F9',
+  llmBadgeBorder: '#B9C9E1',
+
+  rulesBadge: '#596373',      // Steely graphite - Control baseline
+  rulesBadgeSubdued: '#F1F3F5',
+  rulesBadgeBorder: '#CBD2D9',
 
   // Guardrail Badges
-  provisional: '#D97706',     // Amber alert (<30 closed trades)
-  backtestDerived: '#7C3AED', // Purple isolation badge for simulations
-  backtestSubdued: '#F5F3FF',
-  backtestBorder: '#DDD6FE',
+  provisional: '#8A7441',     // Aged brass warning badge (<30 closed trades)
+  backtestDerived: '#5E4B7A', // Muted amethyst for historical simulation
+  backtestSubdued: '#F4F0F9',
+  backtestBorder: '#D3C6E5',
 } as const;
 
 export const FONT_STACKS = {
-  serif: "'Newsreader', 'Crimson Pro', Georgia, serif",
-  sans: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+  serif: "'Newsreader', Georgia, 'Times New Roman', serif",
+  sans: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
   mono: "'JetBrains Mono', 'SF Mono', Consolas, Menlo, monospace",
 } as const;
 
@@ -70,7 +76,13 @@ export interface StrategyVisualConfig {
 
 /**
  * Central configuration for all 10 strategies + Nifty 500 benchmark.
- * Changing a color or label here updates Recharts lines, legends, and table chips simultaneously.
+ * Differentiated by family tones:
+ * - Simons (Navy indigo)
+ * - Jhunjhunwala (Imperial plum)
+ * - Marks (Antique bronze)
+ * - Lynch (Mineral spruce)
+ * - Varsity Core (Deep petrol teal)
+ * - Nifty 500 (Graphite slate)
  */
 export const STRATEGY_THEME: Record<string, StrategyVisualConfig> = {
   simons: {
@@ -78,7 +90,7 @@ export const STRATEGY_THEME: Record<string, StrategyVisualConfig> = {
     name: 'Jim Simons (LLM)',
     shortName: 'Simons LLM',
     badge: 'LLM',
-    color: '#2563EB', // Blue
+    color: '#1E4E8C', // Deep naval indigo
     family: 'Quant Momentum',
   },
   'baseline-simons-rules': {
@@ -86,7 +98,7 @@ export const STRATEGY_THEME: Record<string, StrategyVisualConfig> = {
     name: 'Simons (Rules Control)',
     shortName: 'Simons Rules',
     badge: 'RULES',
-    color: '#3B82F6',
+    color: '#406EAA',
     strokeDasharray: '4 4',
     family: 'Quant Momentum',
   },
@@ -95,7 +107,7 @@ export const STRATEGY_THEME: Record<string, StrategyVisualConfig> = {
     name: 'Rakesh Jhunjhunwala (LLM)',
     shortName: 'Jhunjhunwala LLM',
     badge: 'LLM',
-    color: '#7C3AED', // Purple
+    color: '#65387A', // Imperial plum
     family: 'Growth & Quality',
   },
   'baseline-rj-rules': {
@@ -103,7 +115,7 @@ export const STRATEGY_THEME: Record<string, StrategyVisualConfig> = {
     name: 'Jhunjhunwala (Rules Control)',
     shortName: 'RJ Rules',
     badge: 'RULES',
-    color: '#8B5CF6',
+    color: '#8E5FA8',
     strokeDasharray: '4 4',
     family: 'Growth & Quality',
   },
@@ -112,7 +124,7 @@ export const STRATEGY_THEME: Record<string, StrategyVisualConfig> = {
     name: 'Howard Marks (LLM)',
     shortName: 'Marks LLM',
     badge: 'LLM',
-    color: '#D97706', // Amber
+    color: '#8A6520', // Antique bronze
     family: 'Contrarian Value',
   },
   'baseline-marks-rules': {
@@ -120,7 +132,7 @@ export const STRATEGY_THEME: Record<string, StrategyVisualConfig> = {
     name: 'Marks (Rules Control)',
     shortName: 'Marks Rules',
     badge: 'RULES',
-    color: '#F59E0B',
+    color: '#B58E45',
     strokeDasharray: '4 4',
     family: 'Contrarian Value',
   },
@@ -129,7 +141,7 @@ export const STRATEGY_THEME: Record<string, StrategyVisualConfig> = {
     name: 'Peter Lynch (LLM)',
     shortName: 'Lynch LLM',
     badge: 'LLM',
-    color: '#059669', // Emerald
+    color: '#1E6548', // Mineral spruce
     family: 'GARP',
   },
   'baseline-lynch-rules': {
@@ -137,7 +149,7 @@ export const STRATEGY_THEME: Record<string, StrategyVisualConfig> = {
     name: 'Lynch (Rules Control)',
     shortName: 'Lynch Rules',
     badge: 'RULES',
-    color: '#10B981',
+    color: '#3E8E6D',
     strokeDasharray: '4 4',
     family: 'GARP',
   },
@@ -146,7 +158,7 @@ export const STRATEGY_THEME: Record<string, StrategyVisualConfig> = {
     name: 'StockMinds Core (LLM)',
     shortName: 'Varsity LLM',
     badge: 'LLM',
-    color: '#0891B2', // Cyan
+    color: '#1C6B72', // Deep petrol teal
     family: 'Dual Confluence',
   },
   'baseline-varsity-rules': {
@@ -154,7 +166,7 @@ export const STRATEGY_THEME: Record<string, StrategyVisualConfig> = {
     name: 'Varsity Core (Rules Control)',
     shortName: 'Varsity Rules',
     badge: 'RULES',
-    color: '#06B6D4',
+    color: '#3C939B',
     strokeDasharray: '4 4',
     family: 'Dual Confluence',
   },
@@ -163,69 +175,69 @@ export const STRATEGY_THEME: Record<string, StrategyVisualConfig> = {
     name: 'Nifty 500 Index (Benchmark)',
     shortName: 'Nifty 500',
     badge: 'BENCHMARK',
-    color: '#64748B', // Neutral Slate
-    strokeDasharray: '2 2',
+    color: '#737B8B', // Neutral graphite slate
+    strokeDasharray: '3 3',
     family: 'Passive Market Index',
   },
 };
 
 /**
- * Deterministic Forensic Tag Styles
+ * Deterministic Forensic Tag Styles (Mineral / Oxidized aesthetic)
  */
 export const FORENSIC_TAG_THEME: Record<ForensicTag, { label: string; bg: string; text: string; border: string }> = {
   WIN_MULTI_CONFLUENCE: {
     label: 'Confluence Win',
-    bg: 'bg-emerald-50',
-    text: 'text-emerald-800',
-    border: 'border-emerald-200',
+    bg: 'bg-[#EBF5F0]',
+    text: 'text-[#1E6548]',
+    border: 'border-[#A3D4BE]',
   },
   WIN_TREND_CONTINUATION: {
     label: 'Trend Win',
-    bg: 'bg-teal-50',
-    text: 'text-teal-800',
-    border: 'border-teal-200',
+    bg: 'bg-[#E8F2F2]',
+    text: 'text-[#1C6B72]',
+    border: 'border-[#A1C9CD]',
   },
   WIN_CATALYST: {
     label: 'Catalyst Win',
-    bg: 'bg-green-50',
-    text: 'text-green-800',
-    border: 'border-green-200',
+    bg: 'bg-[#EBF5F0]',
+    text: 'text-[#1E6548]',
+    border: 'border-[#A3D4BE]',
   },
   LOSS_STOP_HIT: {
     label: 'Stop Loss Hit',
-    bg: 'bg-amber-50',
-    text: 'text-amber-800',
-    border: 'border-amber-200',
+    bg: 'bg-[#FBF0F0]',
+    text: 'text-[#933835]',
+    border: 'border-[#E5ACAA]',
   },
   LOSS_REGIME_CHANGE: {
     label: 'Regime Mismatch',
-    bg: 'bg-orange-50',
-    text: 'text-orange-800',
-    border: 'border-orange-200',
+    bg: 'bg-[#F9F0E9]',
+    text: 'text-[#8A5A2B]',
+    border: 'border-[#E2C7B3]',
   },
   LOSS_DISCIPLINE_BREACH: {
     label: 'Discipline Breach',
-    bg: 'bg-rose-50',
-    text: 'text-rose-800',
-    border: 'border-rose-200',
+    bg: 'bg-[#FBF0F0]',
+    text: 'text-[#933835]',
+    border: 'border-[#E5ACAA]',
   },
   LOSS_VOLATILITY_EXPANSION: {
     label: 'Volatility Spike',
-    bg: 'bg-purple-50',
-    text: 'text-purple-800',
-    border: 'border-purple-200',
+    bg: 'bg-[#F4F0F9]',
+    text: 'text-[#5E4B7A]',
+    border: 'border-[#D3C6E5]',
   },
   HOLD_PROLONGED: {
     label: 'Hold Prolonged',
-    bg: 'bg-blue-50',
-    text: 'text-blue-800',
-    border: 'border-blue-200',
+    bg: 'bg-[#EDF2F9]',
+    text: 'text-[#2A4B7C]',
+    border: 'border-[#B9C9E1]',
   },
   NONE: {
     label: 'Normal',
-    bg: 'bg-stone-100',
-    text: 'text-stone-700',
-    border: 'border-stone-200',
+    bg: 'bg-[#F6F4EF]',
+    text: 'text-[#475060]',
+    border: 'border-[#DCD7CC]',
   },
 };
 
@@ -234,27 +246,27 @@ export const FORENSIC_TAG_THEME: Record<ForensicTag, { label: string; bg: string
  */
 export const SEVERITY_THEME: Record<EventSeverity, { bg: string; text: string; border: string; dot: string }> = {
   SUCCESS: {
-    bg: 'bg-emerald-50',
-    text: 'text-emerald-800',
-    border: 'border-emerald-200',
-    dot: 'bg-emerald-500',
+    bg: 'bg-[#EBF5F0]',
+    text: 'text-[#1E6548]',
+    border: 'border-[#A3D4BE]',
+    dot: 'bg-[#1E6548]',
   },
   WARNING: {
-    bg: 'bg-amber-50',
-    text: 'text-amber-800',
-    border: 'border-amber-200',
-    dot: 'bg-amber-500',
+    bg: 'bg-[#F9F4EB]',
+    text: 'text-[#8A7441]',
+    border: 'border-[#D6C7A1]',
+    dot: 'bg-[#8A7441]',
   },
   ERROR: {
-    bg: 'bg-rose-50',
-    text: 'text-rose-800',
-    border: 'border-rose-200',
-    dot: 'bg-rose-500',
+    bg: 'bg-[#FBF0F0]',
+    text: 'text-[#933835]',
+    border: 'border-[#E5ACAA]',
+    dot: 'bg-[#933835]',
   },
   INFO: {
-    bg: 'bg-blue-50',
-    text: 'text-blue-800',
-    border: 'border-blue-200',
-    dot: 'bg-blue-500',
+    bg: 'bg-[#EDF2F9]',
+    text: 'text-[#2A4B7C]',
+    border: 'border-[#B9C9E1]',
+    dot: 'bg-[#2A4B7C]',
   },
 };

@@ -1,26 +1,28 @@
 @import "tailwindcss";
 
 :root {
-  /* Institutional Porcelain Light Design System (SSOT) */
-  --canvas-bg: #FAF9F6;
-  --surface-card: #FFFFFF;
-  --surface-subdued: #F4F2EC;
-  --surface-hover: #F7F5EE;
+  /* Archival Stone & Cool Vellum Design System (SSOT) */
+  --canvas-bg: #F0EEE9;
+  --surface-ledger: #FFFFFF;
+  --surface-subdued: #F6F4EF;
+  --surface-hover: #ECE8E0;
+  --surface-inset: #EAE6DC;
 
-  --border-primary: #E5E2D9;
-  --border-subdued: #EDEAE2;
-  --border-hover: #D5D0C3;
+  --border-primary: #DCD7CC;
+  --border-subdued: #E7E3D9;
+  --border-strong: #BEB7A6;
 
-  --ink-primary: #111827;
-  --ink-secondary: #4B5563;
-  --ink-subdued: #9CA3AF;
+  --ink-primary: #151B26;
+  --ink-secondary: #475060;
+  --ink-subdued: #7C8698;
 
-  --brand-accent: #D97706;
-  --profit-color: #059669;
-  --loss-color: #DC2626;
+  --brand-accent: #8A7441;
+  --brand-accent-subdued: #F3EFE6;
+  --profit-color: #1E6548;
+  --loss-color: #933835;
 
-  --font-serif: 'Newsreader', 'Crimson Pro', Georgia, serif;
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-serif: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, Menlo, monospace;
 }
 
@@ -34,37 +36,95 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Typography Classes */
+/* Typography Scale */
 h1, h2, h3, h4, .font-display {
   font-family: var(--font-serif);
   letter-spacing: -0.015em;
+  font-weight: 600;
+  color: var(--ink-primary);
 }
 
 code, kbd, samp, pre, .font-mono {
   font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums lining-nums;
 }
 
-/* Porcelain Card Utility */
-.porcelain-card {
-  background-color: var(--surface-card);
+/* Role-Differentiated Panels (Reject generic SaaS rounded cards) */
+
+/* 1. Structural Ledger Panel: For data tables, metrics grids, positions, orders */
+.ledger-panel {
+  background-color: var(--surface-ledger);
   border: 1px solid var(--border-primary);
-  border-radius: 0.75rem; /* rounded-xl */
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(21, 27, 38, 0.04);
 }
 
-.porcelain-card-subdued {
+.ledger-panel-subdued {
   background-color: var(--surface-subdued);
-  border: 1px solid var(--border-subdued);
-  border-radius: 0.5rem; /* rounded-lg */
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
 }
 
-/* Table Row Hover */
-.table-row-hover:hover {
+/* 2. Visual Frame: For Recharts curves and interactive diagrams */
+.chart-frame {
+  background-color: #FAF9F6;
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  box-shadow: inset 0 1px 2px rgba(21, 27, 38, 0.02);
+}
+
+/* 3. Masthead Panel: Structural header rule */
+.masthead-panel {
+  background-color: rgba(240, 238, 233, 0.96);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+/* 4. Editorial Callout Panel: For LLM reasoning, reflection notes, and heuristics */
+.callout-panel {
+  background-color: var(--brand-accent-subdued);
+  border: 1px solid #D6C7A1;
+  border-left: 3px solid var(--brand-accent);
+  border-radius: 3px;
+}
+
+/* Financial Ledger Table Formatting */
+.ledger-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.ledger-table th {
+  background-color: var(--surface-subdued);
+  color: var(--ink-secondary);
+  font-size: 0.75rem; /* 12px */
+  font-weight: 600;
+  text-align: left;
+  border-bottom: 1px solid var(--border-primary);
+  padding: 0.625rem 0.875rem;
+}
+
+.ledger-table td {
+  border-bottom: 1px solid var(--border-subdued);
+  padding: 0.625rem 0.875rem;
+  font-size: 0.8125rem; /* 13px */
+  color: var(--ink-primary);
+}
+
+.ledger-table tr:hover td {
   background-color: var(--surface-hover);
 }
 
-/* Subtle Scrollbars */
+/* Accessible Focus Outlines */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--brand-accent);
+  outline-offset: 2px;
+}
+
+/* Archival Scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -73,9 +133,9 @@ code, kbd, samp, pre, .font-mono {
   background: var(--canvas-bg);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border-primary);
-  border-radius: 3px;
+  background: var(--border-strong);
+  border-radius: 2px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--border-hover);
+  background: var(--ink-secondary);
 }

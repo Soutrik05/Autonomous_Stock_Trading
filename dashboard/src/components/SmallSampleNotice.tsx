@@ -13,23 +13,25 @@ export default function SmallSampleNotice({ closedTradesCount, threshold = 30, i
 
   if (inline) {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800"
-            title={`Small Sample Alert: Strategy has only ${closedTradesCount} closed trades (minimum 30 required for statistical significance).`}>
-        <AlertTriangle className="w-3 h-3 text-amber-600 dark:text-amber-400" />
-        PROVISIONAL ({closedTradesCount}/{threshold})
+      <span
+        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[2px] text-xs font-mono font-medium bg-[#F3EFE6] text-[#8A7441] border border-[#D6C7A1]"
+        title={`Small sample alert: Strategy has only ${closedTradesCount} closed trades (minimum ${threshold} required for statistical significance).`}
+      >
+        <AlertTriangle className="w-3 h-3 text-[#8A7441]" />
+        Provisional ({closedTradesCount}/{threshold})
       </span>
     );
   }
 
   return (
-    <div className="flex items-start gap-3 p-4 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-900/60 text-amber-900 dark:text-amber-200 text-sm">
-      <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+    <div className="callout-panel flex items-start gap-3 p-4 text-xs font-sans">
+      <AlertTriangle className="w-4 h-4 text-[#8A7441] flex-shrink-0 mt-0.5" />
       <div>
-        <p className="font-semibold text-amber-950 dark:text-amber-100">
-          Small-Sample Notice (Mandatory Plan Guardrail)
+        <p className="font-serif font-bold text-[#151B26] text-sm">
+          Small-sample notice (Statistical guardrail)
         </p>
-        <p className="mt-1 text-amber-800/90 dark:text-amber-300/90">
-          This agent currently has <strong>{closedTradesCount}</strong> closed trades, which is below the statistical threshold of <strong>{threshold}</strong> trades. Performance metrics (Sharpe ratio, win rate, return distribution) must be treated as <strong>PROVISIONAL</strong> and may reflect regime variance rather than enduring alpha.
+        <p className="mt-1 text-[#475060] leading-relaxed">
+          This agent currently has <strong>{closedTradesCount}</strong> closed trades, which is below the statistical threshold of <strong>{threshold}</strong> trades. Performance metrics (Sharpe ratio, win rate, return distribution) must be treated as <strong>provisional</strong> and may reflect regime variance rather than enduring alpha.
         </p>
       </div>
     </div>
