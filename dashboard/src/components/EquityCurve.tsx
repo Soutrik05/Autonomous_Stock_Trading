@@ -21,7 +21,7 @@ interface EquityCurveProps {
 
 function EquityCurveComponent({
   data,
-  title = 'Multi-agent portfolio equity curves',
+  title = 'Multi-Agent Portfolio Equity Curves',
   isBacktest = false,
 }: EquityCurveProps) {
   // Active series visibility
@@ -54,24 +54,24 @@ function EquityCurveComponent({
   };
 
   return (
-    <div className="chart-frame p-5 space-y-4">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+    <div className="arena-glass p-6 sm:p-7 space-y-5">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h3 className="text-base font-serif font-bold text-[#151B26] flex items-center gap-2">
+          <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
             <span>{title}</span>
             {isBacktest && (
-              <span className="text-[10px] px-2 py-0.5 rounded-[2px] bg-[#F4F0F9] text-[#5E4B7A] font-mono font-medium border border-[#D3C6E5]">
-                Backtest simulation
+              <span className="text-[10px] px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 font-mono font-medium border border-purple-500/30">
+                Backtest Simulation
               </span>
             )}
           </h3>
-          <p className="text-xs text-[#7C8698]">
+          <p className="text-xs text-slate-400">
             Net asset value indexed to ₹1,00,000.00 base. Hover any curve or chip to focus.
           </p>
         </div>
 
         {/* Series Filter Chips with Hover Focus */}
-        <div className="flex flex-wrap gap-1 text-[11px] font-mono">
+        <div className="flex flex-wrap gap-1.5 text-xs font-mono">
           {Object.entries(seriesMap).map(([pointKey, themeKey]) => {
             const config = STRATEGY_THEME[themeKey] || STRATEGY_THEME.nifty500;
             const isEnabled = activeSeries[pointKey];
@@ -83,12 +83,12 @@ function EquityCurveComponent({
                 onClick={() => toggleSeries(pointKey)}
                 onMouseEnter={() => setHoveredSeries(pointKey)}
                 onMouseLeave={() => setHoveredSeries(null)}
-                className={`px-2 py-0.5 rounded-[2px] border transition-all cursor-pointer flex items-center gap-1.5 ${
+                className={`px-2.5 py-1 rounded-md border transition-all cursor-pointer flex items-center gap-1.5 ${
                   isEnabled
                     ? isHovered
-                      ? 'ring-1 ring-[#151B26] font-semibold text-white'
+                      ? 'ring-1 ring-cyan-400 font-semibold text-white'
                       : 'border-transparent text-white'
-                    : 'bg-[#F6F4EF] text-[#7C8698] border-[#DCD7CC] opacity-60'
+                    : 'bg-white/5 text-slate-500 border-white/10 opacity-50'
                 }`}
                 style={{
                   backgroundColor: isEnabled ? config.color : undefined,
@@ -105,10 +105,10 @@ function EquityCurveComponent({
       <div className="w-full h-80 sm:h-96 min-h-[320px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#DCD7CC" strokeOpacity={0.6} />
-            <XAxis dataKey="date" stroke="#7C8698" fontSize={11} tickMargin={8} />
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+            <XAxis dataKey="date" stroke="#64748B" fontSize={11} tickMargin={8} />
             <YAxis
-              stroke="#7C8698"
+              stroke="#64748B"
               fontSize={11}
               domain={['dataMin - 1000', 'dataMax + 1000']}
               tickFormatter={(v) => formatPaiseCompact(v * 100)}
@@ -117,9 +117,9 @@ function EquityCurveComponent({
               content={({ active, payload, label }) => {
                 if (active && payload && payload.length) {
                   return (
-                    <div className="ledger-panel p-3 shadow-md text-xs space-y-1 bg-white border border-[#DCD7CC]">
-                      <p className="font-serif font-bold text-[#151B26] border-b pb-1 mb-1 border-[#E7E3D9]">
-                        Trading date: {label}
+                    <div className="arena-glass p-3.5 shadow-2xl text-xs space-y-1.5 bg-[#0B0F19]/95 border border-white/15 backdrop-blur-xl">
+                      <p className="font-bold text-white border-b pb-1 mb-1 border-white/10 font-sans">
+                        Trading Date: {label}
                       </p>
                       {payload.map((item) => {
                         const themeKey = seriesMap[item.dataKey as string] || 'nifty500';
@@ -127,7 +127,7 @@ function EquityCurveComponent({
                         return (
                           <div
                             key={item.dataKey as string}
-                            className="flex justify-between items-center gap-4 font-mono"
+                            className="flex justify-between items-center gap-4 font-mono text-[11px]"
                           >
                             <span className="flex items-center gap-1.5" style={{ color: config.color }}>
                               <span
@@ -136,7 +136,7 @@ function EquityCurveComponent({
                               />
                               <span>{config.shortName}:</span>
                             </span>
-                            <span className="font-semibold text-[#151B26]">
+                            <span className="font-semibold text-white">
                               {formatPaiseToRupees(Number(item.value) * 100)}
                             </span>
                           </div>
@@ -149,7 +149,7 @@ function EquityCurveComponent({
               }}
             />
             <Legend
-              wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }}
+              wrapperStyle={{ fontSize: '11px', paddingTop: '12px' }}
               onMouseEnter={(o) => setHoveredSeries(o.dataKey as string)}
               onMouseLeave={() => setHoveredSeries(null)}
             />

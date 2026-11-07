@@ -42,40 +42,40 @@ export default function SystemHealthDrawer({ isOpen, onClose }: SystemHealthDraw
     <div className="fixed inset-0 z-50 overflow-hidden font-sans">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-[#151B26]/40 backdrop-blur-xs transition-opacity"
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
 
       <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-        <div className="w-screen max-w-md bg-[#FFFFFF] border-l border-[#DCD7CC] shadow-2xl flex flex-col animate-fade-in">
+        <div className="w-screen max-w-md bg-[#070A11] border-l border-white/10 shadow-2xl flex flex-col animate-fade-in">
           {/* Header */}
-          <div className="p-5 border-b border-[#DCD7CC] flex items-center justify-between bg-[#F6F4EF]">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-[3px] bg-[#F3EFE6] border border-[#D6C7A1] flex items-center justify-center text-[#8A7441]">
+          <div className="p-5 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
                 <ShieldCheck className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="font-serif font-bold text-base text-[#151B26]">
-                  System health & telemetry
+                <h3 className="font-bold text-base text-white">
+                  System Health & Telemetry
                 </h3>
-                <p className="text-[11px] font-mono text-[#7C8698]">
+                <p className="text-[11px] font-mono text-slate-400">
                   Scheduled pipeline registers
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
               <button
                 onClick={refreshData}
                 disabled={loading}
-                className="p-1.5 rounded-[2px] text-[#7C8698] hover:text-[#151B26] hover:bg-[#ECE8E0] transition-colors"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
                 title="Refresh jobs"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
               </button>
               <button
                 onClick={onClose}
-                className="p-1.5 rounded-[2px] text-[#7C8698] hover:text-[#151B26] hover:bg-[#ECE8E0] transition-colors"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -83,57 +83,57 @@ export default function SystemHealthDrawer({ isOpen, onClose }: SystemHealthDraw
           </div>
 
           {/* Quick Metrics */}
-          <div className="p-4 grid grid-cols-2 gap-3 border-b border-[#E7E3D9] bg-white">
-            <div className="p-3 rounded-[3px] border border-[#DCD7CC] bg-[#F6F4EF] font-mono text-xs">
-              <div className="flex items-center justify-between text-[#7C8698] text-[10px]">
-                <span>Pipeline status</span>
-                <CheckCircle2 className="w-3.5 h-3.5 text-[#1E6548]" />
+          <div className="p-4 grid grid-cols-2 gap-3 border-b border-white/10 bg-black/40">
+            <div className="p-3 rounded-lg border border-white/10 bg-white/[0.02] font-mono text-xs">
+              <div className="flex items-center justify-between text-slate-400 text-[10px]">
+                <span>CRON PIPELINE</span>
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
               </div>
-              <div className="text-base font-bold text-[#151B26] mt-1">
+              <div className="text-base font-bold text-white mt-1">
                 {successJobs}/{jobs.length} Nominal
               </div>
-              <div className="text-[10px] text-[#7C8698] mt-0.5">Zero unhandled locks</div>
+              <div className="text-[10px] text-slate-500 mt-0.5">Zero unhandled locks</div>
             </div>
 
-            <div className="p-3 rounded-[3px] border border-[#DCD7CC] bg-[#F6F4EF] font-mono text-xs">
-              <div className="flex items-center justify-between text-[#7C8698] text-[10px]">
-                <span>FastAPI backend</span>
-                <Server className="w-3.5 h-3.5 text-[#2A4B7C]" />
+            <div className="p-3 rounded-lg border border-white/10 bg-white/[0.02] font-mono text-xs">
+              <div className="flex items-center justify-between text-slate-400 text-[10px]">
+                <span>FASTAPI SERVER</span>
+                <Server className="w-3.5 h-3.5 text-cyan-400" />
               </div>
-              <div className="text-base font-bold text-[#151B26] mt-1 flex items-center gap-1.5">
+              <div className="text-base font-bold text-white mt-1 flex items-center gap-1.5">
                 <span>{isBackendHealthy ? 'Online' : 'Standby'}</span>
-                <span className={`w-2 h-2 rounded-full ${isBackendHealthy ? 'bg-[#1E6548] animate-pulse' : 'bg-[#2A4B7C]'}`} />
+                <span className={`w-2 h-2 rounded-full ${isBackendHealthy ? 'bg-emerald-400 animate-pulse' : 'bg-cyan-500'}`} />
               </div>
-              <div className="text-[10px] text-[#7C8698] mt-0.5">Port 8000 REST API</div>
+              <div className="text-[10px] text-slate-500 mt-0.5">Port 8000 REST API</div>
             </div>
           </div>
 
           {/* Job Register Table */}
           <div className="flex-1 overflow-y-auto p-4 space-y-2">
-            <div className="flex items-center justify-between text-[11px] font-mono text-[#7C8698] px-1">
-              <span>Scheduled job name</span>
-              <span>Last execution</span>
+            <div className="flex items-center justify-between text-[11px] font-mono text-slate-500 px-1">
+              <span>Scheduled Job Name</span>
+              <span>Last Execution</span>
             </div>
 
             {jobs.map((job) => (
               <div
                 key={job.jobName}
-                className="p-3 rounded-[3px] border border-[#DCD7CC] bg-white hover:bg-[#F6F4EF] transition-colors text-xs font-mono space-y-1.5"
+                className="p-3 rounded-lg border border-white/10 bg-white/[0.02] hover:bg-white/[0.05] transition-colors text-xs font-mono space-y-1.5"
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-semibold text-[#151B26]">{job.jobName}</span>
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[2px] text-[10px] font-medium bg-[#EBF5F0] text-[#1E6548] border border-[#A3D4BE]">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#1E6548]" />
+                  <span className="font-semibold text-white">{job.jobName}</span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                     {job.status}
                   </span>
                 </div>
 
-                <div className="flex items-center justify-between text-[#475060] text-[11px]">
+                <div className="flex items-center justify-between text-slate-400 text-[11px]">
                   <span>Cadence: {job.cadence}</span>
                   <span>Duration: {job.durationSec}s</span>
                 </div>
 
-                <div className="text-[10px] text-[#7C8698] pt-1 border-t border-[#E7E3D9] flex justify-between">
+                <div className="text-[10px] text-slate-500 pt-1 border-t border-white/5 flex justify-between">
                   <span>Run at: {formatISTDateTime(job.lastRunAt)}</span>
                   {job.recordsProcessed && <span>{job.recordsProcessed} records</span>}
                 </div>
@@ -142,9 +142,9 @@ export default function SystemHealthDrawer({ isOpen, onClose }: SystemHealthDraw
           </div>
 
           {/* Footer note */}
-          <div className="p-3 border-t border-[#DCD7CC] bg-[#F6F4EF] text-[10px] font-mono text-[#7C8698] flex items-center justify-between">
+          <div className="p-3 border-t border-white/10 bg-white/[0.02] text-[10px] font-mono text-slate-500 flex items-center justify-between">
             <span className="flex items-center gap-1">
-              <Database className="w-3 h-3 text-[#7C8698]" />
+              <Database className="w-3 h-3 text-slate-400" />
               <span>Storage: SQLite WAL isolated mode</span>
             </span>
             <span>All times IST</span>

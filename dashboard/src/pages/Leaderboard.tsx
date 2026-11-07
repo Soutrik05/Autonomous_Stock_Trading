@@ -42,10 +42,10 @@ export default function Leaderboard() {
 
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-16 flex justify-center items-center">
-        <div className="flex items-center gap-3 text-[#7C8698] font-mono text-sm">
-          <div className="w-4 h-4 border-2 border-[#8A7441] border-t-transparent rounded-full animate-spin" />
-          <span>Loading strategy telemetry...</span>
+      <div className="max-w-7xl mx-auto px-4 py-24 flex justify-center items-center">
+        <div className="flex items-center gap-3 text-slate-400 font-mono text-sm">
+          <div className="w-5 h-5 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+          <span>Synchronizing strategy telemetry...</span>
         </div>
       </div>
     );
@@ -73,37 +73,37 @@ export default function Leaderboard() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-fade-in font-sans">
       {/* Header */}
-      <div className="border-b border-[#DCD7CC] pb-6 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+      <div className="border-b border-white/10 pb-6 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
-          <div className="flex items-center gap-1.5 text-xs font-mono text-[#8A7441] mb-1">
+          <div className="flex items-center gap-2 text-xs font-mono text-cyan-400 uppercase tracking-wider mb-1 font-semibold">
             <Award className="w-3.5 h-3.5" />
-            <span>Autonomous trading strategy arena</span>
+            <span>Autonomous Trading Strategy Arena</span>
           </div>
-          <h1 className="text-3xl font-serif font-bold text-[#151B26]">
-            Strategy leaderboard
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
+            Strategy Leaderboard
           </h1>
-          <p className="text-sm text-[#475060] mt-1 max-w-2xl leading-relaxed">
+          <p className="text-sm text-slate-400 mt-1 max-w-2xl leading-relaxed">
             Comparative performance ranking of all 10 autonomous strategies (5 cognitive LLM personas + 5 matching rules baselines) trading separate ₹1,00,000 paper accounts on the NSE Nifty 500 universe.
           </p>
         </div>
 
         {/* Strategy Category Filter Chips */}
-        <div className="flex items-center gap-1 p-1 rounded-[3px] bg-[#F6F4EF] border border-[#DCD7CC] text-xs font-mono">
+        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-white/[0.04] border border-white/10 text-xs font-mono backdrop-blur-md">
           {(['ALL', 'LLM', 'RULES'] as const).map((filter) => (
             <button
               key={filter}
               onClick={() => setStrategyFilter(filter)}
-              className={`px-3 py-1 rounded-[2px] transition-colors cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-lg font-medium transition-all cursor-pointer ${
                 strategyFilter === filter
-                  ? 'bg-white font-medium text-[#151B26] shadow-xs border border-[#DCD7CC]'
-                  : 'text-[#475060] hover:text-[#151B26]'
+                  ? 'bg-cyan-500/20 text-cyan-300 font-semibold border border-cyan-500/30 shadow-[0_0_12px_rgba(6,182,212,0.2)]'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               {filter === 'ALL'
-                ? `All 10 strategies`
+                ? `All 10 Strategies`
                 : filter === 'LLM'
-                ? `5 LLM personas`
-                : `5 Rules controls`}
+                ? `5 LLM Personas`
+                : `5 Rules Controls`}
             </button>
           ))}
         </div>
@@ -112,44 +112,44 @@ export default function Leaderboard() {
       {/* Mandatory Small Sample Alert Banner */}
       <SmallSampleNotice closedTradesCount={14} threshold={30} />
 
-      {/* KPI Cards Strip */}
+      {/* KPI Cards Strip (Translucent Glass) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="ledger-panel p-4">
-          <span className="text-[11px] font-sans text-[#7C8698] block">Total capital managed</span>
-          <span className="text-2xl font-bold font-mono text-[#151B26] mt-0.5 block">
+        <div className="arena-glass p-5">
+          <span className="text-[11px] font-sans text-slate-400 block">Total capital managed</span>
+          <span className="text-2xl font-bold font-mono text-white mt-1 block tracking-tight">
             {formatPaiseToRupees(totalPaise)}
           </span>
-          <span className="text-[11px] font-mono text-[#7C8698] mt-1 block">
+          <span className="text-[11px] font-mono text-slate-500 mt-1 block">
             Across 10 paper accounts
           </span>
         </div>
 
-        <div className="ledger-panel p-4">
-          <span className="text-[11px] font-sans text-[#7C8698] block">Current leader</span>
-          <span className="text-xl font-bold font-serif text-[#151B26] mt-0.5 block truncate">
+        <div className="arena-glass p-5">
+          <span className="text-[11px] font-sans text-slate-400 block">Current leader</span>
+          <span className="text-xl font-bold text-white mt-1 block truncate">
             {sorted[0]?.name || 'Jim Simons'}
           </span>
-          <span className="text-xs font-mono font-medium text-[#1E6548] mt-1 block">
+          <span className="text-xs font-mono font-medium text-emerald-400 mt-1 block">
             {formatPct(sorted[0]?.returnPct)} (Alpha: +{formatPct(sorted[0]?.alphaVsBenchmarkPct)})
           </span>
         </div>
 
-        <div className="ledger-panel p-4">
-          <span className="text-[11px] font-sans text-[#7C8698] block">Simons cognitive spread</span>
-          <span className="text-2xl font-bold font-mono text-[#1E6548] mt-0.5 block">
+        <div className="arena-glass p-5">
+          <span className="text-[11px] font-sans text-slate-400 block">Simons cognitive spread</span>
+          <span className="text-2xl font-bold font-mono text-emerald-400 mt-1 block">
             +3.10%
           </span>
-          <span className="text-[11px] font-mono text-[#7C8698] mt-1 block">
+          <span className="text-[11px] font-mono text-slate-500 mt-1 block">
             LLM Simons vs. Rules Simons
           </span>
         </div>
 
-        <div className="ledger-panel p-4">
-          <span className="text-[11px] font-sans text-[#7C8698] block">Average faithfulness</span>
-          <span className="text-2xl font-bold font-mono text-[#2A4B7C] mt-0.5 block">
+        <div className="arena-glass p-5">
+          <span className="text-[11px] font-sans text-slate-400 block">Average faithfulness</span>
+          <span className="text-2xl font-bold font-mono text-purple-400 mt-1 block">
             97.3%
           </span>
-          <span className="text-[11px] font-mono text-[#7C8698] mt-1 block">
+          <span className="text-[11px] font-mono text-slate-500 mt-1 block">
             Verified metric citations
           </span>
         </div>
@@ -158,37 +158,37 @@ export default function Leaderboard() {
       {/* Multi-Agent Equity Curves Chart */}
       <EquityCurve data={navHistory} />
 
-      {/* The 10-Agent Leaderboard Table */}
-      <div className="ledger-panel overflow-hidden">
-        <div className="p-4 border-b border-[#E7E3D9] flex justify-between items-center bg-white">
+      {/* The 10-Agent Leaderboard Translucent Table */}
+      <div className="arena-glass overflow-hidden shadow-2xl">
+        <div className="p-5 border-b border-white/10 flex justify-between items-center bg-white/[0.02]">
           <div>
-            <h3 className="text-base font-serif font-bold text-[#151B26]">
-              Strategy rankings & performance ledger
+            <h3 className="text-base font-bold text-white">
+              Strategy Rankings & Performance Ledger
             </h3>
-            <p className="text-xs text-[#7C8698]">
+            <p className="text-xs text-slate-400">
               Metric leaders highlighted in <strong>bold</strong>. Click any row to expand quick inspection details.
             </p>
           </div>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-[#151B26]">
-            <thead className="bg-[#F6F4EF] font-mono text-[11px] text-[#475060] border-b border-[#DCD7CC]">
+          <table className="w-full text-left text-xs font-mono text-slate-200">
+            <thead className="bg-white/[0.02] text-[11px] text-slate-400 border-b border-white/10">
               <tr>
-                <th className="py-2.5 px-4 font-medium">Rank / Strategy</th>
-                <th className="py-2.5 px-4 font-medium">Family</th>
-                <th className="py-2.5 px-4 text-right font-medium">NAV (₹)</th>
-                <th className="py-2.5 px-4 text-right font-medium">Return</th>
-                <th className="py-2.5 px-4 text-right font-medium">Alpha</th>
-                <th className="py-2.5 px-4 text-right font-medium">Sharpe</th>
-                <th className="py-2.5 px-4 text-right font-medium">Max drawdown</th>
-                <th className="py-2.5 px-4 text-right font-medium">Faithfulness</th>
-                <th className="py-2.5 px-4 text-center font-medium">Trades (O/C)</th>
-                <th className="py-2.5 px-4 text-center font-medium">Status</th>
-                <th className="py-2.5 px-2"></th>
+                <th className="py-3 px-4 font-semibold">Rank / Strategy</th>
+                <th className="py-3 px-4 font-semibold">Family</th>
+                <th className="py-3 px-4 text-right font-semibold">NAV (₹)</th>
+                <th className="py-3 px-4 text-right font-semibold">Return</th>
+                <th className="py-3 px-4 text-right font-semibold">Alpha</th>
+                <th className="py-3 px-4 text-right font-semibold">Sharpe</th>
+                <th className="py-3 px-4 text-right font-semibold">Max DD</th>
+                <th className="py-3 px-4 text-right font-semibold">Faithfulness</th>
+                <th className="py-3 px-4 text-center font-semibold">Trades (O/C)</th>
+                <th className="py-3 px-4 text-center font-semibold">Status</th>
+                <th className="py-3 px-2"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#E7E3D9]">
+            <tbody className="divide-y divide-white/5">
               {sorted.map((agent, idx) => {
                 const config = STRATEGY_THEME[agent.id] || STRATEGY_THEME.simons;
                 const isControl = agent.id.startsWith('baseline-');
@@ -205,23 +205,23 @@ export default function Leaderboard() {
                   <tr
                     key={agent.id}
                     onClick={() => setExpandedAgentId(isExpanded ? null : agent.id)}
-                    className="hover:bg-[#F6F4EF] transition-colors cursor-pointer group"
+                    className="hover:bg-white/[0.04] transition-colors cursor-pointer group"
                   >
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-[#7C8698] text-xs w-4">
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-slate-500 text-xs w-4">
                           #{idx + 1}
                         </span>
                         <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-medium text-[#151B26] text-sm group-hover:text-[#8A7441] transition-colors">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-white text-sm group-hover:text-cyan-400 transition-colors">
                               {agent.name}
                             </span>
                             <span
-                              className={`px-1.5 py-0.2 rounded-[2px] text-[9px] font-mono border ${
+                              className={`px-1.5 py-0.2 rounded text-[9px] border ${
                                 isControl
-                                  ? 'bg-[#F6F4EF] text-[#475060] border-[#DCD7CC]'
-                                  : 'bg-[#EDF2F9] text-[#2A4B7C] border-[#B9C9E1]'
+                                  ? 'bg-white/5 text-slate-400 border-white/10'
+                                  : 'bg-blue-500/15 text-blue-400 border-blue-500/30'
                               }`}
                             >
                               {isControl ? 'Rules' : 'LLM'}
@@ -231,48 +231,48 @@ export default function Leaderboard() {
                       </div>
                     </td>
 
-                    <td className="py-3 px-4 font-mono text-[11px] text-[#475060]">
+                    <td className="py-3.5 px-4 text-[11px] text-slate-400">
                       {config.family}
                     </td>
 
-                    <td className="py-3 px-4 text-right font-mono font-medium text-[#151B26]">
+                    <td className="py-3.5 px-4 text-right font-semibold text-white">
                       {formatPaiseToRupees(agent.navPaise)}
                     </td>
 
                     <td
-                      className={`py-3 px-4 text-right font-mono font-medium ${
+                      className={`py-3.5 px-4 text-right font-medium ${
                         isReturnLeader
-                          ? 'font-bold text-[#1E6548] underline decoration-[#A3D4BE]'
+                          ? 'font-extrabold text-emerald-400 underline decoration-emerald-400/50'
                           : agent.returnPct >= 0
-                          ? 'text-[#1E6548]'
-                          : 'text-[#933835]'
+                          ? 'text-emerald-400'
+                          : 'text-rose-400'
                       }`}
                     >
                       {formatPct(agent.returnPct)}
                     </td>
 
                     <td
-                      className={`py-3 px-4 text-right font-mono ${
+                      className={`py-3.5 px-4 text-right ${
                         isAlphaLeader
-                          ? 'font-bold text-[#1E6548] underline decoration-[#A3D4BE]'
+                          ? 'font-extrabold text-emerald-400 underline decoration-emerald-400/50'
                           : agent.alphaVsBenchmarkPct >= 0
-                          ? 'text-[#1E6548] font-medium'
-                          : 'text-[#933835]'
+                          ? 'text-emerald-400 font-semibold'
+                          : 'text-rose-400'
                       }`}
                     >
                       {agent.alphaVsBenchmarkPct >= 0 ? `+${formatPct(agent.alphaVsBenchmarkPct)}` : formatPct(agent.alphaVsBenchmarkPct)}
                     </td>
 
                     <td
-                      className={`py-3 px-4 text-right font-mono ${
-                        isSharpeLeader ? 'font-bold text-[#151B26]' : 'text-[#475060]'
+                      className={`py-3.5 px-4 text-right ${
+                        isSharpeLeader ? 'font-bold text-white' : 'text-slate-400'
                       }`}
                     >
                       {agent.sharpeRatio.toFixed(2)}
                     </td>
 
                     <td
-                      className={`py-3 px-4 text-right font-mono text-[#933835] ${
+                      className={`py-3.5 px-4 text-right text-rose-400 ${
                         isDrawdownLeader ? 'font-bold' : ''
                       }`}
                     >
@@ -280,18 +280,18 @@ export default function Leaderboard() {
                     </td>
 
                     <td
-                      className={`py-3 px-4 text-right font-mono text-[#2A4B7C] ${
+                      className={`py-3.5 px-4 text-right text-purple-400 ${
                         isFaithfulnessLeader ? 'font-bold' : 'font-medium'
                       }`}
                     >
                       {agent.faithfulnessRatePct.toFixed(1)}%
                     </td>
 
-                    <td className="py-3 px-4 text-center font-mono text-[#475060]">
+                    <td className="py-3.5 px-4 text-center text-slate-400">
                       {agent.activePositionsCount} / {agent.closedTrades}
                     </td>
 
-                    <td className="py-3 px-4 text-center">
+                    <td className="py-3.5 px-4 text-center">
                       <SmallSampleNotice
                         closedTradesCount={agent.closedTrades}
                         threshold={30}
@@ -299,11 +299,11 @@ export default function Leaderboard() {
                       />
                     </td>
 
-                    <td className="py-3 px-2 text-center text-[#7C8698]">
+                    <td className="py-3.5 px-2 text-center text-slate-500">
                       {isExpanded ? (
-                        <ChevronUp className="w-3.5 h-3.5 inline" />
+                        <ChevronUp className="w-4 h-4 inline" />
                       ) : (
-                        <ChevronDown className="w-3.5 h-3.5 inline" />
+                        <ChevronDown className="w-4 h-4 inline" />
                       )}
                     </td>
                   </tr>
@@ -313,13 +313,13 @@ export default function Leaderboard() {
           </table>
         </div>
 
-        {/* Dynamic Foundation Model Footnote */}
-        <div className="p-4 bg-[#F6F4EF] border-t border-[#DCD7CC] text-[11px] font-mono text-[#475060] space-y-1">
+        {/* Dynamic Model Footnote */}
+        <div className="p-4 bg-white/[0.02] border-t border-white/10 text-[11px] text-slate-400 space-y-1">
           <p>
-            * <strong>Cognitive architecture parity:</strong> All LLM-based strategies are evaluated using the identical underlying foundation model (<code>Gemini 2.5 Flash</code>) to ensure clean cognitive parity with zero per-agent prompt bias.
+            * <strong>Cognitive Architecture Parity:</strong> All LLM-based strategies are evaluated using the identical underlying foundation model (<code>Gemini 2.5 Flash</code>) to ensure clean cognitive parity with zero per-agent prompt bias.
           </p>
-          <p className="text-[10px] text-[#7C8698]">
-            * Metric leaders indicated in bold. Provisional status automatically applies to any strategy with fewer than 30 closed trades.
+          <p className="text-[10px] text-slate-500">
+            * Metric leaders indicated in bold. PROVISIONAL tags automatically apply to any strategy with fewer than 30 closed trades.
           </p>
         </div>
       </div>

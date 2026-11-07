@@ -7,11 +7,11 @@ interface MetricBadgeProps {
 
 export default function MetricBadge({ label, value, variant = 'neutral', size = 'sm' }: MetricBadgeProps) {
   const variantStyles = {
-    neutral: 'bg-[#F6F4EF] text-[#475060] border-[#DCD7CC]',
-    success: 'bg-[#EBF5F0] text-[#1E6548] border-[#A3D4BE]',
-    warning: 'bg-[#F3EFE6] text-[#8A7441] border-[#D6C7A1]',
-    danger: 'bg-[#FBF0F0] text-[#933835] border-[#E5ACAA]',
-    accent: 'bg-[#EDF2F9] text-[#2A4B7C] border-[#B9C9E1]',
+    neutral: 'bg-white/5 text-slate-300 border-white/10',
+    success: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+    warning: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
+    danger: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
+    accent: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30',
   };
 
   const sizeStyles = {
@@ -20,9 +20,9 @@ export default function MetricBadge({ label, value, variant = 'neutral', size = 
   };
 
   return (
-    <span className={`inline-flex items-center gap-1.5 font-mono rounded-[2px] border ${variantStyles[variant]} ${sizeStyles[size]}`}>
-      <span className="text-[#7C8698] font-normal">{label}:</span>
-      <span className="font-semibold">{value}</span>
+    <span className={`inline-flex items-center gap-1.5 font-mono rounded border ${variantStyles[variant]} ${sizeStyles[size]}`}>
+      <span className="text-slate-400 font-normal">{label}:</span>
+      <span className="font-semibold text-white">{value}</span>
     </span>
   );
 }

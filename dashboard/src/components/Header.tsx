@@ -64,25 +64,25 @@ export default function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 masthead-panel backdrop-blur-md">
+      <header className="sticky top-0 z-40 bg-[#030712]/80 backdrop-blur-xl border-b border-white/10 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-15">
-            {/* Brand Mark: Editorial & Architectural */}
+          <div className="flex justify-between items-center h-16">
+            {/* Brand Mark: OpenRouter / Arena Identity */}
             <Link to="/" className="flex items-center gap-3 group">
-              <div className="w-7 h-7 rounded-[3px] bg-[#8A7441] flex items-center justify-center text-white shadow-xs">
-                <TrendingUp className="h-3.5 w-3.5" />
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/20 group-hover:scale-105 transition-transform">
+                <TrendingUp className="h-4 w-4" />
               </div>
               <div className="flex flex-col">
                 <div className="flex items-center gap-2">
-                  <span className="text-base font-serif font-bold tracking-tight text-[#151B26]">
-                    StockMinds<span className="text-[#8A7441]">.arena</span>
+                  <span className="text-base font-display font-extrabold tracking-tight text-white">
+                    StockMinds<span className="text-cyan-400">.arena</span>
                   </span>
-                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-[2px] bg-[#F3EFE6] text-[#8A7441] border border-[#D6C7A1]">
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 font-medium">
                     Paper Pilot
                   </span>
                 </div>
-                <span className="text-[10px] font-sans text-[#7C8698] -mt-0.5">
-                  Autonomous Multi-Agent Evaluation Arena
+                <span className="text-[11px] font-mono text-slate-400 -mt-0.5">
+                  NSE Nifty 500 · 10 Parallel Strategies
                 </span>
               </div>
             </Link>
@@ -95,18 +95,25 @@ export default function Header() {
                   to={to}
                   end={end}
                   className={({ isActive }) =>
-                    `px-3 py-1.5 rounded-[3px] text-xs transition-colors flex items-center gap-1.5 ${
+                    `px-3.5 py-1.5 rounded-lg text-xs transition-all relative flex items-center gap-1.5 ${
                       isActive
-                        ? 'bg-[#F3EFE6] text-[#8A7441] font-semibold border border-[#D6C7A1]'
-                        : 'text-[#475060] hover:text-[#151B26] hover:bg-[#ECE8E0]'
+                        ? 'text-white font-semibold bg-white/[0.08]'
+                        : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
                     }`
                   }
                 >
-                  <span>{label}</span>
-                  {badge && (
-                    <span className="text-[9px] font-mono px-1 rounded-[2px] bg-[#F4F0F9] text-[#5E4B7A] border border-[#D3C6E5]">
-                      {badge}
-                    </span>
+                  {({ isActive }) => (
+                    <>
+                      <span>{label}</span>
+                      {badge && (
+                        <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                          {badge}
+                        </span>
+                      )}
+                      {isActive && (
+                        <span className="absolute bottom-0 left-2 right-2 h-[2px] rounded-full bg-cyan-400 shadow-[0_0_8px_#06B6D4]" />
+                      )}
+                    </>
                   )}
                 </NavLink>
               ))}
@@ -117,26 +124,26 @@ export default function Header() {
               {/* System Health Drawer Trigger */}
               <button
                 onClick={() => setIsHealthOpen(true)}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-[3px] border border-[#DCD7CC] bg-[#FFFFFF] hover:bg-[#F6F4EF] text-[#475060] transition-colors cursor-pointer"
+                className="flex items-center gap-2 px-3 py-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/15 transition-colors cursor-pointer"
                 title="Click to view scheduled pipeline health"
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-[#1E6548]" />
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 <span className="text-[11px]">10 Jobs Nominal</span>
               </button>
 
               {/* IST Clock */}
-              <div className="flex items-center gap-1.5 text-[#475060] px-2.5 py-1 bg-[#F6F4EF] rounded-[3px] border border-[#DCD7CC] text-[11px]">
-                <Clock className="w-3 h-3 text-[#7C8698]" />
+              <div className="flex items-center gap-1.5 text-slate-300 px-3 py-1 bg-white/[0.04] rounded-lg border border-white/10 text-[11px]">
+                <Clock className="w-3 h-3 text-slate-500" />
                 <span>{istTime || '15:30:00 IST'}</span>
               </div>
 
               {/* Mock / Live Backend Pill */}
               <button
                 onClick={handleToggleMock}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-[3px] border text-[11px] cursor-pointer transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg border text-[11px] cursor-pointer transition-colors ${
                   isMock
-                    ? 'bg-[#EDF2F9] text-[#2A4B7C] border-[#B9C9E1]'
-                    : 'bg-[#EBF5F0] text-[#1E6548] border-[#A3D4BE]'
+                    ? 'bg-blue-500/10 text-blue-400 border-blue-500/30'
+                    : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
                 }`}
                 title="Click to toggle between mock fixtures and live FastAPI backend"
               >
@@ -144,7 +151,7 @@ export default function Header() {
                 <span>{isMock ? 'Mock Fixture' : 'Live Backend'}</span>
                 <span
                   className={`w-1.5 h-1.5 rounded-full ${
-                    isMock ? 'bg-[#2A4B7C]' : isBackendHealthy ? 'bg-[#1E6548] animate-pulse' : 'bg-[#933835]'
+                    isMock ? 'bg-blue-400' : isBackendHealthy ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'
                   }`}
                 />
               </button>
@@ -154,14 +161,14 @@ export default function Header() {
             <div className="md:hidden flex items-center gap-2">
               <button
                 onClick={() => setIsHealthOpen(true)}
-                className="p-1.5 text-[#475060]"
+                className="p-1.5 text-slate-400"
                 title="System Health"
               >
-                <span className="w-2 h-2 rounded-full bg-[#1E6548] block" />
+                <span className="w-2 h-2 rounded-full bg-emerald-400 block" />
               </button>
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="p-1.5 rounded-[3px] text-[#475060] hover:bg-[#ECE8E0]"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.04]"
               >
                 {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               </button>
@@ -170,7 +177,7 @@ export default function Header() {
 
           {/* Mobile Nav Dropdown */}
           {isMenuOpen && (
-            <div className="md:hidden py-3 border-t border-[#DCD7CC] space-y-1">
+            <div className="md:hidden py-3 border-t border-white/10 space-y-1">
               {navItems.map(({ to, label, end }) => (
                 <NavLink
                   key={to}
@@ -178,10 +185,10 @@ export default function Header() {
                   end={end}
                   onClick={() => setIsMenuOpen(false)}
                   className={({ isActive }) =>
-                    `block px-3 py-2 rounded-[3px] text-xs font-medium ${
+                    `block px-3 py-2 rounded-lg text-xs font-medium ${
                       isActive
-                        ? 'bg-[#F3EFE6] text-[#8A7441] font-semibold border border-[#D6C7A1]'
-                        : 'text-[#475060] hover:bg-[#ECE8E0]'
+                        ? 'bg-white/[0.08] text-white font-semibold'
+                        : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
                     }`
                   }
                 >
@@ -189,11 +196,11 @@ export default function Header() {
                 </NavLink>
               ))}
 
-              <div className="pt-2 border-t border-[#DCD7CC] flex justify-between items-center text-xs px-2 font-mono">
-                <span className="text-[#7C8698] text-[11px]">{istTime}</span>
+              <div className="pt-2 border-t border-white/10 flex justify-between items-center text-xs px-2 font-mono">
+                <span className="text-slate-400 text-[11px]">{istTime}</span>
                 <button
                   onClick={handleToggleMock}
-                  className="px-2 py-1 rounded-[3px] bg-[#F6F4EF] text-[#475060] border border-[#DCD7CC] text-[11px]"
+                  className="px-2 py-1 rounded bg-white/[0.05] text-slate-300 border border-white/10 text-[11px]"
                 >
                   Mode: {isMock ? 'Mock Fixture' : 'Live API'}
                 </button>

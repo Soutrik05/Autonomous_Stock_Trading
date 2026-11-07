@@ -21,29 +21,29 @@ export default function TradeAutopsyDrawer({ trade, onClose }: TradeAutopsyDrawe
     <div className="fixed inset-0 z-50 overflow-hidden font-sans">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-[#151B26]/40 backdrop-blur-xs transition-opacity"
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
 
       <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-        <div className="w-screen max-w-lg bg-[#FFFFFF] border-l border-[#DCD7CC] shadow-2xl flex flex-col animate-fade-in overflow-hidden">
+        <div className="w-screen max-w-lg bg-[#070A11] border-l border-white/10 shadow-2xl flex flex-col animate-fade-in overflow-hidden">
           {/* Header */}
-          <div className="p-5 border-b border-[#DCD7CC] flex items-center justify-between bg-[#F6F4EF]">
+          <div className="p-5 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-mono font-bold text-lg text-[#151B26]">{trade.symbol}</span>
-                <span className={`px-2 py-0.5 rounded-[2px] text-[10px] font-mono border ${forensic.bg} ${forensic.text} ${forensic.border}`}>
+                <span className="font-mono font-bold text-lg text-white">{trade.symbol}</span>
+                <span className={`px-2 py-0.5 rounded text-[10px] font-mono border ${forensic.bg} ${forensic.text} ${forensic.border}`}>
                   {forensic.label}
                 </span>
               </div>
-              <p className="text-xs text-[#475060]">
+              <p className="text-xs text-slate-400">
                 {trade.companyName} · {trade.sector}
               </p>
             </div>
 
             <button
               onClick={onClose}
-              className="p-1.5 rounded-[2px] text-[#7C8698] hover:text-[#151B26] hover:bg-[#ECE8E0] transition-colors cursor-pointer"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -52,100 +52,100 @@ export default function TradeAutopsyDrawer({ trade, onClose }: TradeAutopsyDrawe
           {/* Body Content */}
           <div className="flex-1 overflow-y-auto p-5 space-y-4 text-xs">
             {/* P&L & Financial Summary Banner */}
-            <div className="p-4 rounded-[3px] border border-[#DCD7CC] bg-[#FFFFFF] grid grid-cols-2 gap-4 font-mono">
+            <div className="p-4 rounded-xl border border-white/10 bg-white/[0.02] grid grid-cols-2 gap-4 font-mono">
               <div>
-                <span className="text-[#7C8698] text-[10px] block">Realized return</span>
-                <span className={`text-xl font-bold ${isProfit ? 'text-[#1E6548]' : 'text-[#933835]'}`}>
+                <span className="text-slate-500 text-[10px] block">Realized Return</span>
+                <span className={`text-xl font-bold ${isProfit ? 'text-emerald-400' : 'text-rose-400'}`}>
                   {formatPaiseToRupees(trade.realizedPnlPaise)}
                 </span>
-                <span className={`text-xs ml-1 ${isProfit ? 'text-[#1E6548]' : 'text-[#933835]'}`}>
+                <span className={`text-xs ml-1 ${isProfit ? 'text-emerald-400' : 'text-rose-400'}`}>
                   ({isProfit ? `+${formatPct(trade.realizedPnlPct)}` : formatPct(trade.realizedPnlPct)})
                 </span>
               </div>
 
               <div>
-                <span className="text-[#7C8698] text-[10px] block">Hold duration</span>
-                <span className="text-xl font-bold text-[#151B26]">{trade.holdDays} days</span>
-                <span className="text-[#7C8698] text-[10px] block mt-0.5">
+                <span className="text-slate-500 text-[10px] block">Hold Duration</span>
+                <span className="text-xl font-bold text-white">{trade.holdDays} days</span>
+                <span className="text-slate-500 text-[10px] block mt-0.5">
                   Closed: {trade.closedAt ? formatISTDateTime(trade.closedAt) : 'Market Close'}
                 </span>
               </div>
             </div>
 
             {/* Price Execution Milestones */}
-            <div className="ledger-panel p-4 space-y-3">
-              <h4 className="font-serif font-bold text-sm text-[#151B26]">
-                Execution milestones & price path
+            <div className="arena-glass-subdued p-4 space-y-3">
+              <h4 className="font-bold text-sm text-white">
+                Execution Milestones & Price Path
               </h4>
 
               <div className="grid grid-cols-3 gap-2 font-mono text-[11px]">
-                <div className="p-2 rounded-[2px] bg-[#F6F4EF] border border-[#E7E3D9]">
-                  <span className="text-[#7C8698] block text-[9px]">Entry price</span>
-                  <span className="font-medium text-[#151B26]">{formatPaiseToRupees(trade.entryPricePaise)}</span>
+                <div className="p-2.5 rounded-lg bg-black/40 border border-white/10">
+                  <span className="text-slate-500 block text-[9px]">Entry Price</span>
+                  <span className="font-medium text-white">{formatPaiseToRupees(trade.entryPricePaise)}</span>
                 </div>
 
-                <div className="p-2 rounded-[2px] bg-[#F6F4EF] border border-[#E7E3D9]">
-                  <span className="text-[#7C8698] block text-[9px]">Exit price</span>
-                  <span className="font-medium text-[#151B26]">{formatPaiseToRupees(trade.exitPricePaise || trade.currentPricePaise)}</span>
+                <div className="p-2.5 rounded-lg bg-black/40 border border-white/10">
+                  <span className="text-slate-500 block text-[9px]">Exit Price</span>
+                  <span className="font-medium text-white">{formatPaiseToRupees(trade.exitPricePaise || trade.currentPricePaise)}</span>
                 </div>
 
-                <div className="p-2 rounded-[2px] bg-[#F6F4EF] border border-[#E7E3D9]">
-                  <span className="text-[#7C8698] block text-[9px]">Stop loss</span>
-                  <span className="font-medium text-[#151B26]">{formatPaiseToRupees(trade.stopLossPaise)}</span>
+                <div className="p-2.5 rounded-lg bg-black/40 border border-white/10">
+                  <span className="text-slate-500 block text-[9px]">Stop Loss</span>
+                  <span className="font-medium text-white">{formatPaiseToRupees(trade.stopLossPaise)}</span>
                 </div>
               </div>
 
               {/* Excursion Bounds */}
-              <div className="p-3 rounded-[2px] border border-[#DCD7CC] bg-[#F6F4EF] space-y-2 font-mono text-[11px]">
+              <div className="p-3 rounded-lg border border-white/10 bg-black/30 space-y-2 font-mono text-[11px]">
                 <div className="flex justify-between items-center">
-                  <span className="flex items-center gap-1 text-[#1E6548]">
+                  <span className="flex items-center gap-1.5 text-emerald-400">
                     <ArrowUp className="w-3.5 h-3.5" />
-                    <span>Max favorable excursion (MFE):</span>
+                    <span>Max Favorable Excursion (MFE):</span>
                   </span>
-                  <span className="font-semibold text-[#1E6548]">+{mfePct.toFixed(2)}%</span>
+                  <span className="font-semibold text-emerald-400">+{mfePct.toFixed(2)}%</span>
                 </div>
 
                 <div className="flex justify-between items-center">
-                  <span className="flex items-center gap-1 text-[#933835]">
+                  <span className="flex items-center gap-1.5 text-rose-400">
                     <ArrowDown className="w-3.5 h-3.5" />
-                    <span>Max adverse excursion (MAE):</span>
+                    <span>Max Adverse Excursion (MAE):</span>
                   </span>
-                  <span className="font-semibold text-[#933835]">{maePct.toFixed(2)}%</span>
+                  <span className="font-semibold text-rose-400">{maePct.toFixed(2)}%</span>
                 </div>
               </div>
             </div>
 
             {/* Verbatim Entry Thesis */}
-            <div className="callout-panel p-4 space-y-2">
-              <h4 className="font-serif font-bold text-sm text-[#151B26]">
-                Original LLM entry thesis
+            <div className="arena-glass-subdued p-4 space-y-2">
+              <h4 className="font-bold text-sm text-white">
+                Original LLM Entry Thesis
               </h4>
-              <p className="text-[#151B26] text-xs leading-relaxed italic bg-white/70 p-3 rounded-[2px] border border-[#D6C7A1]">
+              <p className="text-slate-300 text-xs leading-relaxed italic bg-black/40 p-3 rounded-lg border border-white/10">
                 "{trade.thesisSummary}"
               </p>
             </div>
 
             {/* Deterministic Forensics & Reflection Loop */}
-            <div className="ledger-panel p-4 space-y-3">
-              <div className="flex items-center gap-1.5 text-xs font-serif font-bold text-[#151B26]">
-                <Activity className="w-4 h-4 text-[#8A7441]" />
-                <span>Causal forensics & reflection loop</span>
+            <div className="arena-glass-subdued p-4 space-y-3">
+              <div className="flex items-center gap-2 text-xs font-bold text-white">
+                <Activity className="w-4 h-4 text-cyan-400" />
+                <span>Causal Forensics & Reflection Loop</span>
               </div>
 
-              <div className="p-3 rounded-[2px] bg-[#F3EFE6] border border-[#D6C7A1] space-y-2 text-xs">
-                <div className="flex items-center justify-between text-[#151B26] font-semibold font-mono text-[11px]">
+              <div className="p-3.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20 space-y-2 text-xs">
+                <div className="flex items-center justify-between text-white font-semibold font-mono text-[11px]">
                   <span>Classification: {forensic.label}</span>
-                  <span className="text-[10px] text-[#8A7441]">Autonomous Reflection Engine</span>
+                  <span className="text-[10px] text-cyan-400">Autonomous Reflection Engine</span>
                 </div>
 
-                <p className="text-[11px] text-[#475060] leading-relaxed font-sans">
+                <p className="text-[11px] text-slate-300 leading-relaxed font-sans">
                   Deterministic classification marked as <strong>{forensic.label}</strong> based on exit trigger breach and volatility behavior.
                 </p>
 
-                <div className="pt-2 border-t border-[#D6C7A1] font-mono text-[10px] text-[#8A7441] flex items-center justify-between">
-                  <span>Weekly reflection status:</span>
-                  <span className="font-semibold text-[#1E6548] flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3" /> Reviewed & watermarked
+                <div className="pt-2 border-t border-cyan-500/20 font-mono text-[10px] text-cyan-400 flex items-center justify-between">
+                  <span>Weekly Reflection Status:</span>
+                  <span className="font-semibold text-emerald-400 flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" /> Reviewed & Watermarked
                   </span>
                 </div>
               </div>
@@ -153,11 +153,11 @@ export default function TradeAutopsyDrawer({ trade, onClose }: TradeAutopsyDrawe
           </div>
 
           {/* Drawer Footer */}
-          <div className="p-4 border-t border-[#DCD7CC] bg-[#F6F4EF] flex justify-between items-center text-xs font-mono text-[#7C8698]">
+          <div className="p-4 border-t border-white/10 bg-white/[0.02] flex justify-between items-center text-xs font-mono text-slate-500">
             <span>Position #{trade.id}</span>
             <button
               onClick={onClose}
-              className="px-3 py-1 rounded-[2px] bg-white border border-[#DCD7CC] text-[#151B26] font-medium hover:bg-[#ECE8E0] transition-colors cursor-pointer"
+              className="px-3.5 py-1.5 rounded-lg bg-white/10 border border-white/15 text-white font-medium hover:bg-white/15 transition-colors cursor-pointer"
             >
               Close
             </button>

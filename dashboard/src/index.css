@@ -1,28 +1,26 @@
 @import "tailwindcss";
 
 :root {
-  /* Archival Stone & Cool Vellum Design System (SSOT) */
-  --canvas-bg: #F0EEE9;
-  --surface-ledger: #FFFFFF;
-  --surface-subdued: #F6F4EF;
-  --surface-hover: #ECE8E0;
-  --surface-inset: #EAE6DC;
+  /* OpenRouter-Inspired Deep Obsidian Trading Arena (SSOT) */
+  --canvas-bg: #030712;
+  --surface-glass: rgba(11, 16, 27, 0.72);
+  --surface-glass-subdued: rgba(255, 255, 255, 0.03);
+  --surface-glass-hover: rgba(255, 255, 255, 0.06);
 
-  --border-primary: #DCD7CC;
-  --border-subdued: #E7E3D9;
-  --border-strong: #BEB7A6;
+  --border-primary: rgba(255, 255, 255, 0.08);
+  --border-subdued: rgba(255, 255, 255, 0.04);
+  --border-glow: rgba(6, 182, 212, 0.35);
 
-  --ink-primary: #151B26;
-  --ink-secondary: #475060;
-  --ink-subdued: #7C8698;
+  --ink-primary: #F8FAFC;
+  --ink-secondary: #94A3B8;
+  --ink-subdued: #64748B;
 
-  --brand-accent: #8A7441;
-  --brand-accent-subdued: #F3EFE6;
-  --profit-color: #1E6548;
-  --loss-color: #933835;
+  --brand-cyan: #06B6D4;
+  --brand-cobalt: #3B82F6;
+  --profit-color: #10B981;
+  --loss-color: #F43F5E;
 
-  --font-serif: 'Newsreader', Georgia, 'Times New Roman', serif;
-  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, Menlo, monospace;
 }
 
@@ -32,15 +30,25 @@ body {
   color: var(--ink-primary);
   margin: 0;
   padding: 0;
+  min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* Atmospheric Cosmic Arena Background (Deep nebula mesh + orbital grid) */
+  background-image: 
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(6, 182, 212, 0.12), transparent 70%),
+    radial-gradient(ellipse 60% 40% at 85% 60%, rgba(59, 130, 246, 0.08), transparent 60%),
+    radial-gradient(circle 800px at 15% 90%, rgba(139, 92, 246, 0.06), transparent 70%),
+    radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 100% 100%, 32px 32px;
+  background-attachment: fixed;
 }
 
 /* Typography Scale */
 h1, h2, h3, h4, .font-display {
-  font-family: var(--font-serif);
-  letter-spacing: -0.015em;
-  font-weight: 600;
+  font-family: var(--font-sans);
+  letter-spacing: -0.03em;
+  font-weight: 700;
   color: var(--ink-primary);
 }
 
@@ -49,93 +57,87 @@ code, kbd, samp, pre, .font-mono {
   font-variant-numeric: tabular-nums lining-nums;
 }
 
-/* Role-Differentiated Panels (Reject generic SaaS rounded cards) */
-
-/* 1. Structural Ledger Panel: For data tables, metrics grids, positions, orders */
-.ledger-panel {
-  background-color: var(--surface-ledger);
+/* Translucent Arena Glassmorphism Panels */
+.arena-glass {
+  background-color: var(--surface-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border-primary);
-  border-radius: 4px;
-  box-shadow: 0 1px 3px rgba(21, 27, 38, 0.04);
+  border-radius: 0.75rem; /* rounded-xl */
+  box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.6);
 }
 
-.ledger-panel-subdued {
-  background-color: var(--surface-subdued);
-  border: 1px solid var(--border-primary);
-  border-radius: 4px;
+.arena-glass-subdued {
+  background-color: var(--surface-glass-subdued);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--border-subdued);
+  border-radius: 0.5rem; /* rounded-lg */
 }
 
-/* 2. Visual Frame: For Recharts curves and interactive diagrams */
-.chart-frame {
-  background-color: #FAF9F6;
-  border: 1px solid var(--border-primary);
-  border-radius: 4px;
-  box-shadow: inset 0 1px 2px rgba(21, 27, 38, 0.02);
+.arena-glass-hover:hover {
+  background-color: var(--surface-glass-hover);
+  border-color: rgba(255, 255, 255, 0.14);
 }
 
-/* 3. Masthead Panel: Structural header rule */
-.masthead-panel {
-  background-color: rgba(240, 238, 233, 0.96);
-  border-bottom: 1px solid var(--border-primary);
+/* Glow Border & Gradient Highlight */
+.arena-glow-card {
+  position: relative;
+  background-color: var(--surface-glass);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(6, 182, 212, 0.25);
+  box-shadow: 0 0 35px -10px rgba(6, 182, 212, 0.15);
+  border-radius: 0.75rem;
 }
 
-/* 4. Editorial Callout Panel: For LLM reasoning, reflection notes, and heuristics */
-.callout-panel {
-  background-color: var(--brand-accent-subdued);
-  border: 1px solid #D6C7A1;
-  border-left: 3px solid var(--brand-accent);
-  border-radius: 3px;
-}
-
-/* Financial Ledger Table Formatting */
+/* Translucent Financial Ledger Table */
 .ledger-table {
   width: 100%;
   border-collapse: collapse;
 }
 
 .ledger-table th {
-  background-color: var(--surface-subdued);
+  background-color: rgba(255, 255, 255, 0.02);
   color: var(--ink-secondary);
   font-size: 0.75rem; /* 12px */
   font-weight: 600;
   text-align: left;
   border-bottom: 1px solid var(--border-primary);
-  padding: 0.625rem 0.875rem;
+  padding: 0.75rem 1rem;
 }
 
 .ledger-table td {
   border-bottom: 1px solid var(--border-subdued);
-  padding: 0.625rem 0.875rem;
+  padding: 0.75rem 1rem;
   font-size: 0.8125rem; /* 13px */
   color: var(--ink-primary);
 }
 
 .ledger-table tr:hover td {
-  background-color: var(--surface-hover);
+  background-color: var(--surface-glass-hover);
 }
 
-/* Accessible Focus Outlines */
+/* Focus Visible Accessible Ring */
 a:focus-visible,
 button:focus-visible,
 input:focus-visible,
-select:focus-visible,
-textarea:focus-visible {
-  outline: 2px solid var(--brand-accent);
+select:focus-visible {
+  outline: 2px solid var(--brand-cyan);
   outline-offset: 2px;
 }
 
-/* Archival Scrollbars */
+/* Cybernetic Scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--canvas-bg);
+  background: rgba(3, 7, 18, 0.7);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border-strong);
-  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--ink-secondary);
+  background: rgba(6, 182, 212, 0.4);
 }

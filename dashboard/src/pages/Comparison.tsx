@@ -38,9 +38,9 @@ export default function Comparison() {
 
   if (loading || !data) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-16 flex justify-center items-center">
-        <div className="flex items-center gap-3 text-[#7C8698] font-mono text-sm">
-          <div className="w-4 h-4 border-2 border-[#8A7441] border-t-transparent rounded-full animate-spin" />
+      <div className="max-w-7xl mx-auto px-4 py-24 flex justify-center items-center">
+        <div className="flex items-center gap-3 text-slate-400 font-mono text-sm">
+          <div className="w-5 h-5 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
           <span>Loading paired comparison experiment...</span>
         </div>
       </div>
@@ -58,15 +58,15 @@ export default function Comparison() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-fade-in font-sans">
       {/* Header */}
-      <div className="border-b border-[#DCD7CC] pb-6">
-        <div className="flex items-center gap-1.5 text-xs font-mono text-[#8A7441] mb-1">
+      <div className="border-b border-white/10 pb-6">
+        <div className="flex items-center gap-2 text-xs font-mono text-cyan-400 mb-1 font-semibold">
           <Scale className="w-3.5 h-3.5" />
-          <span>Paired experimental benchmark</span>
+          <span>Paired Experimental Benchmark</span>
         </div>
-        <h1 className="text-3xl font-serif font-bold text-[#151B26]">
-          Cognitive alpha vs. deterministic rules
+        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
+          Cognitive Alpha vs. Deterministic Rules
         </h1>
-        <p className="text-sm text-[#475060] mt-1 max-w-3xl leading-relaxed">
+        <p className="text-sm text-slate-400 mt-1 max-w-3xl leading-relaxed">
           Evaluating the central research hypothesis: <em>Does an LLM cognitive layer add measurable value over identical hard-coded rules and the market index?</em> Both strategies evaluate the exact same candidate list through the same simulated broker.
         </p>
       </div>
@@ -76,119 +76,119 @@ export default function Comparison() {
       {/* Triple Head-to-Head Comparison Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {/* Card 1: LLM Simons */}
-        <div className="ledger-panel p-6 border-[#2A4B7C]/40 bg-white space-y-4">
+        <div className="arena-glass p-6 border-cyan-500/30 bg-cyan-500/5 space-y-4 shadow-[0_0_30px_rgba(6,182,212,0.1)]">
           <div className="flex justify-between items-center">
-            <span className="flex items-center gap-2 font-serif font-bold text-lg text-[#151B26]">
-              <Brain className="w-4 h-4 text-[#1E4E8C]" />
+            <span className="flex items-center gap-2 font-bold text-lg text-white">
+              <Brain className="w-4 h-4 text-cyan-400" />
               <span>Simons (LLM)</span>
             </span>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-[2px] bg-[#EDF2F9] text-[#2A4B7C] border border-[#B9C9E1]">
-              LLM persona
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+              LLM Persona
             </span>
           </div>
 
-          <div className="text-3xl font-bold font-mono text-[#1E4E8C]">
+          <div className="text-3xl font-extrabold font-mono text-cyan-400">
             {formatPct(data.llmSimons.returnPct)}
           </div>
 
-          <div className="space-y-2 text-xs font-mono text-[#475060] border-t border-[#E7E3D9] pt-3">
+          <div className="space-y-2 text-xs font-mono text-slate-400 border-t border-white/10 pt-3.5">
             <div className="flex justify-between">
               <span>Total NAV:</span>
-              <span className="font-semibold text-[#151B26]">{formatPaiseToRupees(data.llmSimons.navPaise)}</span>
+              <span className="font-semibold text-white">{formatPaiseToRupees(data.llmSimons.navPaise)}</span>
             </div>
             <div className="flex justify-between">
-              <span>Sharpe ratio:</span>
-              <span className="font-semibold text-[#151B26]">{data.llmSimons.sharpe.toFixed(2)}</span>
+              <span>Sharpe Ratio:</span>
+              <span className="font-semibold text-white">{data.llmSimons.sharpe.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
-              <span>Max drawdown:</span>
-              <span className="font-semibold text-[#933835]">-{data.llmSimons.maxDrawdownPct.toFixed(2)}%</span>
+              <span>Max Drawdown:</span>
+              <span className="font-semibold text-rose-400">-{data.llmSimons.maxDrawdownPct.toFixed(2)}%</span>
             </div>
             <div className="flex justify-between">
-              <span>Win rate:</span>
-              <span className="font-semibold text-[#151B26]">{data.llmSimons.winRatePct.toFixed(1)}%</span>
+              <span>Win Rate:</span>
+              <span className="font-semibold text-white">{data.llmSimons.winRatePct.toFixed(1)}%</span>
             </div>
             <div className="flex justify-between">
-              <span>Faithfulness rate:</span>
-              <span className="font-semibold text-[#2A4B7C]">{data.llmSimons.faithfulnessRatePct.toFixed(1)}%</span>
+              <span>Faithfulness Rate:</span>
+              <span className="font-semibold text-purple-400">{data.llmSimons.faithfulnessRatePct.toFixed(1)}%</span>
             </div>
           </div>
         </div>
 
         {/* Card 2: Rules Simons */}
-        <div className="ledger-panel p-6 bg-white space-y-4">
+        <div className="arena-glass p-6 space-y-4">
           <div className="flex justify-between items-center">
-            <span className="flex items-center gap-2 font-serif font-bold text-lg text-[#151B26]">
-              <Cpu className="w-4 h-4 text-[#475060]" />
-              <span>Simons (Rules only)</span>
+            <span className="flex items-center gap-2 font-bold text-lg text-white">
+              <Cpu className="w-4 h-4 text-slate-400" />
+              <span>Simons (Rules Only)</span>
             </span>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-[2px] bg-[#F6F4EF] text-[#475060] border border-[#DCD7CC]">
-              Rules control
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/5 text-slate-400 border border-white/10">
+              Rules Control
             </span>
           </div>
 
-          <div className="text-3xl font-bold font-mono text-[#151B26]">
+          <div className="text-3xl font-extrabold font-mono text-white">
             {formatPct(data.rulesSimons.returnPct)}
           </div>
 
-          <div className="space-y-2 text-xs font-mono text-[#475060] border-t border-[#E7E3D9] pt-3">
+          <div className="space-y-2 text-xs font-mono text-slate-400 border-t border-white/10 pt-3.5">
             <div className="flex justify-between">
               <span>Total NAV:</span>
-              <span className="font-semibold text-[#151B26]">{formatPaiseToRupees(data.rulesSimons.navPaise)}</span>
+              <span className="font-semibold text-white">{formatPaiseToRupees(data.rulesSimons.navPaise)}</span>
             </div>
             <div className="flex justify-between">
-              <span>Sharpe ratio:</span>
-              <span className="font-semibold text-[#151B26]">{data.rulesSimons.sharpe.toFixed(2)}</span>
+              <span>Sharpe Ratio:</span>
+              <span className="font-semibold text-white">{data.rulesSimons.sharpe.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
-              <span>Max drawdown:</span>
-              <span className="font-semibold text-[#933835]">-{data.rulesSimons.maxDrawdownPct.toFixed(2)}%</span>
+              <span>Max Drawdown:</span>
+              <span className="font-semibold text-rose-400">-{data.rulesSimons.maxDrawdownPct.toFixed(2)}%</span>
             </div>
             <div className="flex justify-between">
-              <span>Win rate:</span>
-              <span className="font-semibold text-[#151B26]">{data.rulesSimons.winRatePct.toFixed(1)}%</span>
+              <span>Win Rate:</span>
+              <span className="font-semibold text-white">{data.rulesSimons.winRatePct.toFixed(1)}%</span>
             </div>
             <div className="flex justify-between">
-              <span>Faithfulness rate:</span>
-              <span className="font-semibold text-[#7C8698]">100.0% (Deterministic)</span>
+              <span>Faithfulness Rate:</span>
+              <span className="font-semibold text-slate-500">100.0% (Deterministic)</span>
             </div>
           </div>
         </div>
 
         {/* Card 3: Nifty 500 Index */}
-        <div className="ledger-panel p-6 bg-white space-y-4">
+        <div className="arena-glass p-6 space-y-4">
           <div className="flex justify-between items-center">
-            <span className="flex items-center gap-2 font-serif font-bold text-lg text-[#151B26]">
-              <TrendingUp className="w-4 h-4 text-[#7C8698]" />
-              <span>Nifty 500 index</span>
+            <span className="flex items-center gap-2 font-bold text-lg text-white">
+              <TrendingUp className="w-4 h-4 text-slate-500" />
+              <span>Nifty 500 Index</span>
             </span>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-[2px] bg-[#F6F4EF] text-[#7C8698] border border-[#DCD7CC]">
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/5 text-slate-400 border border-white/10">
               Benchmark
             </span>
           </div>
 
-          <div className="text-3xl font-bold font-mono text-[#475060]">
+          <div className="text-3xl font-extrabold font-mono text-slate-300">
             {formatPct(data.nifty500.returnPct)}
           </div>
 
-          <div className="space-y-2 text-xs font-mono text-[#475060] border-t border-[#E7E3D9] pt-3">
+          <div className="space-y-2 text-xs font-mono text-slate-400 border-t border-white/10 pt-3.5">
             <div className="flex justify-between">
               <span>Benchmark NAV:</span>
-              <span className="font-semibold text-[#151B26]">{formatPaiseToRupees(data.nifty500.benchmarkNavPaise)}</span>
+              <span className="font-semibold text-white">{formatPaiseToRupees(data.nifty500.benchmarkNavPaise)}</span>
             </div>
             <div className="flex justify-between">
-              <span>Max drawdown:</span>
-              <span className="font-semibold text-[#933835]">-{data.nifty500.maxDrawdownPct.toFixed(2)}%</span>
+              <span>Max Drawdown:</span>
+              <span className="font-semibold text-rose-400">-{data.nifty500.maxDrawdownPct.toFixed(2)}%</span>
             </div>
             <div className="flex justify-between">
-              <span>LLM alpha vs index:</span>
-              <span className="font-bold text-[#1E6548]">
+              <span>LLM Alpha vs Index:</span>
+              <span className="font-bold text-emerald-400">
                 +{formatPct(data.llmSimons.returnPct - data.nifty500.returnPct)}
               </span>
             </div>
             <div className="flex justify-between">
-              <span>Rules alpha vs index:</span>
-              <span className="font-semibold text-[#151B26]">
+              <span>Rules Alpha vs Index:</span>
+              <span className="font-semibold text-white">
                 {formatPct(data.rulesSimons.returnPct - data.nifty500.returnPct)}
               </span>
             </div>
@@ -197,18 +197,18 @@ export default function Comparison() {
       </div>
 
       {/* Candidate Selection Alpha: Multi-Horizon Forward Return Analysis */}
-      <div className="chart-frame p-6 space-y-4">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+      <div className="arena-glass p-6 sm:p-7 space-y-5">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-base font-serif font-bold text-[#151B26]">
-                Candidate selection alpha: BUY vs. HOLD forward returns
+            <div className="flex items-center gap-2.5">
+              <h3 className="text-base sm:text-lg font-bold text-white">
+                Candidate Selection Alpha: BUY vs. HOLD Forward Returns
               </h3>
-              <span className="px-2 py-0.5 rounded-[2px] font-mono text-xs bg-[#EBF5F0] text-[#1E6548] border border-[#A3D4BE] font-medium">
-                Alpha spread: +{data.candidateSelectionAlpha.toFixed(2)}%
+              <span className="px-2.5 py-0.5 rounded font-mono text-xs bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-semibold">
+                Alpha Spread: +{data.candidateSelectionAlpha.toFixed(2)}%
               </span>
             </div>
-            <p className="text-xs text-[#7C8698] mt-1">
+            <p className="text-xs text-slate-400 mt-1">
               Tracks forward return trajectories of candidates selected for BUY versus candidates rejected as HOLD across 1, 5, 10, 20, and 60 trading days.
             </p>
           </div>
@@ -218,44 +218,44 @@ export default function Comparison() {
         <div className="w-full h-80 pt-2 min-h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#DCD7CC" strokeOpacity={0.6} />
-              <XAxis dataKey="horizon" stroke="#7C8698" fontSize={11} />
-              <YAxis stroke="#7C8698" fontSize={11} tickFormatter={(v) => `${v}%`} />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+              <XAxis dataKey="horizon" stroke="#64748B" fontSize={11} />
+              <YAxis stroke="#64748B" fontSize={11} tickFormatter={(v) => `${v}%`} />
               <Tooltip
                 formatter={(value: unknown) => [`${Number(value).toFixed(2)}%`, '']}
-                contentStyle={{ backgroundColor: '#FFFFFF', borderColor: '#DCD7CC', color: '#151B26', fontSize: '11px', borderRadius: '3px' }}
+                contentStyle={{ backgroundColor: '#0B0F19', borderColor: 'rgba(255,255,255,0.15)', color: '#FFFFFF', fontSize: '11px', borderRadius: '8px' }}
               />
               <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-              <Bar dataKey="LLM Simons (BUY)" fill="#1E4E8C" radius={[2, 2, 0, 0]} />
-              <Bar dataKey="LLM Simons (HOLD)" fill="#7C8698" radius={[2, 2, 0, 0]} />
-              <Bar dataKey="Rules Simons (BUY)" fill="#8A7441" radius={[2, 2, 0, 0]} />
-              <Bar dataKey="Nifty 500 Index" fill="#A0A6B2" radius={[2, 2, 0, 0]} />
+              <Bar dataKey="LLM Simons (BUY)" fill="#06B6D4" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="LLM Simons (HOLD)" fill="#64748B" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Rules Simons (BUY)" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Nifty 500 Index" fill="#94A3B8" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         {/* Tabular Horizon Breakdown */}
         <div className="overflow-x-auto pt-2">
-          <table className="w-full text-left text-xs font-mono text-[#151B26]">
-            <thead className="bg-[#F6F4EF] text-[11px] text-[#475060] border-b border-[#DCD7CC]">
+          <table className="w-full text-left text-xs font-mono text-slate-200">
+            <thead className="bg-white/[0.02] text-[11px] text-slate-400 border-b border-white/10">
               <tr>
-                <th className="py-2.5 px-3 font-medium">Horizon</th>
-                <th className="py-2.5 px-3 text-right font-medium">LLM Simons BUY</th>
-                <th className="py-2.5 px-3 text-right font-medium">LLM Simons HOLD</th>
-                <th className="py-2.5 px-3 text-right font-medium">Selection alpha (BUY - HOLD)</th>
-                <th className="py-2.5 px-3 text-right font-medium">Rules Simons BUY</th>
-                <th className="py-2.5 px-3 text-right font-medium">Nifty 500 return</th>
+                <th className="py-2.5 px-3 font-semibold">Horizon</th>
+                <th className="py-2.5 px-3 text-right font-semibold">LLM Simons BUY</th>
+                <th className="py-2.5 px-3 text-right font-semibold">LLM Simons HOLD</th>
+                <th className="py-2.5 px-3 text-right font-semibold">Selection Alpha (BUY - HOLD)</th>
+                <th className="py-2.5 px-3 text-right font-semibold">Rules Simons BUY</th>
+                <th className="py-2.5 px-3 text-right font-semibold">Nifty 500 Return</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#E7E3D9]">
+            <tbody className="divide-y divide-white/5">
               {data.horizonReturns.map((hr) => (
-                <tr key={hr.horizonDays} className="hover:bg-[#F6F4EF] transition-colors">
-                  <td className="py-2.5 px-3 font-semibold">{hr.horizonDays} Trading Days</td>
-                  <td className="py-2.5 px-3 text-right text-[#1E4E8C] font-semibold">{formatPct(hr.llmSimonsBuyAvgPct)}</td>
-                  <td className="py-2.5 px-3 text-right text-[#475060]">{formatPct(hr.llmSimonsHoldAvgPct)}</td>
-                  <td className="py-2.5 px-3 text-right text-[#1E6548] font-semibold">+{hr.selectionAlphaPct.toFixed(2)}%</td>
-                  <td className="py-2.5 px-3 text-right text-[#151B26]">{formatPct(hr.rulesSimonsBuyAvgPct)}</td>
-                  <td className="py-2.5 px-3 text-right text-[#7C8698]">{formatPct(hr.nifty500AvgPct)}</td>
+                <tr key={hr.horizonDays} className="hover:bg-white/[0.04] transition-colors">
+                  <td className="py-2.5 px-3 font-semibold text-white">{hr.horizonDays} Trading Days</td>
+                  <td className="py-2.5 px-3 text-right text-cyan-400 font-semibold">{formatPct(hr.llmSimonsBuyAvgPct)}</td>
+                  <td className="py-2.5 px-3 text-right text-slate-400">{formatPct(hr.llmSimonsHoldAvgPct)}</td>
+                  <td className="py-2.5 px-3 text-right text-emerald-400 font-semibold">+{hr.selectionAlphaPct.toFixed(2)}%</td>
+                  <td className="py-2.5 px-3 text-right text-white">{formatPct(hr.rulesSimonsBuyAvgPct)}</td>
+                  <td className="py-2.5 px-3 text-right text-slate-500">{formatPct(hr.nifty500AvgPct)}</td>
                 </tr>
               ))}
             </tbody>

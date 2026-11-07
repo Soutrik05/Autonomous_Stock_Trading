@@ -17,63 +17,63 @@ export default function ExplainabilitySpotlight() {
   };
 
   return (
-    <div className="ledger-panel p-6 space-y-4">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-[#E7E3D9] pb-3">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-[3px] bg-[#EDF2F9] flex items-center justify-center text-[#2A4B7C] border border-[#B9C9E1]">
+    <div className="arena-glass p-6 sm:p-8 space-y-5">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-white/10 pb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400">
             <Brain className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="font-serif font-bold text-base text-[#151B26]">
-              Explainability & faithfulness audit spotlight
+            <h3 className="font-bold text-base sm:text-lg text-white">
+              Explainability & Faithfulness Audit Spotlight
             </h3>
-            <p className="text-[11px] font-sans text-[#7C8698]">
+            <p className="text-xs text-slate-400">
               Every trade decision cites market metrics, checked deterministically against snapshot data.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-[2px] bg-[#EBF5F0] border border-[#A3D4BE] text-[#1E6548] text-xs font-mono">
+        <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono">
           <ShieldCheck className="w-3.5 h-3.5" />
-          <span>Faithfulness: 100% verified</span>
+          <span>Faithfulness: 100% Verified</span>
         </div>
       </div>
 
       {/* Verbatim Reasoning Card */}
-      <div className="callout-panel p-4 relative space-y-2">
-        <Quote className="w-5 h-5 text-[#8A7441]/40 absolute top-3 right-3" />
+      <div className="arena-glass-subdued p-5 rounded-xl border border-white/10 relative space-y-2.5">
+        <Quote className="w-6 h-6 text-cyan-400/20 absolute top-4 right-4" />
         <div className="flex items-center gap-2 text-xs font-mono">
-          <span className="font-semibold text-[#151B26]">{sampleDecision.agentName}</span>
-          <span className="text-[#7C8698]">·</span>
-          <span className="text-[#475060]">{sampleDecision.agentFamily}</span>
-          <span className="px-1.5 py-0.2 rounded-[2px] text-[10px] font-semibold bg-[#EBF5F0] text-[#1E6548] border border-[#A3D4BE]">
+          <span className="font-bold text-white">{sampleDecision.agentName}</span>
+          <span className="text-slate-600">·</span>
+          <span className="text-slate-400">{sampleDecision.agentFamily}</span>
+          <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
             BUY {sampleDecision.symbol}
           </span>
         </div>
 
-        <p className="text-xs text-[#151B26] font-serif leading-relaxed italic pr-6">
+        <p className="text-xs sm:text-sm text-slate-200 leading-relaxed italic pr-8">
           "{sampleDecision.rationale}"
         </p>
       </div>
 
       {/* Cited Metrics Grid */}
       <div>
-        <div className="text-[11px] font-sans text-[#7C8698] mb-2">
-          Mathematical ground-truth snapshot verification:
+        <div className="text-xs text-slate-400 mb-2 font-mono">
+          Mathematical Ground-Truth Snapshot Verification:
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs font-mono">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs font-mono">
           {sampleDecision.citedMetrics.map((cm, i) => (
             <div
               key={i}
-              className="p-2.5 rounded-[2px] border border-[#DCD7CC] bg-[#FFFFFF] flex justify-between items-center"
+              className="p-3 rounded-lg border border-white/10 bg-black/40 flex justify-between items-center"
             >
               <div>
-                <span className="text-[#475060] block text-[11px]">{cm.name}</span>
-                <span className="font-medium text-[#151B26]">
-                  Cited: {cm.cited} <span className="text-[#7C8698] font-normal">(Truth: {cm.snapshot})</span>
+                <span className="text-slate-500 block text-[11px]">{cm.name}</span>
+                <span className="font-medium text-white">
+                  Cited: {cm.cited} <span className="text-slate-500 font-normal">(Truth: {cm.snapshot})</span>
                 </span>
               </div>
-              <CheckCircle2 className="w-4 h-4 text-[#1E6548] flex-shrink-0" />
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
             </div>
           ))}
         </div>
