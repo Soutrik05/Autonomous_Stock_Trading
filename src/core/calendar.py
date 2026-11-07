@@ -3,12 +3,12 @@ Trading-day helpers reading market_calendar, and a function to seed it from the 
 list. All dates are IST strings 'YYYY-MM-DD' (as date objects at the function boundary).
 See Plan_v3 §1.5.
 """
+
 import sqlite3
 from datetime import date, timedelta
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from core.clock import Clock
     from ingestion.upstox_client import UpstoxClient
 
 _MAX_SCAN_DAYS = 30  # safety bound against an unreasonably long holiday streak

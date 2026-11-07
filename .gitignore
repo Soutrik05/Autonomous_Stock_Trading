@@ -14,22 +14,25 @@ storage/market/*.db
 storage/market/*_backup.db
 storage/ledger/*.db
 backups/*.db
+data/
 
 # Results & Artifacts
 results/
 _legacy_archive/
 _legacy_reference/
+docs/
+reports/
 *.md
 !README.md
-!CLAUDE.md
-!docs/
-!docs/**
+!Claude.md
 
 # Python
 __pycache__/
 *.pyc
 *.pyo
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
 # Virtual environment
 venv/

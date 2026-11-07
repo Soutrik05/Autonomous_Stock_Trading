@@ -9,6 +9,7 @@ Strategy:
 
 See Plan_v3 section 5.2.
 """
+
 import json
 import sqlite3
 from datetime import date, datetime, timedelta
@@ -16,14 +17,13 @@ from datetime import date, datetime, timedelta
 import pytest
 
 import learning.forensics as forensics
-from core.clock import Clock
-from ingestion.sync_ohlcv import ensure_schema as ensure_ohlcv_schema
 from ingestion.sync_macro import ensure_schema as ensure_macro_schema
-
+from ingestion.sync_ohlcv import ensure_schema as ensure_ohlcv_schema
 
 # ---------------------------------------------------------------------------
 # Helpers / fixtures
 # ---------------------------------------------------------------------------
+
 
 def _portfolio_conn() -> sqlite3.Connection:
     conn = sqlite3.connect(":memory:", isolation_level=None)
@@ -80,7 +80,7 @@ def _insert_position(
     conn: sqlite3.Connection,
     agent_id: str = "agent-simons",
     ticker: str = "RELIANCE",
-    entry_price_paise: int = 100_00_00,   # Rs 10000
+    entry_price_paise: int = 100_00_00,  # Rs 10000
     exit_reason: str = "STOP_HIT",
     hold_days: int = 5,
     pnl_pct: float = -3.0,
@@ -101,8 +101,11 @@ def _insert_position(
         """,
         (
             agent_id,
-            ticker, entry_price_paise,
-            entry_date, exit_date, exit_reason,
+            ticker,
+            entry_price_paise,
+            entry_date,
+            exit_date,
+            exit_reason,
             hold_days,
             int(entry_price_paise * pnl_pct / 100),
             pnl_pct,
@@ -183,16 +186,19 @@ def _db_container(monkeypatch):
     to return them wrapped in _NoCloseConn so forensics.run() does not close them.
     """
     import types
+
     _ohlcv = _NoCloseConn(_ohlcv_conn())
     _macro = _NoCloseConn(_macro_conn())
 
     def fake_get_connection(path: str = None):
-        from settings import settings
+        from core.config import settings
+
         if path == settings.OHLCV_DB_PATH:
             return _ohlcv
         if path == settings.MACRO_DB_PATH:
             return _macro
         from core.database import get_connection as _real
+
         return _real(path)
 
     monkeypatch.setattr(forensics, "get_connection", fake_get_connection)
@@ -220,12 +226,14 @@ def pconn():
 @pytest.fixture()
 def clock():
     from core.clock import FakeClock
+
     return FakeClock(datetime(2025, 1, 10, 16, 0))
 
 
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 class TestCorpActionArtifact:
     def test_classified_on_corp_action_close(self, pconn, ohlcv_conn, macro_conn, clock):
@@ -305,19 +313,20 @@ class TestFalseBreakout:
     def test_close_below_entry_no_volume_surge(self, pconn, ohlcv_conn, macro_conn, clock):
         # Entry price = Rs 100 (10000 paise). Close drops to 97 on day 1, low volume.
         pid = _insert_position(
-            pconn, entry_price_paise=10000, pnl_pct=-3.0, hold_days=5,
+            pconn,
+            entry_price_paise=10000,
+            pnl_pct=-3.0,
+            hold_days=5,
         )
         # Low volume candles (20d avg will be 0 since no pre-entry data → vol_20d_avg=0)
-        _add_ohlcv(ohlcv_conn, "RELIANCE", "2025-01-01", 8,
-                   open_=100.0, close=97.0, volume=50_000)
+        _add_ohlcv(ohlcv_conn, "RELIANCE", "2025-01-01", 8, open_=100.0, close=97.0, volume=50_000)
         _add_macro(macro_conn, "2025-01-01", 8, vix=15.0, regime="NORMAL")
         r = forensics.run(pconn, pid, clock)
         assert r.forensics_type == "FALSE_BREAKOUT"
 
     def test_close_above_entry_no_false_breakout(self, pconn, ohlcv_conn, macro_conn, clock):
         pid = _insert_position(pconn, entry_price_paise=10000, pnl_pct=-1.0, hold_days=5)
-        _add_ohlcv(ohlcv_conn, "RELIANCE", "2025-01-01", 8,
-                   open_=100.0, close=105.0, volume=50_000)
+        _add_ohlcv(ohlcv_conn, "RELIANCE", "2025-01-01", 8, open_=100.0, close=105.0, volume=50_000)
         _add_macro(macro_conn, "2025-01-01", 8, vix=15.0, regime="NORMAL")
         r = forensics.run(pconn, pid, clock)
         assert r.forensics_type != "FALSE_BREAKOUT"
@@ -327,14 +336,15 @@ class TestUnclassified:
     def test_loss_with_no_matching_class(self, pconn, ohlcv_conn, macro_conn, clock):
         # Small loss, normal VIX, no big moves, no early fall below entry in first 3 sessions
         pid = _insert_position(
-            pconn, entry_price_paise=10000, pnl_pct=-1.0, hold_days=5,
+            pconn,
+            entry_price_paise=10000,
+            pnl_pct=-1.0,
+            hold_days=5,
         )
         # First 3 sessions stay above entry (101.0 >= 100.0) -> no false breakout
-        _add_ohlcv(ohlcv_conn, "RELIANCE", "2025-01-01", 3,
-                   open_=100.0, close=101.0, volume=100_000)
+        _add_ohlcv(ohlcv_conn, "RELIANCE", "2025-01-01", 3, open_=100.0, close=101.0, volume=100_000)
         # Remaining sessions drop to 99.0 -> loss at exit
-        _add_ohlcv(ohlcv_conn, "RELIANCE", "2025-01-04", 5,
-                   open_=100.0, close=99.0, volume=100_000)
+        _add_ohlcv(ohlcv_conn, "RELIANCE", "2025-01-04", 5, open_=100.0, close=99.0, volume=100_000)
         _add_macro(macro_conn, "2025-01-01", 8, vix=15.0, regime="NORMAL")
         r = forensics.run(pconn, pid, clock)
         assert r.forensics_type == "UNCLASSIFIED"
@@ -386,11 +396,22 @@ class TestDiagnosisJson:
         r = forensics.run(pconn, pid, clock)
         diag = json.loads(r.diagnosis_json)
         required_keys = {
-            "ticker", "entry_date", "exit_date", "hold_days",
-            "realized_pnl_pct", "entry_price_rupees", "exit_reason",
-            "vix_at_entry", "vix_at_exit", "regime_at_exit",
-            "max_single_day_move_pct", "entry_rsi_14",
-            "ohlcv_rows_in_window", "is_win", "forensics_type", "reason",
+            "ticker",
+            "entry_date",
+            "exit_date",
+            "hold_days",
+            "realized_pnl_pct",
+            "entry_price_rupees",
+            "exit_reason",
+            "vix_at_entry",
+            "vix_at_exit",
+            "regime_at_exit",
+            "max_single_day_move_pct",
+            "entry_rsi_14",
+            "ohlcv_rows_in_window",
+            "is_win",
+            "forensics_type",
+            "reason",
         }
         assert required_keys.issubset(diag.keys())
 
@@ -417,8 +438,12 @@ class TestMissingData:
         r = forensics.run(pconn, pid, clock)
         assert r is not None
         assert r.forensics_type in {
-            "CORP_ACTION_ARTIFACT", "BROAD_MARKET_DRAG", "REGIME_MISMATCH",
-            "EARNINGS_SHOCK", "FALSE_BREAKOUT", "UNCLASSIFIED",
+            "CORP_ACTION_ARTIFACT",
+            "BROAD_MARKET_DRAG",
+            "REGIME_MISMATCH",
+            "EARNINGS_SHOCK",
+            "FALSE_BREAKOUT",
+            "UNCLASSIFIED",
         }
 
     def test_position_not_found_returns_none(self, pconn, ohlcv_conn, macro_conn, clock):
@@ -430,10 +455,15 @@ class TestMultiArchetypeForensics:
     def test_false_breakout_not_applied_to_lynch_garp(self, pconn, ohlcv_conn, macro_conn, clock):
         """
         Lynch is GARP (30-90d horizon). Short-term dip below entry in first 3 days
-        must NOT trigger FALSE_BREAKOUT. Since hold_days < 20 (eval horizon), it falls to UNCLASSIFIED.
+        must NOT trigger FALSE_BREAKOUT. Since hold_days < 20 (eval horizon) and exit was STOP_HIT,
+        it classifies as PREMATURE_TECHNICAL_STOPOUT.
         """
         pid = _insert_position(
-            pconn, agent_id="lynch", entry_price_paise=10000, pnl_pct=-3.0, hold_days=5,
+            pconn,
+            agent_id="lynch",
+            entry_price_paise=10000,
+            pnl_pct=-3.0,
+            hold_days=5,
         )
         # Drop below entry in first 3 days
         _add_ohlcv(ohlcv_conn, "RELIANCE", "2025-01-01", 3, open_=100.0, close=97.0, volume=100_000)
@@ -442,7 +472,7 @@ class TestMultiArchetypeForensics:
 
         r = forensics.run(pconn, pid, clock)
         assert r.forensics_type != "FALSE_BREAKOUT"
-        assert r.forensics_type == "UNCLASSIFIED"
+        assert r.forensics_type == "PREMATURE_TECHNICAL_STOPOUT"
 
     def test_fundamental_derating_for_lynch_beyond_horizon(self, pconn, ohlcv_conn, macro_conn, clock):
         """
@@ -450,7 +480,11 @@ class TestMultiArchetypeForensics:
         is classified as FUNDAMENTAL_DERATING.
         """
         pid = _insert_position(
-            pconn, agent_id="lynch", entry_price_paise=10000, pnl_pct=-6.5, hold_days=65,
+            pconn,
+            agent_id="lynch",
+            entry_price_paise=10000,
+            pnl_pct=-6.5,
+            hold_days=65,
         )
         _add_ohlcv(ohlcv_conn, "RELIANCE", "2025-01-01", 65, open_=100.0, close=93.5, volume=100_000)
         _add_macro(macro_conn, "2025-01-01", 65, vix=15.0, regime="NORMAL")
@@ -464,7 +498,11 @@ class TestMultiArchetypeForensics:
         and no single-day shock move is classified as VALUE_TRAP.
         """
         pid = _insert_position(
-            pconn, agent_id="marks", entry_price_paise=10000, pnl_pct=-8.0, hold_days=65,
+            pconn,
+            agent_id="marks",
+            entry_price_paise=10000,
+            pnl_pct=-8.0,
+            hold_days=65,
         )
         # Small daily move (open=93, close=92 -> ~1%), but holding loss is -8%
         _add_ohlcv(ohlcv_conn, "RELIANCE", "2025-01-01", 65, open_=93.0, close=92.0, volume=100_000)
@@ -479,7 +517,11 @@ class TestMultiArchetypeForensics:
         and no single-day 5% momentum shock is classified as VALUATION_RERATING.
         """
         pid = _insert_position(
-            pconn, agent_id="lynch", pnl_pct=12.0, hold_days=25, exit_reason="AGENT_SELL",
+            pconn,
+            agent_id="lynch",
+            pnl_pct=12.0,
+            hold_days=25,
+            exit_reason="AGENT_SELL",
         )
         # Small daily move (<5%), holding gain is +12%
         _add_ohlcv(ohlcv_conn, "RELIANCE", "2025-01-01", 25, open_=111.0, close=112.0)
@@ -493,7 +535,11 @@ class TestMultiArchetypeForensics:
         Howard Marks win (PnL >= 6%, hold >= 14d, RSI >= 40 at entry) is classified as CONTRARIAN_REBOUND.
         """
         pid = _insert_position(
-            pconn, agent_id="marks", pnl_pct=7.5, hold_days=15, exit_reason="AGENT_SELL",
+            pconn,
+            agent_id="marks",
+            pnl_pct=7.5,
+            hold_days=15,
+            exit_reason="AGENT_SELL",
         )
         _add_ohlcv(ohlcv_conn, "RELIANCE", "2025-01-01", 15, open_=107.0, close=107.5)
         _add_macro(macro_conn, "2025-01-01", 15, vix=14.0, regime="NORMAL")
@@ -509,7 +555,11 @@ class TestMultiArchetypeForensics:
         is classified as INSTITUTIONAL_SPONSORSHIP_BREACH on loss exit.
         """
         pid = _insert_position(
-            pconn, agent_id="jhunjhunwala", entry_price_paise=10000, pnl_pct=-4.0, hold_days=15,
+            pconn,
+            agent_id="jhunjhunwala",
+            entry_price_paise=10000,
+            pnl_pct=-4.0,
+            hold_days=15,
         )
         _add_ohlcv(ohlcv_conn, "RELIANCE", "2025-01-01", 15, open_=98.0, close=96.0, volume=100_000)
         _add_macro(macro_conn, "2025-01-01", 15, vix=15.0, regime="NORMAL")

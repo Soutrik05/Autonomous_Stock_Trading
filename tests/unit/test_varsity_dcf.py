@@ -9,20 +9,19 @@ Unit tests for Zerodha Varsity Module 3 (DCF Intrinsic Value Band) and Module 9 
 - Kelly-Criterion empirical sizing helper
 - Varsity persona hurdles and metric integration
 """
-import sqlite3
-import pytest
-import pandas as pd
-from unittest.mock import MagicMock
 
+import sqlite3
+
+import pandas as pd
+
+from agents.context_assembler import compute_kelly_recommendation
+from agents.personas.varsity import VARSITY, VARSITY_EXTRA_METRICS, VARSITY_FUNDAMENTAL_HURDLES
+from features.builder import compute_snapshot_features
 from ingestion.sync_fundamentals import (
-    SECTOR_DISCOUNT_RATES,
-    get_sector_discount_rate,
     compute_dcf_intrinsic_value,
+    get_sector_discount_rate,
     parse_fundamental_metrics,
 )
-from features.builder import compute_snapshot_features
-from agents.context_assembler import compute_kelly_recommendation, build_portfolio_state_block
-from agents.personas.varsity import VARSITY, VARSITY_FUNDAMENTAL_HURDLES, VARSITY_EXTRA_METRICS
 from watchlist.watchlist_refresh import stage2_sort
 
 
@@ -33,16 +32,28 @@ class TestSectorDiscountRates:
 
     def test_cyclical_sectors_have_13_5_pct_rate(self):
         cyclicals = [
-            "Metals & Mining", "Realty", "Construction", "Capital Goods",
-            "Power", "Telecommunication", "Oil Gas & Consumable Fuels", "Construction Materials"
+            "Metals & Mining",
+            "Realty",
+            "Construction",
+            "Capital Goods",
+            "Power",
+            "Telecommunication",
+            "Oil Gas & Consumable Fuels",
+            "Construction Materials",
         ]
         for sec in cyclicals:
             assert get_sector_discount_rate(sec) == 0.135
 
     def test_general_sectors_have_12_pct_rate(self):
         generals = [
-            "Automobile and Auto Components", "Chemicals", "Consumer Durables",
-            "Consumer Services", "Services", "Textiles", "Media Entertainment & Publication", "Diversified"
+            "Automobile and Auto Components",
+            "Chemicals",
+            "Consumer Durables",
+            "Consumer Services",
+            "Services",
+            "Textiles",
+            "Media Entertainment & Publication",
+            "Diversified",
         ]
         for sec in generals:
             assert get_sector_discount_rate(sec) == 0.12
@@ -151,29 +162,35 @@ class TestDCFIntrinsicValueMath:
         assert iv_neg == iv_zero
 
     def test_negative_cfo_returns_none(self):
-        assert compute_dcf_intrinsic_value(
-            cfo=-500.0,
-            cfi=-100.0,
-            cash_end=100.0,
-            curr_liab=100.0,
-            non_curr_liab=100.0,
-            growth_rate=0.05,
-            discount_rate=0.12,
-            shares_outstanding=1000000,
-        ) is None
+        assert (
+            compute_dcf_intrinsic_value(
+                cfo=-500.0,
+                cfi=-100.0,
+                cash_end=100.0,
+                curr_liab=100.0,
+                non_curr_liab=100.0,
+                growth_rate=0.05,
+                discount_rate=0.12,
+                shares_outstanding=1000000,
+            )
+            is None
+        )
 
     def test_financial_services_sector_returns_none(self):
         rate = get_sector_discount_rate("Financial Services")
-        assert compute_dcf_intrinsic_value(
-            cfo=5000.0,
-            cfi=-500.0,
-            cash_end=1000.0,
-            curr_liab=500.0,
-            non_curr_liab=500.0,
-            growth_rate=0.05,
-            discount_rate=rate,  # None
-            shares_outstanding=10000000,
-        ) is None
+        assert (
+            compute_dcf_intrinsic_value(
+                cfo=5000.0,
+                cfi=-500.0,
+                cash_end=1000.0,
+                curr_liab=500.0,
+                non_curr_liab=500.0,
+                growth_rate=0.05,
+                discount_rate=rate,  # None
+                shares_outstanding=10000000,
+            )
+            is None
+        )
 
 
 class TestSharesCountDerivationPriority:
@@ -251,14 +268,16 @@ class TestSharesCountDerivationPriority:
 
 class TestDynamicNightlyDCFDiscount:
     def test_dcf_discount_pct_derived_from_tonight_close(self):
-        df = pd.DataFrame({
-            "trade_date": ["2026-10-30"],
-            "open": [1000.0],
-            "high": [1020.0],
-            "low": [990.0],
-            "close": [1000.0],
-            "volume": [500000],
-        })
+        df = pd.DataFrame(
+            {
+                "trade_date": ["2026-10-30"],
+                "open": [1000.0],
+                "high": [1020.0],
+                "low": [990.0],
+                "close": [1000.0],
+                "volume": [500000],
+            }
+        )
         # If IV is Rs 1200 and Close is Rs 1000 -> discount = (1200 - 1000) / 1000 * 100 = +20.0%
         fundamental_row = {"dcf_iv_share": 1200.0, "roce_pct": 18.0}
         features = compute_snapshot_features(
@@ -270,14 +289,16 @@ class TestDynamicNightlyDCFDiscount:
         assert features["dcf_discount_pct"] == 20.0
 
     def test_dcf_discount_pct_is_none_for_missing_iv(self):
-        df = pd.DataFrame({
-            "trade_date": ["2026-10-30"],
-            "open": [500.0],
-            "high": [510.0],
-            "low": [495.0],
-            "close": [500.0],
-            "volume": [100000],
-        })
+        df = pd.DataFrame(
+            {
+                "trade_date": ["2026-10-30"],
+                "open": [500.0],
+                "high": [510.0],
+                "low": [495.0],
+                "close": [500.0],
+                "volume": [100000],
+            }
+        )
         fundamental_row = {"dcf_iv_share": None, "roce_pct": 14.0}
         features = compute_snapshot_features(
             df=df,
@@ -332,9 +353,27 @@ class TestVarsityWatchlistRankingAndHurdles:
         # 3 candidates: T1 has high DCF discount (+25%), T2 has negative discount (-10%), T3 has None (Financial)
         candidates = ["T1", "T2", "T3"]
         features_by_ticker = {
-            "T1": {"volume_surge": 1.5, "rsi_14": 55.0, "roce_pct": 18.0, "debt_to_equity": 0.5, "dcf_discount_pct": 25.0},
-            "T2": {"volume_surge": 1.2, "rsi_14": 52.0, "roce_pct": 14.0, "debt_to_equity": 0.8, "dcf_discount_pct": -10.0},
-            "T3": {"volume_surge": 1.4, "rsi_14": 54.0, "roce_pct": 16.0, "debt_to_equity": 0.6, "dcf_discount_pct": None},
+            "T1": {
+                "volume_surge": 1.5,
+                "rsi_14": 55.0,
+                "roce_pct": 18.0,
+                "debt_to_equity": 0.5,
+                "dcf_discount_pct": 25.0,
+            },
+            "T2": {
+                "volume_surge": 1.2,
+                "rsi_14": 52.0,
+                "roce_pct": 14.0,
+                "debt_to_equity": 0.8,
+                "dcf_discount_pct": -10.0,
+            },
+            "T3": {
+                "volume_surge": 1.4,
+                "rsi_14": 54.0,
+                "roce_pct": 16.0,
+                "debt_to_equity": 0.6,
+                "dcf_discount_pct": None,
+            },
         }
         sector_by_ticker = {"T1": "IT", "T2": "Metals", "T3": "Financial Services"}
         scored = stage2_sort(candidates, features_by_ticker, sector_by_ticker, VARSITY)
@@ -343,4 +382,3 @@ class TestVarsityWatchlistRankingAndHurdles:
         assert scored[0]["ticker"] == "T1"
         # T3 with None DCF should receive neutral 0.50 percentile rank without error
         assert any(s["ticker"] == "T3" for s in scored)
-

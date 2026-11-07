@@ -4,7 +4,7 @@ Runs the entire StockMinds lifecycle on a target historical date (default: 2026-
 using an isolated database (state/simulation.db) and ReplayQuoteProvider.
 
 Stages executed:
-1. Isolated database initialization (migrations, symbols, agents with ₹10L cash)
+1. Isolated database initialization (migrations, symbols, agents with ₹5L cash)
 2. Ingestion verification & feature snapshot computation
 3. Multi-agent watchlist funnel (Stage 0 -> Stage 1 -> Stage 2 -> Stage 3)
 4. LLM calls & agent decisions across all 5 personas + 1 baseline
@@ -13,10 +13,9 @@ Stages executed:
 7. 15:30 IST order expiry
 8. 15:35 IST settlement & daily NAV calculation
 """
+
 import argparse
-import json
 import logging
-import os
 import sqlite3
 import sys
 import time
@@ -32,16 +31,15 @@ if str(WORKSPACE_ROOT) not in sys.path:
 from agents.personas import all_personas
 from agents.runner import run as run_agents
 from baselines.simons_rules import run_baseline_simons
-from broker.engine import Broker
 from broker.expiry import expire_pending_orders
 from broker.monitor import poll_once
 from broker.quotes import ReplayQuoteProvider
 from broker.settlement import run_settlement
 from core.clock import Clock
+from core.config import settings
 from core.database import get_connection
 from core.money import paise_to_rupees, rupees_to_paise
-from scripts.init_db import apply_migrations, init_db
-from settings import settings
+from scripts.init_db import init_db
 
 logging.basicConfig(
     level=logging.INFO,
@@ -53,6 +51,7 @@ IST = ZoneInfo("Asia/Kolkata")
 
 class SimulatedClock(Clock):
     """Controllable clock for historical simulations."""
+
     def __init__(self, current_dt: datetime):
         self._dt = current_dt
 
@@ -117,7 +116,7 @@ def main() -> None:
     ohlcv_db_path = Path(settings.OHLCV_DB_PATH).resolve()
 
     print("=" * 80)
-    print(f"STOCKMINDS HISTORICAL SIMULATION RUNNER")
+    print("STOCKMINDS HISTORICAL SIMULATION RUNNER")
     print(f"Target Date:     {run_date_str} (Friday)")
     print(f"Simulation DB:   {sim_db_path}")
     print(f"OHLCV DB:        {ohlcv_db_path}")
@@ -145,15 +144,19 @@ def main() -> None:
     # 2. Build Feature Snapshots
     print("\n[STEP 2/6] Computing Feature Snapshots for", run_date_str, "...")
     from features.builder import run as run_build_features
+
     t0 = time.time()
     feat_res = run_build_features(as_of_date=run_date_str, clock=clock, portfolio_conn=conn)
     feat_time = time.time() - t0
-    feat_count = conn.execute("SELECT count(*) FROM feature_snapshots WHERE as_of_date = ?", (run_date_str,)).fetchone()[0]
+    feat_count = conn.execute(
+        "SELECT count(*) FROM feature_snapshots WHERE as_of_date = ?", (run_date_str,)
+    ).fetchone()[0]
     print(f"  -> Features Status: {feat_res.get('status')} in {feat_time:.2f}s | Snapshots: {feat_count}")
 
     # 3. Watchlist Funnel (Stage 0 -> Stage 1 -> Stage 2 -> Stage 3)
     print("\n[STEP 3/6] Running Multi-Agent Watchlist Funnel for all personas...")
     from precompute.watchlist_refresh import run as run_watchlist_refresh
+
     t0 = time.time()
     watch_res = run_watchlist_refresh(as_of_date=run_date_str, agent_id="all", clock=clock, portfolio_conn=conn)
     watch_time = time.time() - t0
@@ -161,38 +164,44 @@ def main() -> None:
     print("  -> Watchlist Funnel Progression per Agent:")
     print(f"     {'Agent ID':<20} {'Stage 0':<10} {'Stage 1':<10} {'Stage 3 (Final)':<15} {'Top Candidates'}")
     print("     " + "-" * 75)
-    
+
     agent_personas = all_personas()
     for persona in agent_personas:
         p_res = watch_res.get("results", {}).get(persona.id, {})
         counts = p_res.get("counts", {})
         wl = [r["ticker"] for r in p_res.get("watchlist", [])]
-        top_str = ", ".join(wl[:5]) + (f" (+{len(wl)-5} more)" if len(wl) > 5 else "")
-        print(f"     {persona.id:<20} {counts.get('stage0', 0):<10} {counts.get('stage1', 0):<10} {counts.get('final', 0):<15} {top_str}")
+        top_str = ", ".join(wl[:5]) + (f" (+{len(wl) - 5} more)" if len(wl) > 5 else "")
+        print(
+            f"     {persona.id:<20} {counts.get('stage0', 0):<10} {counts.get('stage1', 0):<10} {counts.get('final', 0):<15} {top_str}"
+        )
 
     # 4. Agent Decisions & Order Generation at 22:00 IST
     clock.set_time(datetime(target_date.year, target_date.month, target_date.day, 22, 0, 0, tzinfo=IST))
-    print(f"\n[STEP 4/6] Executing Agent Decisions at 22:00 IST (Live LLM calls)...")
-    
+    print("\n[STEP 4/6] Executing Agent Decisions at 22:00 IST (Live LLM calls)...")
+
     # Run the 5 LLM personas
     llm_agent_ids = [p.id for p in agent_personas]
     decisions_summary = []
-    
+
     for agent_id in llm_agent_ids:
         print(f"  -> Running LLM Persona: [{agent_id}] ... ", end="", flush=True)
         t_agent = time.time()
         res = run_agents([agent_id], as_of_date=run_date_str, clock=clock, portfolio_conn=conn)
         agent_res = res.get(agent_id, {})
         duration = time.time() - t_agent
-        print(f"done in {duration:.2f}s | Status: {agent_res.get('status')} | Parse: {agent_res.get('parse_status')} | Decisions: {agent_res.get('decisions')} | Orders: {agent_res.get('order_summary')}")
+        print(
+            f"done in {duration:.2f}s | Status: {agent_res.get('status')} | Parse: {agent_res.get('parse_status')} | Decisions: {agent_res.get('decisions')} | Orders: {agent_res.get('order_summary')}"
+        )
         decisions_summary.append((agent_id, agent_res))
 
     # Run the baseline rules agent
-    print(f"  -> Running Baseline Agent: [baseline-simons-rules] ... ", end="", flush=True)
+    print("  -> Running Baseline Agent: [baseline-simons-rules] ... ", end="", flush=True)
     t_base = time.time()
     base_res = run_baseline_simons(run_date_str, clock, conn)
     base_time = time.time() - t_base
-    print(f"done in {base_time:.2f}s | Status: {base_res.get('status')} | Decisions: {base_res.get('decisions')} | Orders: {base_res.get('order_summary')}")
+    print(
+        f"done in {base_time:.2f}s | Status: {base_res.get('status')} | Decisions: {base_res.get('decisions')} | Orders: {base_res.get('order_summary')}"
+    )
     decisions_summary.append(("baseline-simons-rules", base_res))
 
     # Display Generated Decisions
@@ -204,13 +213,19 @@ def main() -> None:
         """,
         (run_date_str,),
     ).fetchall()
-    
+
     for r in dec_rows:
-        entry_band = f"{paise_to_rupees(r['entry_low_paise']):.1f}-{paise_to_rupees(r['entry_high_paise']):.1f}" if r['entry_low_paise'] else "N/A"
-        stop_val = f"{paise_to_rupees(r['stop_paise']):.1f}" if r['stop_paise'] else "N/A"
-        tgt_val = f"{paise_to_rupees(r['target_paise']):.1f}" if r['target_paise'] else "N/A"
-        reason = (r['reasoning'][:60] + "...") if r['reasoning'] else ""
-        print(f"     [{r['agent_id']:<18}] {r['action']:<4} {r['ticker']:<12} Shares: {r['shares'] or 0:<4} Entry: {entry_band:<16} Stop: {stop_val:<8} Target: {tgt_val:<8} Faith: {r['faithfulness_score']} | {reason}")
+        entry_band = (
+            f"{paise_to_rupees(r['entry_low_paise']):.1f}-{paise_to_rupees(r['entry_high_paise']):.1f}"
+            if r["entry_low_paise"]
+            else "N/A"
+        )
+        stop_val = f"{paise_to_rupees(r['stop_paise']):.1f}" if r["stop_paise"] else "N/A"
+        tgt_val = f"{paise_to_rupees(r['target_paise']):.1f}" if r["target_paise"] else "N/A"
+        reason = (r["reasoning"][:60] + "...") if r["reasoning"] else ""
+        print(
+            f"     [{r['agent_id']:<18}] {r['action']:<4} {r['ticker']:<12} Shares: {r['shares'] or 0:<4} Entry: {entry_band:<16} Stop: {stop_val:<8} Target: {tgt_val:<8} Faith: {r['faithfulness_score']} | {reason}"
+        )
 
     # Display Pending Orders Placed
     print("\n  -> Pending Orders Placed in Broker Ledger:")
@@ -221,9 +236,11 @@ def main() -> None:
         """
     ).fetchall()
     for o in order_rows:
-        reserved_rs = paise_to_rupees(o['reserved_amount_paise'])
+        reserved_rs = paise_to_rupees(o["reserved_amount_paise"])
         band = f"[{paise_to_rupees(o['entry_low_paise']):.2f} - {paise_to_rupees(o['entry_high_paise']):.2f}]"
-        print(f"     Order #{o['id']:<3} [{o['agent_id']:<18}] {o['side']:<4} {o['ticker']:<12} Shares: {o['shares']:<4} Limit: {band:<20} Reserved: Rs {reserved_rs:,.2f}")
+        print(
+            f"     Order #{o['id']:<3} [{o['agent_id']:<18}] {o['side']:<4} {o['ticker']:<12} Shares: {o['shares']:<4} Limit: {band:<20} Reserved: Rs {reserved_rs:,.2f}"
+        )
 
     # 5. Broker Monitor: Market Price Matching & Order Fills
     # Query pending orders to see what valid_for_date the broker assigned
@@ -233,7 +250,7 @@ def main() -> None:
 
     clock.set_time(datetime(exec_date_obj.year, exec_date_obj.month, exec_date_obj.day, 10, 30, 0, tzinfo=IST))
     print(f"\n[STEP 5/6] Intraday Broker Monitor Polling (Historical Market Matching on {exec_date_str})...")
-    
+
     # Query OHLC prices from data/ohlcv.db (try exec_date_str first, fallback to run_date_str)
     ohlcv_conn = get_connection(ohlcv_db_path)
     try:
@@ -275,9 +292,11 @@ def main() -> None:
     positions = conn.execute("SELECT * FROM positions WHERE status = 'OPEN'").fetchall()
     print(f"  -> Executed Fills: {len(fills)} | Open Positions: {len(positions)}")
     for p in positions:
-        cost_rs = paise_to_rupees(p['shares'] * p['avg_entry_price_paise'])
-        last_rs = paise_to_rupees(p['last_price_paise'])
-        print(f"     Position #{p['id']:<3} [{p['agent_id']:<18}] {p['ticker']:<12} Shares: {p['shares']:<4} Entry: Rs {paise_to_rupees(p['avg_entry_price_paise']):.2f} Last: Rs {last_rs:.2f} Value: Rs {cost_rs:,.2f}")
+        cost_rs = paise_to_rupees(p["shares"] * p["avg_entry_price_paise"])
+        last_rs = paise_to_rupees(p["last_price_paise"])
+        print(
+            f"     Position #{p['id']:<3} [{p['agent_id']:<18}] {p['ticker']:<12} Shares: {p['shares']:<4} Entry: Rs {paise_to_rupees(p['avg_entry_price_paise']):.2f} Last: Rs {last_rs:.2f} Value: Rs {cost_rs:,.2f}"
+        )
 
     # 6. Order Expiry (15:30 IST) & Settlement (15:35 IST)
     print(f"\n[STEP 6/6] Expiry (15:30 IST) & Settlement (15:35 IST on {exec_date_str})...")
@@ -287,7 +306,9 @@ def main() -> None:
 
     clock.set_time(datetime(exec_date_obj.year, exec_date_obj.month, exec_date_obj.day, 15, 35, 0, tzinfo=IST))
     nifty_close = 23550.50
-    settle_res = run_settlement(conn, clock, quote_provider=replay_provider, run_date_str=exec_date_str, nifty500_close=nifty_close)
+    settle_res = run_settlement(
+        conn, clock, quote_provider=replay_provider, run_date_str=exec_date_str, nifty500_close=nifty_close
+    )
     print(f"  -> Settlement Status: {settle_res}")
 
     # Display Daily NAV Table
@@ -302,14 +323,18 @@ def main() -> None:
         (exec_date_str,),
     ).fetchall()
 
-    print(f"{'Agent ID':<22} {'Cash (Rs)':<15} {'Invested (Rs)':<15} {'Total NAV (Rs)':<16} {'Return %':<10} {'Nifty 500 Close'}")
+    print(
+        f"{'Agent ID':<22} {'Cash (Rs)':<15} {'Invested (Rs)':<15} {'Total NAV (Rs)':<16} {'Return %':<10} {'Nifty 500 Close'}"
+    )
     print("-" * 88)
     for row in nav_rows:
         cash_rs = paise_to_rupees(row["cash_paise"])
         inv_rs = paise_to_rupees(row["invested_paise"])
         tot_rs = paise_to_rupees(row["total_paise"])
         ret_pct = ((float(tot_rs) - 1000000.0) / 1000000.0) * 100.0
-        print(f"{row['agent_id']:<22} {cash_rs:>13,.2f} {inv_rs:>13,.2f} {tot_rs:>14,.2f} {ret_pct:>+8.2f}% {row['nifty500_close']:>12,.2f}")
+        print(
+            f"{row['agent_id']:<22} {cash_rs:>13,.2f} {inv_rs:>13,.2f} {tot_rs:>14,.2f} {ret_pct:>+8.2f}% {row['nifty500_close']:>12,.2f}"
+        )
 
     print("=" * 88)
     print("Historical Simulation completed successfully.")

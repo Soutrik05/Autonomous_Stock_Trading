@@ -2,6 +2,7 @@
 Unit tests for core/calendar.py trading-day helpers and seed_calendar, against an in-memory db.
 See Plan_v3 §1.5.
 """
+
 import sqlite3
 from datetime import date
 from pathlib import Path
@@ -70,9 +71,24 @@ def test_seed_calendar_writes_only_nse_closed_and_muhurat_rows():
     conn = make_db()
     client = FakeUpstoxClient(
         [
-            {"date": "2026-01-15", "description": "Election", "holiday_type": "TRADING_HOLIDAY", "closed_exchanges": ["NSE", "BSE"]},
-            {"date": "2026-02-01", "description": "MCX-only holiday", "holiday_type": "TRADING_HOLIDAY", "closed_exchanges": ["MCX"]},
-            {"date": "2026-11-09", "description": "Diwali Muhurat", "holiday_type": "MUHURAT_TRADING", "closed_exchanges": []},
+            {
+                "date": "2026-01-15",
+                "description": "Election",
+                "holiday_type": "TRADING_HOLIDAY",
+                "closed_exchanges": ["NSE", "BSE"],
+            },
+            {
+                "date": "2026-02-01",
+                "description": "MCX-only holiday",
+                "holiday_type": "TRADING_HOLIDAY",
+                "closed_exchanges": ["MCX"],
+            },
+            {
+                "date": "2026-11-09",
+                "description": "Diwali Muhurat",
+                "holiday_type": "MUHURAT_TRADING",
+                "closed_exchanges": [],
+            },
         ]
     )
     written = seed_calendar(client, conn)

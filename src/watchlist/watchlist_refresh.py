@@ -4,23 +4,23 @@ per-stage funnel-count logging. Run as
 `python -m precompute.watchlist_refresh --date YYYY-MM-DD --agent simons`.
 See Plan_v3 §6.
 """
+
 import argparse
 import json
 import sqlite3
 from bisect import bisect_right
 from collections import Counter, defaultdict
 from datetime import date, timedelta
-from typing import Dict, List, Optional
 
 import pandas as pd
 
 from agents.personas import get_persona
 from agents.personas.base import PersonaConfig
 from core.clock import Clock, SystemClock
+from core.config import settings
 from core.database import get_connection
 from features.contracts import evaluate_predicate
 from watchlist.rankers import SORT_KEYS, get_strategy_ranker
-from settings import settings
 
 JOB_NAME = "watchlist"
 
@@ -34,23 +34,24 @@ MOMENTUM_VOLUME_RULE_PERSONAS = {"simons", "jhunjhunwala"}
 # and re-exported here for backwards compatibility.
 
 
-
 # --- Stage 0: liquidity + circuit/stale + persona-specific momentum rule -----------------------
 
-def _bulk_stage0_metrics(ohlcv_conn: sqlite3.Connection, tickers: List[str], as_of_date: str) -> Dict[str, dict]:
+
+def _bulk_stage0_metrics(ohlcv_conn: sqlite3.Connection, tickers: list[str], as_of_date: str) -> dict[str, dict]:
     """One bulk query (never per-ticker) returning {ticker: {"turnover": x, "sma5_gt_sma20": bool}}
     for every ticker with at least 20 sessions up to as_of_date."""
     if not tickers:
         return {}
+    min_date = (date.fromisoformat(as_of_date) - timedelta(days=60)).isoformat()
     placeholders = ",".join("?" * len(tickers))
     rows = ohlcv_conn.execute(
         f"SELECT ticker, trade_date, close, volume FROM ohlcv "
-        f"WHERE ticker IN ({placeholders}) AND trade_date <= ? ORDER BY ticker, trade_date",
-        (*tickers, as_of_date),
+        f"WHERE ticker IN ({placeholders}) AND trade_date >= ? AND trade_date <= ? ORDER BY ticker, trade_date",
+        (*tickers, min_date, as_of_date),
     ).fetchall()
     if not rows:
         return {}
-    df = pd.DataFrame([dict(r) for r in rows])
+    df = pd.DataFrame(rows, columns=["ticker", "trade_date", "close", "volume"])
 
     result = {}
     for ticker, group in df.groupby("ticker"):
@@ -63,11 +64,13 @@ def _bulk_stage0_metrics(ohlcv_conn: sqlite3.Connection, tickers: List[str], as_
     return result
 
 
-def stage0_filter(portfolio_conn: sqlite3.Connection, ohlcv_conn: sqlite3.Connection,
-                   persona: PersonaConfig, as_of_date: str) -> List[str]:
+def stage0_filter(
+    portfolio_conn: sqlite3.Connection, ohlcv_conn: sqlite3.Connection, persona: PersonaConfig, as_of_date: str
+) -> list[str]:
     """Liquidity gate (turnover + not STALE/LOCKED), plus the momentum volume rule for Simons/RJ."""
     active_tickers = [
-        r["ticker"] for r in portfolio_conn.execute("SELECT ticker FROM symbols WHERE is_active = 1 ORDER BY ticker").fetchall()
+        r["ticker"]
+        for r in portfolio_conn.execute("SELECT ticker FROM symbols WHERE is_active = 1 ORDER BY ticker").fetchall()
     ]
     status_by_ticker = {
         r["ticker"]: r["status"] for r in ohlcv_conn.execute("SELECT ticker, status FROM ticker_status").fetchall()
@@ -90,23 +93,23 @@ def stage0_filter(portfolio_conn: sqlite3.Connection, ohlcv_conn: sqlite3.Connec
 
 # --- Stage 1: persona hurdles on the FeatureSnapshot --------------------------------------------
 
-def _load_features(portfolio_conn: sqlite3.Connection, tickers: List[str], as_of_date: str) -> Dict[str, dict]:
+
+def _load_features(portfolio_conn: sqlite3.Connection, tickers: list[str], as_of_date: str) -> dict[str, dict]:
     if not tickers:
         return {}
     placeholders = ",".join("?" * len(tickers))
     rows = portfolio_conn.execute(
-        f"SELECT ticker, features_json FROM feature_snapshots "
-        f"WHERE as_of_date = ? AND ticker IN ({placeholders})",
+        f"SELECT ticker, features_json FROM feature_snapshots WHERE as_of_date = ? AND ticker IN ({placeholders})",
         (as_of_date, *tickers),
     ).fetchall()
     return {r["ticker"]: json.loads(r["features_json"]) for r in rows}
 
 
 def compute_sector_percentiles(
-    scores_by_ticker: Dict[str, float],
-    sector_by_ticker: Dict[str, str],
+    scores_by_ticker: dict[str, float],
+    sector_by_ticker: dict[str, str],
     min_cohort: int = settings.MIN_SECTOR_COHORT,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """
     Computes percentile rank (0.0 to 100.0) for each ticker within its sector peer group.
     Per Plan_v3 §2.3:
@@ -116,7 +119,7 @@ def compute_sector_percentiles(
     if not scores_by_ticker:
         return {}
 
-    by_sector: Dict[str, List[float]] = defaultdict(list)
+    by_sector: dict[str, list[float]] = defaultdict(list)
     for ticker, score in scores_by_ticker.items():
         if score > float("-inf"):
             sector = sector_by_ticker.get(ticker, "UNKNOWN")
@@ -125,7 +128,7 @@ def compute_sector_percentiles(
     universe_scores = sorted([s for s in scores_by_ticker.values() if s > float("-inf")])
     universe_size = len(universe_scores)
 
-    percentiles: Dict[str, float] = {}
+    percentiles: dict[str, float] = {}
     for ticker, score in scores_by_ticker.items():
         if score == float("-inf"):
             percentiles[ticker] = 0.0
@@ -146,9 +149,11 @@ def compute_sector_percentiles(
 
 
 def stage1_filter(
-    stage0_tickers: List[str], features_by_ticker: Dict[str, dict], persona: PersonaConfig,
-    sector_percentiles: Optional[Dict[str, float]] = None,
-) -> List[str]:
+    stage0_tickers: list[str],
+    features_by_ticker: dict[str, dict],
+    persona: PersonaConfig,
+    sector_percentiles: dict[str, float] | None = None,
+) -> list[str]:
     """A stock must pass both the technical and the fundamental hurdle predicates. Sector
     percentile is a Stage-2 ranking input only, never a Stage-1 filter (Plan_v3 §6), unless
     SECTOR_PERCENTILE_MIN > 0 is configured."""
@@ -157,9 +162,10 @@ def stage1_filter(
         features = features_by_ticker.get(t)
         if features is None:
             continue
-        if not (evaluate_predicate(features, persona.technical_hurdles) and evaluate_predicate(
-            features, persona.fundamental_hurdles
-        )):
+        if not (
+            evaluate_predicate(features, persona.technical_hurdles)
+            and evaluate_predicate(features, persona.fundamental_hurdles)
+        ):
             continue
         if settings.SECTOR_PERCENTILE_MIN > 0 and sector_percentiles is not None:
             pct = sector_percentiles.get(t, 100.0)
@@ -171,11 +177,14 @@ def stage1_filter(
 
 # --- Stage 2: intensity sort ---------------------------------------------------------------------
 
+
 def stage2_sort(
-    stage1_tickers: List[str], features_by_ticker: Dict[str, dict],
-    sector_by_ticker: Dict[str, str], persona: PersonaConfig,
-    sector_percentiles: Optional[Dict[str, float]] = None,
-) -> List[dict]:
+    stage1_tickers: list[str],
+    features_by_ticker: dict[str, dict],
+    sector_by_ticker: dict[str, str],
+    persona: PersonaConfig,
+    sector_percentiles: dict[str, float] | None = None,
+) -> list[dict]:
     """Returns [{"ticker", "sector", "intensity_score", "raw_score", "sector_percentile"}, ...]
     sorted by descending intensity via the strategy's dedicated ranker."""
     if not stage1_tickers:
@@ -191,9 +200,14 @@ def stage2_sort(
 
 # --- Stage 3: sector cap, target size, TTL lock --------------------------------------------------
 
+
 def stage3_update_watchlist(
-    portfolio_conn: sqlite3.Connection, persona: PersonaConfig, as_of_date: str,
-    stage0_tickers: List[str], ranked_candidates: List[dict], features_by_ticker: Dict[str, dict],
+    portfolio_conn: sqlite3.Connection,
+    persona: PersonaConfig,
+    as_of_date: str,
+    stage0_tickers: list[str],
+    ranked_candidates: list[dict],
+    features_by_ticker: dict[str, dict],
     clock: Clock,
 ) -> dict:
     agent_id = persona.id
@@ -255,8 +269,15 @@ def stage3_update_watchlist(
                 sector = excluded.sector, added_on = excluded.added_on, ttl_days = excluded.ttl_days,
                 expires_on = excluded.expires_on, intensity_score = excluded.intensity_score
             """,
-            (agent_id, candidate["ticker"], candidate["sector"], as_of_date, persona.ttl_days,
-             expires_on, candidate["intensity_score"]),
+            (
+                agent_id,
+                candidate["ticker"],
+                candidate["sector"],
+                as_of_date,
+                persona.ttl_days,
+                expires_on,
+                candidate["intensity_score"],
+            ),
         )
 
     final_rows = portfolio_conn.execute(
@@ -273,7 +294,8 @@ def stage3_update_watchlist(
 
 # --- Review pool (used by the agent runner, not just this refresh job) --------------------------
 
-def get_review_pool(portfolio_conn: sqlite3.Connection, agent_id: str, run_date: str) -> List[dict]:
+
+def get_review_pool(portfolio_conn: sqlite3.Connection, agent_id: str, run_date: str) -> list[dict]:
     """Returns the agent's OPEN positions plus its watchlist, capped at max_candidates.
     Open positions are always included; the lowest-intensity watchlist names are dropped first.
     Each entry is {"ticker": str, "is_held": bool}. `run_date` is accepted for interface
@@ -305,7 +327,8 @@ def get_review_pool(portfolio_conn: sqlite3.Connection, agent_id: str, run_date:
 
 # --- Pipeline wiring ------------------------------------------------------------------------------
 
-def _pipeline_status(conn, job: str, run_date: str) -> Optional[str]:
+
+def _pipeline_status(conn, job: str, run_date: str) -> str | None:
     row = conn.execute("SELECT status FROM pipeline_runs WHERE job = ? AND run_date = ?", (job, run_date)).fetchone()
     return row["status"] if row else None
 
@@ -394,8 +417,13 @@ def run_all(
             ohlcv_conn.close()
 
 
-def run(as_of_date: str = None, agent_id: str = "simons", clock: Clock = None,
-        portfolio_conn: sqlite3.Connection = None, ohlcv_conn: sqlite3.Connection = None) -> dict:
+def run(
+    as_of_date: str = None,
+    agent_id: str = "simons",
+    clock: Clock = None,
+    portfolio_conn: sqlite3.Connection = None,
+    ohlcv_conn: sqlite3.Connection = None,
+) -> dict:
     """Runs the Stage 0-3 funnel for one agent/date (or all if agent_id='all'). Returns stage counts and the final watchlist."""
     clock = clock or SystemClock()
     owns_portfolio = portfolio_conn is None
@@ -433,9 +461,7 @@ def run(as_of_date: str = None, agent_id: str = "simons", clock: Clock = None,
                 for r in portfolio_conn.execute("SELECT ticker, sector FROM symbols").fetchall()
             }
             sort_fn = SORT_KEYS[persona.sort_key]
-            scores_by_ticker = {
-                t: sort_fn(features_by_ticker[t]) for t in stage0_tickers if t in features_by_ticker
-            }
+            scores_by_ticker = {t: sort_fn(features_by_ticker[t]) for t in stage0_tickers if t in features_by_ticker}
             sector_percentiles = compute_sector_percentiles(
                 scores_by_ticker, sector_by_ticker, min_cohort=settings.MIN_SECTOR_COHORT
             )
@@ -480,7 +506,12 @@ def run(as_of_date: str = None, agent_id: str = "simons", clock: Clock = None,
 def main() -> None:
     parser = argparse.ArgumentParser(description="Stage 0-3 watchlist funnel for one or all agents.")
     parser.add_argument("--date", dest="date_str", default=None, help="YYYY-MM-DD, default: today (IST)")
-    parser.add_argument("--agent", dest="agent_id", default="simons", help="Persona id (e.g. simons, lynch, marks, jhunjhunwala, stockminds-core) or 'all'")
+    parser.add_argument(
+        "--agent",
+        dest="agent_id",
+        default="simons",
+        help="Persona id (e.g. simons, lynch, marks, jhunjhunwala, stockminds-core) or 'all'",
+    )
     args = parser.parse_args()
     result = run(as_of_date=args.date_str, agent_id=args.agent_id)
     if result.get("status") != "SUCCESS":
@@ -500,4 +531,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

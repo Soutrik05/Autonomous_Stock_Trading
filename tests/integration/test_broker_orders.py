@@ -5,12 +5,13 @@ No monitor, expiry or settlement yet -- fills are triggered directly, as the (no
 monitor job will do.
 See Plan_v3 §4.2, §4.3.
 """
+
 from datetime import datetime
 
 from broker.check import check_invariants
 from broker.engine import Broker
-from broker.transaction_charges import apply_slippage, compute_transaction_charges_paise
 from core.clock import FakeClock
+from core.config import settings
 from tests.conftest import make_portfolio_db
 
 NOW = "2026-10-16T22:00:00+05:30"
@@ -22,7 +23,8 @@ def clock_at(run_date=RUN_DATE, hour=22, minute=0):
     return FakeClock(datetime(y, m, d, hour, minute))
 
 
-def insert_agent(conn, agent_id="simons", cash_paise=10_000_000):
+def insert_agent(conn, agent_id="simons", cash_paise=None):
+    cash_paise = cash_paise if cash_paise is not None else settings.INITIAL_CASH_PER_AGENT_PAISE
     conn.execute(
         "INSERT INTO agents (id, name, philosophy, kind, starting_cash_paise, cash_paise, created_at, updated_at) "
         "VALUES (?, 'Test', 'Test', 'LLM', ?, ?, ?, ?)",

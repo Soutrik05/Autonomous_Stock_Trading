@@ -2,11 +2,12 @@
 Thread-safe multi-tier sliding-window rate limiter for Upstox calls (per second/minute/30 minutes).
 See Plan_v3 §1.3.
 """
+
 import threading
 import time
 from collections import deque
 
-from settings import settings
+from core.config import settings
 
 
 class UpstoxRateLimiter:

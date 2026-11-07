@@ -11,16 +11,17 @@ one attempt with the ORIGINAL prompt. At most 3 LLM calls total; the fallback is
 when the primary succeeded.
 See Plan_v3 §3.3.
 """
+
 import json
 import logging
 import re
-from typing import Dict, List, Optional, Tuple
+from typing import Any
 
 from pydantic import ValidationError
 
+from core.config import settings
 from core.schemas import BuyDecision, DecisionBatch, DecisionUnion, HoldDecision
 from llm.client import LLMClient, LLMResult, step_down_reasoning_effort
-from settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +48,7 @@ def is_truncated(result: LLMResult) -> bool:
     return not (result.text or "").strip() or result.finish_reason == "length"
 
 
-def parse_decisions(raw_text: str, candidates: List[str]) -> Tuple[List[DecisionUnion], List[str]]:
+def parse_decisions(raw_text: str, candidates: list[str]) -> tuple[list[DecisionUnion], list[str]]:
     """Parses and validates one LLM response. Returns (decisions, dropped_unknown_tickers).
     Raises ParseFailure on invalid JSON or a schema validation error."""
     cleaned = strip_code_fences(raw_text)
@@ -68,7 +69,7 @@ def parse_decisions(raw_text: str, candidates: List[str]) -> Tuple[List[Decision
     return decisions, dropped
 
 
-def fill_missing_with_hold(decisions: List[DecisionUnion], candidates: List[str]) -> List[DecisionUnion]:
+def fill_missing_with_hold(decisions: list[DecisionUnion], candidates: list[str]) -> list[DecisionUnion]:
     """Every candidate the LLM didn't return a decision for gets a HOLD row with the exact
     reason 'no decision returned'."""
     present = {d.ticker for d in decisions}
@@ -79,15 +80,20 @@ def fill_missing_with_hold(decisions: List[DecisionUnion], candidates: List[str]
     return filled
 
 
-def _hold_all(candidates: List[str]) -> List[HoldDecision]:
+def _hold_all(candidates: list[str]) -> list[DecisionUnion]:
     return [HoldDecision(ticker=t, action="HOLD", reasoning=DOUBLE_FAILURE_REASON) for t in candidates]
 
 
 def parse_with_repair(
-    llm_client: LLMClient, system_prompt: str, user_prompt: str, first_result: LLMResult,
-    candidates: List[str], reasoning_effort: Optional[str] = None,
-    max_output_tokens: Optional[int] = None, response_schema: Optional[dict] = None,
-) -> Tuple[List[DecisionUnion], str, List[str], LLMResult, List[dict]]:
+    llm_client: LLMClient,
+    system_prompt: str,
+    user_prompt: str,
+    first_result: LLMResult,
+    candidates: list[str],
+    reasoning_effort: str | None = None,
+    max_output_tokens: int | None = None,
+    response_schema: dict | None = None,
+) -> tuple[list[DecisionUnion], str, list[str], LLMResult, list[dict]]:
     """Classifies `first_result` and, if it failed, makes at most one more call (2 total):
     - Truncated (empty content or finish_reason == 'length'): retries with a lower reasoning
       effort and `TRUNCATION_RETRY_MAX_OUTPUT_TOKENS_MULTIPLIER`x max_output_tokens, re-sending
@@ -107,18 +113,30 @@ def parse_with_repair(
         retry_effort = step_down_reasoning_effort(reasoning_effort)
         retry_max_tokens = max_output_tokens * TRUNCATION_RETRY_MAX_OUTPUT_TOKENS_MULTIPLIER
         second_result = llm_client.complete(
-            system_prompt, user_prompt, reasoning_effort=retry_effort,
-            max_output_tokens=retry_max_tokens, response_schema=response_schema,
+            system_prompt,
+            user_prompt,
+            reasoning_effort=retry_effort,
+            max_output_tokens=retry_max_tokens,
+            response_schema=response_schema,
         )
         if is_truncated(second_result):
-            attempts = [{"result": first_result, "parse_status": "FAILED"}, {"result": second_result, "parse_status": "FAILED"}]
+            attempts = [
+                {"result": first_result, "parse_status": "FAILED"},
+                {"result": second_result, "parse_status": "FAILED"},
+            ]
             return _hold_all(candidates), "FAILED", [], second_result, attempts
         try:
             decisions, dropped = parse_decisions(second_result.text, candidates)
-            attempts = [{"result": first_result, "parse_status": "FAILED"}, {"result": second_result, "parse_status": "RETRY_SUCCESS"}]
+            attempts = [
+                {"result": first_result, "parse_status": "FAILED"},
+                {"result": second_result, "parse_status": "RETRY_SUCCESS"},
+            ]
             return fill_missing_with_hold(decisions, candidates), "RETRY_SUCCESS", dropped, second_result, attempts
         except ParseFailure:
-            attempts = [{"result": first_result, "parse_status": "FAILED"}, {"result": second_result, "parse_status": "FAILED"}]
+            attempts = [
+                {"result": first_result, "parse_status": "FAILED"},
+                {"result": second_result, "parse_status": "FAILED"},
+            ]
             return _hold_all(candidates), "FAILED", [], second_result, attempts
 
     try:
@@ -134,26 +152,43 @@ def parse_with_repair(
             "and no code fences."
         )
         repair_result = llm_client.complete(
-            system_prompt, repair_user_prompt, reasoning_effort=reasoning_effort,
-            max_output_tokens=max_output_tokens, response_schema=response_schema,
+            system_prompt,
+            repair_user_prompt,
+            reasoning_effort=reasoning_effort,
+            max_output_tokens=max_output_tokens,
+            response_schema=response_schema,
         )
         if is_truncated(repair_result):
-            attempts = [{"result": first_result, "parse_status": "FAILED"}, {"result": repair_result, "parse_status": "FAILED"}]
+            attempts = [
+                {"result": first_result, "parse_status": "FAILED"},
+                {"result": repair_result, "parse_status": "FAILED"},
+            ]
             return _hold_all(candidates), "FAILED", [], repair_result, attempts
         try:
             decisions, dropped = parse_decisions(repair_result.text, candidates)
-            attempts = [{"result": first_result, "parse_status": "FAILED"}, {"result": repair_result, "parse_status": "RETRY_SUCCESS"}]
+            attempts = [
+                {"result": first_result, "parse_status": "FAILED"},
+                {"result": repair_result, "parse_status": "RETRY_SUCCESS"},
+            ]
             return fill_missing_with_hold(decisions, candidates), "RETRY_SUCCESS", dropped, repair_result, attempts
         except ParseFailure:
-            attempts = [{"result": first_result, "parse_status": "FAILED"}, {"result": repair_result, "parse_status": "FAILED"}]
+            attempts = [
+                {"result": first_result, "parse_status": "FAILED"},
+                {"result": repair_result, "parse_status": "FAILED"},
+            ]
             return _hold_all(candidates), "FAILED", [], repair_result, attempts
 
 
 def parse_with_repair_and_fallback(
-    primary: LLMClient, system_prompt: str, user_prompt: str, candidates: List[str],
-    fallback: Optional[LLMClient] = None, reasoning_effort: Optional[str] = None,
-    max_output_tokens: Optional[int] = None, response_schema: Optional[dict] = None,
-) -> Tuple[List[DecisionUnion], str, List[str], Optional[LLMResult], List[dict]]:
+    primary: LLMClient,
+    system_prompt: str,
+    user_prompt: str,
+    candidates: list[str],
+    fallback: LLMClient | None = None,
+    reasoning_effort: str | None = None,
+    max_output_tokens: int | None = None,
+    response_schema: dict | None = None,
+) -> tuple[list[DecisionUnion], str, list[str], LLMResult | None, list[dict]]:
     """Makes the primary's first call, runs its own retry via `parse_with_repair`, and -- only if
     the primary raised (after its own HTTP-level backoff) or still failed after its retry -- gives
     `fallback` exactly one attempt with the original, unmodified prompt. Never touches `fallback`
@@ -163,16 +198,27 @@ def parse_with_repair_and_fallback(
     max_output_tokens = max_output_tokens or settings.LLM_MAX_OUTPUT_TOKENS
 
     primary_exc = None
-    decisions = status = dropped = final_result = None
-    attempts: List[dict] = []
+    decisions: list[DecisionUnion] = _hold_all(candidates)
+    status: str = "FAILED"
+    dropped: list[str] = []
+    final_result: LLMResult | None = None
+    attempts: list[dict] = []
     try:
         first_result = primary.complete(
-            system_prompt, user_prompt, reasoning_effort=reasoning_effort,
-            max_output_tokens=max_output_tokens, response_schema=response_schema,
+            system_prompt,
+            user_prompt,
+            reasoning_effort=reasoning_effort,
+            max_output_tokens=max_output_tokens,
+            response_schema=response_schema,
         )
         decisions, status, dropped, final_result, attempts = parse_with_repair(
-            primary, system_prompt, user_prompt, first_result, candidates,
-            reasoning_effort=reasoning_effort, max_output_tokens=max_output_tokens,
+            primary,
+            system_prompt,
+            user_prompt,
+            first_result,
+            candidates,
+            reasoning_effort=reasoning_effort,
+            max_output_tokens=max_output_tokens,
             response_schema=response_schema,
         )
     except Exception as exc:
@@ -191,8 +237,11 @@ def parse_with_repair_and_fallback(
 
     try:
         fallback_result = fallback.complete(
-            system_prompt, user_prompt, reasoning_effort=reasoning_effort,
-            max_output_tokens=max_output_tokens, response_schema=response_schema,
+            system_prompt,
+            user_prompt,
+            reasoning_effort=reasoning_effort,
+            max_output_tokens=max_output_tokens,
+            response_schema=response_schema,
         )
     except Exception as fallback_exc:
         if primary_exc is not None:
@@ -204,8 +253,11 @@ def parse_with_repair_and_fallback(
             fb_decisions, fb_dropped = parse_decisions(fallback_result.text, candidates)
             attempts.append({"result": fallback_result, "parse_status": "FALLBACK_SUCCESS", "fallback_used": True})
             return (
-                fill_missing_with_hold(fb_decisions, candidates), "FALLBACK_SUCCESS", fb_dropped,
-                fallback_result, attempts,
+                fill_missing_with_hold(fb_decisions, candidates),
+                "FALLBACK_SUCCESS",
+                fb_dropped,
+                fallback_result,
+                attempts,
             )
         except ParseFailure:
             pass
@@ -218,18 +270,20 @@ def parse_with_repair_and_fallback(
 
 def calibrate_buy_decision(
     decision: BuyDecision,
-    atr_14: Optional[float],
+    atr_14: float | None,
     min_atr_multiplier: float = 2.0,
-    account_value_rupees: Optional[float] = None,
+    account_value_rupees: float | None = None,
     max_risk_pct: float = 1.0,
     max_position_pct: float = 20.0,
+    parkinson_vol_ratio: float | None = None,
 ) -> BuyDecision:
     """
-    Calibrates a BUY decision's stop_loss_price and shares against volatility (ATR-14)
+    Calibrates a BUY decision's stop_loss_price and shares against volatility (ATR-14 / Parkinson extreme-value)
     and risk parameters:
     1. If atr_14 is present and positive, ensures:
        (entry_low - stop_loss_price) >= min_atr_multiplier * atr_14.
-       If tighter than this floor, clamps stop_loss_price to (entry_low - min_atr_multiplier * atr_14).
+       If parkinson_vol_ratio is elevated (> 3.0%), buffers stop distance by 0.75x extreme-value volatility.
+       If tighter than this floor, clamps stop_loss_price to (entry_low - min_stop_distance).
     2. Recalculates/caps shares so total risk does not exceed max_risk_pct (default 1%)
        and max_position_pct (default 20%) of account_value_rupees.
     """
@@ -239,18 +293,27 @@ def calibrate_buy_decision(
     stop_loss = decision.stop_loss_price
     shares = decision.shares
 
-    # 1. Volatility ATR floor check
+    # 1. Volatility ATR and Parkinson extreme-value floor check
     if atr_14 is not None and atr_14 > 0:
         min_stop_distance = round(min_atr_multiplier * float(atr_14), 2)
+        if parkinson_vol_ratio is not None and parkinson_vol_ratio > 3.0:
+            parkinson_distance = round(decision.entry_low * (parkinson_vol_ratio / 100.0) * 0.75, 2)
+            min_stop_distance = max(min_stop_distance, parkinson_distance)
+
         current_distance = decision.entry_low - stop_loss
-        if current_distance < min_stop_distance:
+        if current_distance < (min_stop_distance - 0.10):
             calibrated_stop = round(decision.entry_low - min_stop_distance, 2)
             if calibrated_stop <= 0:
                 calibrated_stop = round(decision.entry_low * 0.90, 2)
-            if 0 < calibrated_stop < decision.entry_low:
+            if 0 < calibrated_stop < decision.entry_low and abs(calibrated_stop - stop_loss) >= 0.10:
                 logger.info(
-                    "Calibrating stop for %s: widened from %.2f to %.2f (%.1fx ATR-14 floor %.2f)",
-                    decision.ticker, stop_loss, calibrated_stop, min_atr_multiplier, min_stop_distance,
+                    "Calibrating stop for %s: widened from %.2f to %.2f (%.1fx ATR-14 floor %.2f, parkinson_vol=%.2f%%)",
+                    decision.ticker,
+                    stop_loss,
+                    calibrated_stop,
+                    min_atr_multiplier,
+                    min_stop_distance,
+                    parkinson_vol_ratio or 0.0,
                 )
                 stop_loss = calibrated_stop
 
@@ -264,10 +327,15 @@ def calibrate_buy_decision(
         shares_by_cap = int(max_position_rupees // decision.entry_high)
 
         max_allowed_shares = min(shares_by_risk, shares_by_cap)
-        if max_allowed_shares >= 1 and shares > max_allowed_shares:
+        shares_tolerance_ceiling = int(max_allowed_shares * 1.10)
+        if max_allowed_shares >= 1 and shares > shares_tolerance_ceiling:
             logger.info(
                 "Calibrating shares for %s: reduced from %d to %d (risk cap %.1f%% / max pos %.1f%%)",
-                decision.ticker, shares, max_allowed_shares, max_risk_pct, max_position_pct,
+                decision.ticker,
+                shares,
+                max_allowed_shares,
+                max_risk_pct,
+                max_position_pct,
             )
             shares = max_allowed_shares
 
@@ -277,20 +345,79 @@ def calibrate_buy_decision(
     return decision
 
 
+def validate_arithmetic_coherence(decision: BuyDecision) -> dict[str, Any]:
+    """
+    Validates internal mathematical and directional coherence of a BUY decision:
+    1. Bounds coherence: entry_high >= entry_low > 0
+    2. Long direction coherence: stop_loss_price < entry_low and target_price > entry_high
+    3. Implied Risk-Reward Ratio (RRR): (target_price - entry_high) / max(0.01, entry_high - stop_loss_price)
+    4. Sizing coherence: shares > 0
+    Returns a telemetry dictionary with flags and the computed RRR.
+    """
+    flags: list[str] = []
+    entry_low = decision.entry_low
+    entry_high = decision.entry_high
+    stop = decision.stop_loss_price
+    target = decision.target_price
+    shares = decision.shares
+
+    if entry_low <= 0 or entry_high < entry_low:
+        flags.append("INVALID_ENTRY_RANGE")
+
+    if stop >= entry_low:
+        flags.append("INVERTED_STOP_ABOVE_ENTRY")
+
+    if target <= entry_high:
+        flags.append("INVERTED_TARGET_BELOW_ENTRY")
+
+    risk = max(0.01, entry_high - stop)
+    reward = max(0.0, target - entry_high)
+    implied_rrr = round(reward / risk, 2) if risk > 0 else 0.0
+
+    if implied_rrr < 1.0 and "INVERTED_TARGET_BELOW_ENTRY" not in flags:
+        flags.append("NEGATIVE_ASYMMETRY_RRR_SUB_1")
+
+    if shares <= 0:
+        flags.append("ZERO_OR_NEGATIVE_SHARES")
+
+    is_coherent = len(flags) == 0
+    if not is_coherent:
+        logger.warning(
+            "Arithmetic coherence anomaly in decision for %s: flags=%s, entry=[%.2f, %.2f], stop=%.2f, target=%.2f, rrr=%.2f",
+            decision.ticker,
+            flags,
+            entry_low,
+            entry_high,
+            stop,
+            target,
+            implied_rrr,
+        )
+
+    return {
+        "is_coherent": is_coherent,
+        "flags": flags,
+        "implied_rrr": implied_rrr,
+        "risk_per_share": round(risk, 2),
+        "reward_per_share": round(reward, 2),
+    }
+
+
 def calibrate_decisions(
-    decisions: List[DecisionUnion],
-    features_by_ticker: Dict[str, dict],
+    decisions: list[DecisionUnion],
+    features_by_ticker: dict[str, dict],
     min_atr_multiplier: float = 2.0,
-    account_value_rupees: Optional[float] = None,
+    account_value_rupees: float | None = None,
     max_risk_pct: float = 1.0,
     max_position_pct: float = 20.0,
-) -> List[DecisionUnion]:
+) -> list[DecisionUnion]:
     """Applies calibrate_buy_decision to all BuyDecision items in decisions."""
     calibrated = []
     for d in decisions:
         if isinstance(d, BuyDecision):
+            validate_arithmetic_coherence(d)
             feat = features_by_ticker.get(d.ticker, {})
             atr_14 = feat.get("atr_14")
+            parkinson_vol = feat.get("parkinson_vol_ratio")
             d = calibrate_buy_decision(
                 d,
                 atr_14=atr_14,
@@ -298,6 +425,7 @@ def calibrate_decisions(
                 account_value_rupees=account_value_rupees,
                 max_risk_pct=max_risk_pct,
                 max_position_pct=max_position_pct,
+                parkinson_vol_ratio=parkinson_vol,
             )
         calibrated.append(d)
     return calibrated
@@ -305,12 +433,12 @@ def calibrate_decisions(
 
 def calculate_counterfactual_buy(
     decision: BuyDecision,
-    atr_14: Optional[float],
+    atr_14: float | None,
     account_value_rupees: float,
     min_atr_multiplier: float = 1.5,
     target_risk_pct: float = 0.75,
     max_position_pct: float = 10.0,
-) -> Tuple[int, int, int]:
+) -> tuple[int, int, int]:
     """
     Computes strict formulaic shadow sizing for a given BuyDecision:
     - stop: entry_low - min_atr_multiplier * atr_14
@@ -342,7 +470,7 @@ def calculate_counterfactual_buy(
     return shares, rupees_to_paise(stop_price), rupees_to_paise(target_price)
 
 
-def compute_sizing_fidelity_score(actual_shares: Optional[int], expected_shares: Optional[int]) -> Optional[float]:
+def compute_sizing_fidelity_score(actual_shares: int | None, expected_shares: int | None) -> float | None:
     """
     Measures arithmetic self-consistency between actual LLM shares and expected formulaic shares.
     Score = 1.0 - min(1.0, abs(actual - expected) / expected).
@@ -352,5 +480,3 @@ def compute_sizing_fidelity_score(actual_shares: Optional[int], expected_shares:
         return 0.0
     diff = abs(actual_shares - expected_shares)
     return round(max(0.0, 1.0 - (diff / expected_shares)), 4)
-
-

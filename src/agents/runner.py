@@ -6,6 +6,7 @@ Run as `python -m agents.runner --date YYYY-MM-DD --agent simons
     [--dry-run] [--fake-llm] [--force] [--no-orders]`.
 See Plan_v3 §3.2, §4.2-§4.3.
 """
+
 import argparse
 import json
 import logging
@@ -18,26 +19,25 @@ if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
     except Exception:
         pass
-from typing import List, Optional
 
 from agents.context_assembler import build_user_prompt, estimate_tokens
 from agents.parsers import (
-    calibrate_decisions,
     calculate_counterfactual_buy,
+    calibrate_decisions,
     compute_sizing_fidelity_score,
     parse_with_repair_and_fallback,
 )
 from agents.personas import get_persona
 from broker.engine import Broker
-from features.builder import MAX_STALE_FRACTION, check_data_freshness
 from core.clock import Clock, SystemClock
+from core.config import settings
 from core.database import get_connection
 from core.money import rupees_to_paise
-from core.schemas import AdjustDecision, BuyDecision, DecisionBatch, HoldDecision, SellDecision
+from core.schemas import AdjustDecision, BuyDecision, DecisionBatch
 from evaluation.faithfulness import compute_faithfulness
+from features.builder import MAX_STALE_FRACTION, check_data_freshness
 from llm.client import FakeLLMClient, LLMClient, LLMConfigError, build_provider, require_setting
 from watchlist.watchlist_refresh import get_review_pool
-from settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +47,8 @@ DECISION_BATCH_SCHEMA = DecisionBatch.model_json_schema()
 
 # --- pipeline_runs wiring (same small pattern as ingestion/cli.py, core/build_features.py) ------
 
-def _pipeline_status(conn, job: str, run_date: str) -> Optional[str]:
+
+def _pipeline_status(conn, job: str, run_date: str) -> str | None:
     row = conn.execute("SELECT status FROM pipeline_runs WHERE job = ? AND run_date = ?", (job, run_date)).fetchone()
     return row["status"] if row else None
 
@@ -87,6 +88,7 @@ def _finish_run(conn, run_date: str, status: str, clock: Clock, detail: str = No
 
 # --- idempotency ----------------------------------------------------------------------------------
 
+
 def _decisions_exist(conn, agent_id: str, run_date: str) -> bool:
     row = conn.execute(
         "SELECT 1 FROM decisions WHERE agent_id = ? AND run_date = ? LIMIT 1", (agent_id, run_date)
@@ -117,34 +119,28 @@ def _delete_decisions(conn, agent_id: str, run_date: str) -> None:
     placeholders = ",".join("?" * len(decision_rows))
     dids = [r["id"] for r in decision_rows]
 
-    conn.execute(
-        f"UPDATE pending_orders SET decision_id = NULL WHERE decision_id IN ({placeholders})", dids
-    )
-    conn.execute(
-        f"DELETE FROM forward_returns WHERE decision_id IN ({placeholders})", dids
-    )
-    conn.execute(
-        f"DELETE FROM heuristic_applications WHERE decision_id IN ({placeholders})", dids
-    )
+    conn.execute(f"UPDATE pending_orders SET decision_id = NULL WHERE decision_id IN ({placeholders})", dids)
+    conn.execute(f"DELETE FROM forward_returns WHERE decision_id IN ({placeholders})", dids)
+    conn.execute(f"DELETE FROM heuristic_applications WHERE decision_id IN ({placeholders})", dids)
     conn.execute("DELETE FROM decisions WHERE agent_id = ? AND run_date = ?", (agent_id, run_date))
 
 
 # --- data loading ----------------------------------------------------------------------------------
 
-def _load_features_with_ids(conn: sqlite3.Connection, tickers: List[str], run_date: str):
+
+def _load_features_with_ids(conn: sqlite3.Connection, tickers: list[str], run_date: str):
     """Returns {ticker: (snapshot_id, features_dict)}."""
     if not tickers:
         return {}
     placeholders = ",".join("?" * len(tickers))
     rows = conn.execute(
-        f"SELECT id, ticker, features_json FROM feature_snapshots "
-        f"WHERE as_of_date = ? AND ticker IN ({placeholders})",
+        f"SELECT id, ticker, features_json FROM feature_snapshots WHERE as_of_date = ? AND ticker IN ({placeholders})",
         (run_date, *tickers),
     ).fetchall()
     return {r["ticker"]: (r["id"], json.loads(r["features_json"])) for r in rows}
 
 
-def _sector_by_ticker(conn: sqlite3.Connection, tickers: List[str]):
+def _sector_by_ticker(conn: sqlite3.Connection, tickers: list[str]):
     if not tickers:
         return {}
     placeholders = ",".join("?" * len(tickers))
@@ -153,28 +149,53 @@ def _sector_by_ticker(conn: sqlite3.Connection, tickers: List[str]):
 
 
 def _intensity_by_ticker(conn: sqlite3.Connection, agent_id: str):
-    rows = conn.execute("SELECT ticker, intensity_score FROM agent_watchlist WHERE agent_id = ?", (agent_id,)).fetchall()
+    rows = conn.execute(
+        "SELECT ticker, intensity_score FROM agent_watchlist WHERE agent_id = ?", (agent_id,)
+    ).fetchall()
     return {r["ticker"]: r["intensity_score"] for r in rows}
 
 
 # --- writing decisions -------------------------------------------------------------------------------
 
+
 def _decision_row_values(
-    decision, agent_id, run_date, source, snapshot_id, llm_call_id, features, clock,
-    raw_llm_json=None, counterfactual_shares=None, counterfactual_stop_paise=None,
-    counterfactual_target_paise=None, sizing_fidelity_score=None,
+    decision,
+    agent_id,
+    run_date,
+    source,
+    snapshot_id,
+    llm_call_id,
+    features,
+    clock,
+    raw_llm_json=None,
+    counterfactual_shares=None,
+    counterfactual_stop_paise=None,
+    counterfactual_target_paise=None,
+    sizing_fidelity_score=None,
 ):
     base = dict(
-        run_date=run_date, agent_id=agent_id, ticker=decision.ticker, source=source,
-        action=decision.action, shares=None, entry_low_paise=None, entry_high_paise=None,
-        stop_paise=None, target_paise=None, reasoning=getattr(decision, "reasoning", None),
-        pre_mortem_risk=None, cited_metrics_json=None, faithfulness_score=None,
+        run_date=run_date,
+        agent_id=agent_id,
+        ticker=decision.ticker,
+        source=source,
+        action=decision.action,
+        shares=None,
+        entry_low_paise=None,
+        entry_high_paise=None,
+        stop_paise=None,
+        target_paise=None,
+        reasoning=getattr(decision, "reasoning", None),
+        pre_mortem_risk=None,
+        cited_metrics_json=None,
+        faithfulness_score=None,
         raw_llm_json=raw_llm_json,
         counterfactual_shares=counterfactual_shares,
         counterfactual_stop_paise=counterfactual_stop_paise,
         counterfactual_target_paise=counterfactual_target_paise,
         sizing_fidelity_score=sizing_fidelity_score,
-        snapshot_id=snapshot_id, llm_call_id=llm_call_id, created_at=clock.now_iso(),
+        snapshot_id=snapshot_id,
+        llm_call_id=llm_call_id,
+        created_at=clock.now_iso(),
     )
     if isinstance(decision, BuyDecision):
         base.update(
@@ -195,7 +216,7 @@ def _decision_row_values(
     return base
 
 
-def _insert_decision(conn: sqlite3.Connection, values: dict) -> None:
+def _insert_decision(conn: sqlite3.Connection, values: dict) -> int:
     conn.execute(
         """
         INSERT INTO decisions
@@ -220,21 +241,55 @@ def _insert_decision(conn: sqlite3.Connection, values: dict) -> None:
             llm_call_id = excluded.llm_call_id, created_at = excluded.created_at
         """,
         (
-            values["run_date"], values["agent_id"], values["ticker"], values["source"], values["action"],
-            values["shares"], values["entry_low_paise"], values["entry_high_paise"], values["stop_paise"],
-            values["target_paise"], values["reasoning"], values["pre_mortem_risk"],
-            values["cited_metrics_json"], values["faithfulness_score"], values["raw_llm_json"],
-            values["counterfactual_shares"], values["counterfactual_stop_paise"],
-            values["counterfactual_target_paise"], values["sizing_fidelity_score"],
-            values["snapshot_id"], values["llm_call_id"], values["created_at"],
+            values["run_date"],
+            values["agent_id"],
+            values["ticker"],
+            values["source"],
+            values["action"],
+            values["shares"],
+            values["entry_low_paise"],
+            values["entry_high_paise"],
+            values["stop_paise"],
+            values["target_paise"],
+            values["reasoning"],
+            values["pre_mortem_risk"],
+            values["cited_metrics_json"],
+            values["faithfulness_score"],
+            values["raw_llm_json"],
+            values["counterfactual_shares"],
+            values["counterfactual_stop_paise"],
+            values["counterfactual_target_paise"],
+            values["sizing_fidelity_score"],
+            values["snapshot_id"],
+            values["llm_call_id"],
+            values["created_at"],
         ),
     )
+    row = conn.execute(
+        "SELECT id FROM decisions WHERE agent_id = ? AND ticker = ? AND run_date = ?",
+        (values["agent_id"], values["ticker"], values["run_date"]),
+    ).fetchone()
+    return int(row[0]) if row else 0
 
 
-def _insert_llm_call(conn: sqlite3.Connection, agent_id, run_date, model, prompt, response,
-                      tokens_in, tokens_out, latency_ms, parse_status, finish_reason,
-                      reasoning_tokens, clock: Clock, provider=None, thinking_tokens=None,
-                      fallback_used=False) -> int:
+def _insert_llm_call(
+    conn: sqlite3.Connection,
+    agent_id,
+    run_date,
+    model,
+    prompt,
+    response,
+    tokens_in,
+    tokens_out,
+    latency_ms,
+    parse_status,
+    finish_reason,
+    reasoning_tokens,
+    clock: Clock,
+    provider=None,
+    thinking_tokens=None,
+    fallback_used=False,
+) -> int:
     cur = conn.execute(
         """
         INSERT INTO llm_calls (agent_id, run_date, model, prompt, response, tokens_in, tokens_out,
@@ -242,27 +297,69 @@ def _insert_llm_call(conn: sqlite3.Connection, agent_id, run_date, model, prompt
                                 provider, thinking_tokens, fallback_used)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (agent_id, run_date, model, prompt, response, tokens_in, tokens_out, latency_ms,
-         parse_status, finish_reason, reasoning_tokens, clock.now_iso(), provider, thinking_tokens,
-         int(fallback_used)),
+        (
+            agent_id,
+            run_date,
+            model,
+            prompt,
+            response,
+            tokens_in,
+            tokens_out,
+            latency_ms,
+            parse_status,
+            finish_reason,
+            reasoning_tokens,
+            clock.now_iso(),
+            provider,
+            thinking_tokens,
+            int(fallback_used),
+        ),
     )
     return cur.lastrowid
 
 
 # --- the single-agent run --------------------------------------------------------------------------
 
+
 def run_one_agent(
-    agent_id: str, run_date: str, clock: Clock, portfolio_conn: sqlite3.Connection,
-    ohlcv_conn: Optional[sqlite3.Connection] = None, llm_client: Optional[LLMClient] = None,
-    dry_run: bool = False, force: bool = False, no_orders: bool = False,
-    fallback_client: Optional[LLMClient] = None,
+    agent_id: str,
+    run_date: str,
+    clock: Clock,
+    portfolio_conn: sqlite3.Connection,
+    ohlcv_conn: sqlite3.Connection | None = None,
+    llm_client: LLMClient | None = None,
+    dry_run: bool = False,
+    force: bool = False,
+    no_orders: bool = False,
+    fallback_client: LLMClient | None = None,
 ) -> dict:
     if agent_id.lower() in ("stockminds-core", "stockminds", "core", "varsity-dcf"):
         agent_id = "varsity"
 
     if agent_id == "baseline-simons-rules":
         from baselines.simons_rules import run_baseline_simons
+
         return run_baseline_simons(run_date, clock, portfolio_conn, dry_run=dry_run, force=force, no_orders=no_orders)
+
+    if agent_id == "baseline-varsity-rules":
+        from baselines.varsity_rules import run_baseline_varsity
+
+        return run_baseline_varsity(run_date, clock, portfolio_conn, dry_run=dry_run, force=force, no_orders=no_orders)
+
+    if agent_id == "baseline-lynch-rules":
+        from baselines.lynch_rules import run_baseline_lynch
+
+        return run_baseline_lynch(run_date, clock, portfolio_conn, dry_run=dry_run, force=force, no_orders=no_orders)
+
+    if agent_id == "baseline-marks-rules":
+        from baselines.marks_rules import run_baseline_marks
+
+        return run_baseline_marks(run_date, clock, portfolio_conn, dry_run=dry_run, force=force, no_orders=no_orders)
+
+    if agent_id == "baseline-rj-rules":
+        from baselines.rj_rules import run_baseline_rj
+
+        return run_baseline_rj(run_date, clock, portfolio_conn, dry_run=dry_run, force=force, no_orders=no_orders)
 
     persona = get_persona(agent_id)
 
@@ -306,8 +403,15 @@ def run_one_agent(
     intensity_by_ticker = _intensity_by_ticker(portfolio_conn, agent_id)
 
     user_prompt, trim_info = build_user_prompt(
-        portfolio_conn, agent_id, review_pool, features_by_ticker, sector_by_ticker,
-        intensity_by_ticker, persona.system_prompt, persona.technical_hurdles, persona.fundamental_hurdles,
+        portfolio_conn,
+        agent_id,
+        review_pool,
+        features_by_ticker,
+        sector_by_ticker,
+        intensity_by_ticker,
+        persona.system_prompt,
+        persona.technical_hurdles,
+        persona.fundamental_hurdles,
         news_lookback_days=getattr(persona, "news_lookback_days", 7),
         run_date=run_date,
         extra_metrics=getattr(persona, "extra_metrics", None),
@@ -325,8 +429,13 @@ def run_one_agent(
     _start_run(portfolio_conn, run_date, clock)
     try:
         decisions, parse_status, dropped, final_result, attempts = parse_with_repair_and_fallback(
-            llm_client, persona.system_prompt, user_prompt, tickers, fallback=fallback_client,
-            reasoning_effort=settings.LLM_REASONING_EFFORT, max_output_tokens=settings.LLM_MAX_OUTPUT_TOKENS,
+            llm_client,
+            persona.system_prompt,
+            user_prompt,
+            tickers,
+            fallback=fallback_client,
+            reasoning_effort=settings.LLM_REASONING_EFFORT,
+            max_output_tokens=settings.LLM_MAX_OUTPUT_TOKENS,
             response_schema=DECISION_BATCH_SCHEMA,
         )
 
@@ -334,10 +443,22 @@ def run_one_agent(
         for attempt in attempts:  # log every actual LLM call made (at most 3), per day-5a
             result = attempt["result"]
             llm_call_id = _insert_llm_call(
-                portfolio_conn, agent_id, run_date, result.model, user_prompt, result.text,
-                result.tokens_in, result.tokens_out, result.latency_ms, attempt["parse_status"],
-                result.finish_reason, result.reasoning_tokens, clock, provider=result.provider,
-                thinking_tokens=result.thinking_tokens, fallback_used=attempt["fallback_used"],
+                portfolio_conn,
+                agent_id,
+                run_date,
+                result.model,
+                user_prompt,
+                result.text,
+                result.tokens_in,
+                result.tokens_out,
+                result.latency_ms,
+                attempt["parse_status"],
+                result.finish_reason,
+                result.reasoning_tokens,
+                clock,
+                provider=result.provider,
+                thinking_tokens=result.thinking_tokens,
+                fallback_used=attempt["fallback_used"],
             )
 
         raw_decisions_by_ticker = {d.ticker: d for d in decisions}
@@ -387,7 +508,14 @@ def run_one_agent(
                 sizing_fidelity_score = compute_sizing_fidelity_score(raw_d.shares, cf_shares)
 
             values = _decision_row_values(
-                decision, agent_id, run_date, "LLM", snapshot_id, llm_call_id, features, clock,
+                decision,
+                agent_id,
+                run_date,
+                "LLM",
+                snapshot_id,
+                llm_call_id,
+                features,
+                clock,
                 raw_llm_json=raw_llm_json,
                 counterfactual_shares=counterfactual_shares,
                 counterfactual_stop_paise=counterfactual_stop_paise,
@@ -404,27 +532,49 @@ def run_one_agent(
         raise
 
     _finish_run(
-        portfolio_conn, run_date, "SUCCESS", clock,
+        portfolio_conn,
+        run_date,
+        "SUCCESS",
+        clock,
         detail=f"parse_status={parse_status} decisions={len(decisions)} dropped_unknown={dropped} "
         f"calls={len(attempts)} orders={order_summary}",
     )
+    non_holds = [f"{d.action} {d.ticker}" for d in decisions if d.action != "HOLD"]
+    actions_str = ", ".join(non_holds) if non_holds else f"{len(decisions)} HOLDs"
+    logger.info("  [%s] Decisions: %s | Orders: %s", agent_id, actions_str, order_summary or "None")
     return {
-        "status": "SUCCESS", "parse_status": parse_status, "decisions": len(decisions),
-        "dropped_unknown": dropped, "llm_call_id": llm_call_id, "calls_made": len(attempts),
-        "tokens_in": final_result.tokens_in, "tokens_out": final_result.tokens_out,
-        "latency_ms": final_result.latency_ms, "model": final_result.model,
-        "finish_reason": final_result.finish_reason, "reasoning_tokens": final_result.reasoning_tokens,
-        "provider": final_result.provider, "thinking_tokens": final_result.thinking_tokens,
+        "status": "SUCCESS",
+        "parse_status": parse_status,
+        "decisions": len(decisions),
+        "dropped_unknown": dropped,
+        "llm_call_id": llm_call_id,
+        "calls_made": len(attempts),
+        "tokens_in": final_result.tokens_in,
+        "tokens_out": final_result.tokens_out,
+        "latency_ms": final_result.latency_ms,
+        "model": final_result.model,
+        "finish_reason": final_result.finish_reason,
+        "reasoning_tokens": final_result.reasoning_tokens,
+        "provider": final_result.provider,
+        "thinking_tokens": final_result.thinking_tokens,
         "fallback_used": attempts[-1]["fallback_used"] if attempts else False,
-        "token_estimate": token_estimate, "order_summary": order_summary,
+        "token_estimate": token_estimate,
+        "order_summary": order_summary,
     }
 
 
 def run(
-    agent_ids: List[str], as_of_date: str = None, clock: Clock = None, dry_run: bool = False,
-    fake_llm: bool = False, force: bool = False, no_orders: bool = False,
-    portfolio_conn: sqlite3.Connection = None, ohlcv_conn: Optional[sqlite3.Connection] = None,
-    llm_client: Optional[LLMClient] = None, fallback_client: Optional[LLMClient] = None,
+    agent_ids: list[str],
+    as_of_date: str = None,
+    clock: Clock = None,
+    dry_run: bool = False,
+    fake_llm: bool = False,
+    force: bool = False,
+    no_orders: bool = False,
+    portfolio_conn: sqlite3.Connection = None,
+    ohlcv_conn: sqlite3.Connection | None = None,
+    llm_client: LLMClient | None = None,
+    fallback_client: LLMClient | None = None,
 ) -> dict:
     clock = clock or SystemClock()
     owns_conn = portfolio_conn is None
@@ -440,7 +590,8 @@ def run(
                 llm_client = FakeLLMClient()
             else:
                 llm_client = build_provider(
-                    settings.LLM_PROVIDER, model=require_setting(settings.LLM_MODEL, "LLM_MODEL"),
+                    settings.LLM_PROVIDER,
+                    model=require_setting(settings.LLM_MODEL, "LLM_MODEL"),
                 )
                 try:
                     fallback_client = build_provider(
@@ -448,15 +599,24 @@ def run(
                         model=require_setting(settings.LLM_FALLBACK_MODEL, "LLM_FALLBACK_MODEL"),
                     )
                 except LLMConfigError as exc:
-                    print(f"warning: fallback provider {settings.LLM_FALLBACK_PROVIDER!r} unavailable "
-                          f"({exc}); continuing with {settings.LLM_PROVIDER!r} only, no fallback.")
+                    print(
+                        f"warning: fallback provider {settings.LLM_FALLBACK_PROVIDER!r} unavailable "
+                        f"({exc}); continuing with {settings.LLM_PROVIDER!r} only, no fallback."
+                    )
                     fallback_client = None
 
         results = {}
         for i, agent_id in enumerate(agent_ids):
             results[agent_id] = run_one_agent(
-                agent_id, run_date, clock, portfolio_conn, ohlcv_conn=ohlcv_conn,
-                llm_client=llm_client, dry_run=dry_run, force=force, no_orders=no_orders,
+                agent_id,
+                run_date,
+                clock,
+                portfolio_conn,
+                ohlcv_conn=ohlcv_conn,
+                llm_client=llm_client,
+                dry_run=dry_run,
+                force=force,
+                no_orders=no_orders,
                 fallback_client=fallback_client if not fake_llm else None,
             )
             is_last = i == len(agent_ids) - 1
@@ -475,14 +635,23 @@ def main() -> None:
     parser.add_argument("--date", dest="date_str", default=None, help="YYYY-MM-DD, default: today (IST)")
     parser.add_argument("--agent", dest="agent_id", default="simons", help="Persona id, e.g. simons")
     parser.add_argument("--dry-run", dest="dry_run", action="store_true", help="Print the prompt, make no LLM call")
-    parser.add_argument("--fake-llm", dest="fake_llm", action="store_true", help="Use FakeLLMClient instead of a real provider")
+    parser.add_argument(
+        "--fake-llm", dest="fake_llm", action="store_true", help="Use FakeLLMClient instead of a real provider"
+    )
     parser.add_argument("--force", dest="force", action="store_true", help="Re-run even if decisions already exist")
     parser.add_argument("--no-orders", dest="no_orders", action="store_true", help="Save decisions but place no orders")
     args = parser.parse_args()
 
     if args.agent_id.lower() == "all":
         from agents.personas import all_personas
-        target_agents = [p.id for p in all_personas()] + ["baseline-simons-rules"]
+
+        target_agents = [p.id for p in all_personas()] + [
+            "baseline-simons-rules",
+            "baseline-varsity-rules",
+            "baseline-lynch-rules",
+            "baseline-marks-rules",
+            "baseline-rj-rules",
+        ]
     else:
         aid = args.agent_id.lower()
         if aid in ("stockminds-core", "stockminds", "core", "varsity-dcf"):
@@ -490,8 +659,12 @@ def main() -> None:
         target_agents = [aid]
 
     results = run(
-        target_agents, as_of_date=args.date_str, dry_run=args.dry_run, fake_llm=args.fake_llm,
-        force=args.force, no_orders=args.no_orders,
+        target_agents,
+        as_of_date=args.date_str,
+        dry_run=args.dry_run,
+        fake_llm=args.fake_llm,
+        force=args.force,
+        no_orders=args.no_orders,
     )
     for agent_id, result in results.items():
         print(f"{agent_id}: {result}")

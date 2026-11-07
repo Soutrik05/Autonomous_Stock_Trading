@@ -3,6 +3,7 @@ Unit tests for ingestion/upstox_client.py retry/backoff behaviour, using a fake 
 so no real network call is made and nothing sleeps.
 See Plan_v3 §1.1, §1.5.
 """
+
 import pytest
 
 from core.rate_limiter import UpstoxRateLimiter
@@ -95,7 +96,13 @@ def test_never_logs_or_returns_the_token():
 
 
 def test_v3_historical_candles_url():
-    client, session, _ = make_client([FakeResponse(200, {"status": "success", "data": {"candles": [["2026-10-15T00:00:00+05:30", 1, 2, 3, 4, 5, 0]]}})])
+    client, session, _ = make_client(
+        [
+            FakeResponse(
+                200, {"status": "success", "data": {"candles": [["2026-10-15T00:00:00+05:30", 1, 2, 3, 4, 5, 0]]}}
+            )
+        ]
+    )
     result = client.get_daily_candles("NSE_EQ|INE002A01018", "2026-10-01", "2026-10-15")
     assert len(result) == 1
     call = session.calls[0]
@@ -103,7 +110,13 @@ def test_v3_historical_candles_url():
 
 
 def test_v3_intraday_daily_candle_url():
-    client, session, _ = make_client([FakeResponse(200, {"status": "success", "data": {"candles": [["2026-10-26T00:00:00+05:30", 10, 20, 5, 15, 500, 0]]}})])
+    client, session, _ = make_client(
+        [
+            FakeResponse(
+                200, {"status": "success", "data": {"candles": [["2026-10-26T00:00:00+05:30", 10, 20, 5, 15, 500, 0]]}}
+            )
+        ]
+    )
     result = client.get_intraday_daily_candle("NSE_EQ|INE002A01018")
     assert len(result) == 1
     assert result[0][0] == "2026-10-26T00:00:00+05:30"
@@ -112,7 +125,9 @@ def test_v3_intraday_daily_candle_url():
 
 
 def test_v3_quotes_url():
-    client, session, _ = make_client([FakeResponse(200, {"status": "success", "data": {"NSE_EQ:RELIANCE": {"last_price": 1200.0}}})])
+    client, session, _ = make_client(
+        [FakeResponse(200, {"status": "success", "data": {"NSE_EQ:RELIANCE": {"last_price": 1200.0}}})]
+    )
     result = client.get_quotes(["NSE_EQ|INE002A01018"])
     assert "NSE_EQ:RELIANCE" in result
     call = session.calls[0]
@@ -120,7 +135,9 @@ def test_v3_quotes_url():
 
 
 def test_corporate_actions_url():
-    client, session, _ = make_client([FakeResponse(200, {"status": "success", "data": [{"name": "Dividend", "amount": 5.0}]})])
+    client, session, _ = make_client(
+        [FakeResponse(200, {"status": "success", "data": [{"name": "Dividend", "amount": 5.0}]})]
+    )
     result = client.get_corporate_actions("INE002A01018")
     assert len(result) == 1
     assert result[0]["name"] == "Dividend"
@@ -129,10 +146,24 @@ def test_corporate_actions_url():
 
 
 def test_fii_and_dii_urls():
-    client, session, _ = make_client([
-        FakeResponse(200, {"status": "success", "data": {"NSE_EQ|CASH": [{"time_stamp": 1792953000000, "buy_amount": 100, "sell_amount": 80}]}}),
-        FakeResponse(200, {"status": "success", "data": {"NSE_EQ|CASH": [{"time_stamp": 1792953000000, "buy_amount": 200, "sell_amount": 150}]}}),
-    ])
+    client, session, _ = make_client(
+        [
+            FakeResponse(
+                200,
+                {
+                    "status": "success",
+                    "data": {"NSE_EQ|CASH": [{"time_stamp": 1792953000000, "buy_amount": 100, "sell_amount": 80}]},
+                },
+            ),
+            FakeResponse(
+                200,
+                {
+                    "status": "success",
+                    "data": {"NSE_EQ|CASH": [{"time_stamp": 1792953000000, "buy_amount": 200, "sell_amount": 150}]},
+                },
+            ),
+        ]
+    )
     fii = client.get_fii_data()
     dii = client.get_dii_data()
     assert len(fii) == 1

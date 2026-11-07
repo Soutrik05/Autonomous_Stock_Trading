@@ -41,8 +41,8 @@ CREATE TABLE IF NOT EXISTS agents (
     name                  TEXT NOT NULL,
     philosophy            TEXT NOT NULL,
     kind                  TEXT NOT NULL DEFAULT 'LLM',  -- LLM | BASELINE
-    starting_cash_paise   INTEGER NOT NULL DEFAULT 10000000,
-    cash_paise            INTEGER NOT NULL DEFAULT 10000000,
+    starting_cash_paise   INTEGER NOT NULL DEFAULT 50000000,
+    cash_paise            INTEGER NOT NULL DEFAULT 50000000,
     started_on            TEXT,
     is_active             INTEGER NOT NULL DEFAULT 1,
     created_at            TEXT NOT NULL,

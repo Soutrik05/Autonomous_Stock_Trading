@@ -3,18 +3,18 @@
 OK or the violations found.
 See Plan_v3 §4.2, §4.3.
 """
+
 import sqlite3
 import sys
-from typing import List
 
 from broker.engine import Broker
 from core.clock import SystemClock
+from core.config import settings
 from core.database import get_connection
-from settings import settings
 
 
-def check_invariants(conn: sqlite3.Connection) -> List[str]:
-    violations: List[str] = []
+def check_invariants(conn: sqlite3.Connection) -> list[str]:
+    violations: list[str] = []
     broker = Broker(conn, SystemClock())
 
     for agent in conn.execute("SELECT id, cash_paise, starting_cash_paise FROM agents").fetchall():
@@ -60,9 +60,12 @@ def check_invariants(conn: sqlite3.Connection) -> List[str]:
         ).fetchall():
             if conn.execute("SELECT 1 FROM fills WHERE order_id = ? LIMIT 1", (order["id"],)).fetchone() is None:
                 violations.append(f"{agent_id}: filled order {order['id']} ({order['ticker']}) has no fill row")
-            if conn.execute(
-                "SELECT 1 FROM positions WHERE agent_id = ? AND ticker = ? LIMIT 1", (agent_id, order["ticker"])
-            ).fetchone() is None:
+            if (
+                conn.execute(
+                    "SELECT 1 FROM positions WHERE agent_id = ? AND ticker = ? LIMIT 1", (agent_id, order["ticker"])
+                ).fetchone()
+                is None
+            ):
                 violations.append(f"{agent_id}: filled order {order['id']} ({order['ticker']}) has no position row")
 
         replayed_cash = agent["starting_cash_paise"]
@@ -74,9 +77,7 @@ def check_invariants(conn: sqlite3.Connection) -> List[str]:
             else:
                 replayed_cash += fill["shares"] * fill["price_paise"] - fill["charges_paise"]
         if replayed_cash != agent["cash_paise"]:
-            violations.append(
-                f"{agent_id}: cash replay mismatch replayed={replayed_cash} actual={agent['cash_paise']}"
-            )
+            violations.append(f"{agent_id}: cash replay mismatch replayed={replayed_cash} actual={agent['cash_paise']}")
 
     return violations
 

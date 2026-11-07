@@ -3,6 +3,7 @@ Registry of PersonaConfig objects: get_persona(id), all_personas(). Adding a per
 adding a new config module and one line here, not changing any runner/funnel code.
 See Plan_v3 §3.1.
 """
+
 from agents.personas.base import PersonaConfig
 from agents.personas.jhunjhunwala import JHUNJHUNWALA
 from agents.personas.lynch import LYNCH
@@ -25,6 +26,7 @@ _ALIASES = {
     "stockminds": "varsity",
     "core": "varsity",
     "varsity-dcf": "varsity",
+    "baseline-simons-rules": "simons",
 }
 
 

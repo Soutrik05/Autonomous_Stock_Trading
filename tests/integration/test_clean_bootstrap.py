@@ -4,19 +4,16 @@ Ensures that if the service starts up with a completely blank/uninitialized SQLi
 (such as in a newly deployed container or mounted volume), schema migrations and holiday
 calendars are bootstrapped automatically without failing on missing tables.
 """
-import sqlite3
+
 from datetime import datetime
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from core.clock import FakeClock
+from core.config import settings
 from core.database import get_connection
 from ingestion.cli import run as run_ingestion
 from scheduler import job_nightly_ingestion_and_features
 from scripts.init_db import init_db
-from settings import settings
 
 
 def test_clean_slate_ingestion_bootstraps_schema(tmp_path):
@@ -49,12 +46,7 @@ def test_clean_slate_ingestion_bootstraps_schema(tmp_path):
         conn = get_connection(str(clean_db_path))
         try:
             # Verify schema tables exist
-            tables = {
-                r[0]
-                for r in conn.execute(
-                    "SELECT name FROM sqlite_master WHERE type='table'"
-                ).fetchall()
-            }
+            tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
             assert "market_calendar" in tables
             assert "pipeline_runs" in tables
             assert "agents" in tables
@@ -94,21 +86,17 @@ def test_scheduler_job_on_uninitialized_database(tmp_path):
         mock_client.get_daily_candles.return_value = []
         mock_client.get_market_quote.return_value = {}
 
-        with patch("ingestion.cli.UpstoxClient", return_value=mock_client), \
-             patch("features.builder.run", return_value={"status": "SUCCESS", "written": 0, "skipped": 0}), \
-             patch("watchlist.watchlist_refresh.run", return_value={"status": "SUCCESS", "symbols": []}):
-
+        with (
+            patch("ingestion.cli.UpstoxClient", return_value=mock_client),
+            patch("features.builder.run", return_value={"status": "SUCCESS", "written": 0, "skipped": 0}),
+            patch("watchlist.watchlist_refresh.run", return_value={"status": "SUCCESS", "symbols": []}),
+        ):
             # Must not raise sqlite3.OperationalError: no such table: market_calendar
             job_nightly_ingestion_and_features()
 
         conn = get_connection(str(empty_db_path))
         try:
-            tables = {
-                r[0]
-                for r in conn.execute(
-                    "SELECT name FROM sqlite_master WHERE type='table'"
-                ).fetchall()
-            }
+            tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
             assert "market_calendar" in tables
             assert "pipeline_runs" in tables
             assert "agents" in tables

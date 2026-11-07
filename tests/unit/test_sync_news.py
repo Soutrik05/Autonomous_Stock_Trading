@@ -1,15 +1,15 @@
 import sqlite3
 from unittest.mock import MagicMock
+
 import pytest
 
 from core.clock import FakeClock
 from ingestion.sync_news import (
-    ensure_schema,
-    sync_news,
-    get_ticker_news_sentiment,
     _format_published_time,
+    ensure_schema,
+    get_ticker_news_sentiment,
+    sync_news,
 )
-from features.sentiment import FinBertScorer
 
 
 @pytest.fixture
@@ -31,9 +31,7 @@ def mem_dbs():
     portfolio_conn.execute(
         "INSERT INTO symbols VALUES ('RELIANCE', 'NSE_EQ|INE002A01018', 'INE002A01018', 'Reliance', 'Energy', 1)"
     )
-    portfolio_conn.execute(
-        "INSERT INTO symbols VALUES ('TCS', 'NSE_EQ|INE467B01029', 'INE467B01029', 'TCS', 'IT', 1)"
-    )
+    portfolio_conn.execute("INSERT INTO symbols VALUES ('TCS', 'NSE_EQ|INE467B01029', 'INE467B01029', 'TCS', 'IT', 1)")
     portfolio_conn.commit()
 
     news_conn = sqlite3.connect(":memory:")
@@ -56,7 +54,8 @@ def test_format_published_time():
 
 def test_sync_news_ingestion_and_deduplication(mem_dbs):
     portfolio_conn, news_conn = mem_dbs
-    from datetime import datetime, timezone, timedelta
+    from datetime import datetime, timedelta, timezone
+
     ist = timezone(timedelta(hours=5, minutes=30))
     clock = FakeClock(datetime(2026, 10, 26, 20, 0, 0, tzinfo=ist))
 

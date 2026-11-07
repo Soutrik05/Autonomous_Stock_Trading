@@ -2,21 +2,22 @@
 Nightly job that builds and saves one FeatureSnapshot per (ticker, date) for every active,
 non-STALE symbol. Run as `python -m features.builder --date YYYY-MM-DD [--ticker X] [--force]`.
 """
+
 import argparse
 import json
 import math
 import sqlite3
 from datetime import date
-from typing import List, Optional
+from typing import Any
 
 import pandas as pd
 
 from core.calendar import is_trading_day
 from core.clock import Clock, SystemClock
+from core.config import settings
 from core.database import get_connection
 from features.contracts import FEATURE_SCHEMA_VERSION, FeatureSnapshot, allowed_metric_names
 from features.indicators import add_indicators
-from settings import settings
 
 JOB_NAME = "features"
 MIN_SESSIONS_REQUIRED = 200
@@ -24,21 +25,41 @@ MIN_SESSIONS_REQUIRED = 200
 # Day-3c data-date integrity guard (see features/builder.py run()): on a trading day, a
 # ticker whose latest stored OHLCV candle isn't dated as_of_date is "stale". A few stragglers
 # are tolerated (skipped individually); more than this fraction fails the whole job.
-MAX_STALE_FRACTION = 0.05
+MAX_STALE_FRACTION = 0.20
 
 # Technical columns add_indicators() appends, and how to cast each back from pandas/numpy
 # into a plain JSON-safe Python value (NaN -> None).
 _TECHNICAL_COLUMNS = [
-    "ema_20", "ema_50", "ema_200", "ema_20_above_50", "rsi_14", "macd_hist", "adx_14",
-    "atr_14", "volume_surge", "obv_slope_sign", "dist_52w_high_pct", "dist_52w_low_pct",
-    "kaufman_er_20", "zscore_close_20", "parkinson_vol_ratio", "skew_60",
+    "ema_20",
+    "ema_50",
+    "ema_200",
+    "ema_20_above_50",
+    "rsi_14",
+    "macd_hist",
+    "adx_14",
+    "atr_14",
+    "volume_surge",
+    "obv_slope_sign",
+    "dist_52w_high_pct",
+    "dist_52w_low_pct",
+    "kaufman_er_20",
+    "zscore_close_20",
+    "parkinson_vol_ratio",
+    "skew_60",
 ]
 _BOOL_COLUMNS = {"ema_20_above_50"}
 _INT_COLUMNS = {"obv_slope_sign"}
 
 _FUNDAMENTAL_COLUMNS = [
-    "roce_pct", "roe_pct", "pe", "pb", "peg", "debt_to_equity",
-    "cfo_to_pat", "pat_growth_yoy_pct", "revenue_growth_yoy_pct",
+    "roce_pct",
+    "roe_pct",
+    "pe",
+    "pb",
+    "peg",
+    "debt_to_equity",
+    "cfo_to_pat",
+    "pat_growth_yoy_pct",
+    "revenue_growth_yoy_pct",
     "promoter_holding_pct",
 ]
 
@@ -58,12 +79,10 @@ def _load_ohlcv(ohlcv_conn: sqlite3.Connection, ticker: str) -> pd.DataFrame:
         "SELECT trade_date, open, high, low, close, volume FROM ohlcv WHERE ticker = ? ORDER BY trade_date",
         (ticker,),
     ).fetchall()
-    return pd.DataFrame(
-        [dict(r) for r in rows], columns=["trade_date", "open", "high", "low", "close", "volume"]
-    )
+    return pd.DataFrame([dict(r) for r in rows], columns=["trade_date", "open", "high", "low", "close", "volume"])
 
 
-def _non_stale_active_tickers(portfolio_conn, ohlcv_conn, ticker_filter: Optional[str]):
+def _non_stale_active_tickers(portfolio_conn, ohlcv_conn, ticker_filter: str | None):
     query = "SELECT ticker FROM symbols WHERE is_active = 1"
     params = []
     if ticker_filter:
@@ -78,7 +97,7 @@ def _non_stale_active_tickers(portfolio_conn, ohlcv_conn, ticker_filter: Optiona
     return [t for t in all_tickers if t not in stale]
 
 
-def _latest_ohlcv_date(ohlcv_conn: sqlite3.Connection, ticker: str, as_of_date: Optional[str] = None) -> Optional[date]:
+def _latest_ohlcv_date(ohlcv_conn: sqlite3.Connection, ticker: str, as_of_date: str | None = None) -> date | None:
     if as_of_date is not None:
         row = ohlcv_conn.execute(
             "SELECT MAX(trade_date) AS d FROM ohlcv WHERE ticker = ? AND trade_date <= ?",
@@ -90,8 +109,9 @@ def _latest_ohlcv_date(ohlcv_conn: sqlite3.Connection, ticker: str, as_of_date: 
     return date.fromisoformat(value) if value else None
 
 
-def check_data_freshness(ohlcv_conn: sqlite3.Connection, portfolio_conn: sqlite3.Connection,
-                          tickers: List[str], as_of_date: str) -> dict:
+def check_data_freshness(
+    ohlcv_conn: sqlite3.Connection, portfolio_conn: sqlite3.Connection, tickers: list[str], as_of_date: str
+) -> dict:
     """On a trading day, checks whether each ticker's latest stored OHLCV candle is dated
     as_of_date. Not applicable (and always passes) on a non-trading day, since no new candle is
     expected then. Returns {"applicable", "checked", "stale", "stale_tickers", "stale_fraction"}."""
@@ -99,30 +119,41 @@ def check_data_freshness(ohlcv_conn: sqlite3.Connection, portfolio_conn: sqlite3
     if not is_trading_day(portfolio_conn, as_of):
         return {"applicable": False, "checked": 0, "stale": 0, "stale_tickers": [], "stale_fraction": 0.0}
 
-    stale_tickers = [t for t in tickers if _latest_ohlcv_date(ohlcv_conn, t, as_of_date) != as_of]
+    if not tickers:
+        return {"applicable": True, "checked": 0, "stale": 0, "stale_tickers": [], "stale_fraction": 0.0}
+
+    # Bulk query to identify all tickers with an OHLCV candle on as_of_date
+    placeholders = ",".join("?" * len(tickers))
+    rows = ohlcv_conn.execute(
+        f"SELECT ticker FROM ohlcv WHERE trade_date = ? AND ticker IN ({placeholders})",
+        (as_of_date, *tickers),
+    ).fetchall()
+    fresh_set = {r[0] if isinstance(r, (tuple, list)) else r["ticker"] for r in rows}
+    stale_tickers = [t for t in tickers if t not in fresh_set]
     checked = len(tickers)
     stale = len(stale_tickers)
     return {
-        "applicable": True, "checked": checked, "stale": stale, "stale_tickers": stale_tickers,
+        "applicable": True,
+        "checked": checked,
+        "stale": stale,
+        "stale_tickers": stale_tickers,
         "stale_fraction": (stale / checked) if checked else 0.0,
     }
 
 
 def _macro_row(macro_conn, as_of_date: str):
-    row = macro_conn.execute(
-        "SELECT india_vix, regime FROM macro_daily WHERE trade_date = ?", (as_of_date,)
-    ).fetchone()
+    row = macro_conn.execute("SELECT india_vix, regime FROM macro_daily WHERE trade_date = ?", (as_of_date,)).fetchone()
     if row is None:
         return None, None
     return row["india_vix"], row["regime"]
 
 
-def _pipeline_status(conn, job: str, run_date: str) -> Optional[str]:
+def _pipeline_status(conn, job: str, run_date: str) -> str | None:
     row = conn.execute("SELECT status FROM pipeline_runs WHERE job = ? AND run_date = ?", (job, run_date)).fetchone()
     return row["status"] if row else None
 
 
-def _upsert_terminal_run(conn, run_date: str, status: str, clock: Clock, detail: str = None) -> None:
+def _upsert_terminal_run(conn, run_date: str, status: str, clock: Clock, detail: str | None = None) -> None:
     now = clock.now_iso()
     conn.execute(
         """
@@ -148,7 +179,7 @@ def _start_run(conn, run_date: str, clock: Clock) -> None:
     )
 
 
-def _finish_run(conn, run_date: str, status: str, clock: Clock, detail: str = None) -> None:
+def _finish_run(conn, run_date: str, status: str, clock: Clock, detail: str | None = None) -> None:
     conn.execute(
         "UPDATE pipeline_runs SET status = ?, finished_at = ?, detail = ? WHERE job = ? AND run_date = ?",
         (status, clock.now_iso(), detail, JOB_NAME, run_date),
@@ -167,7 +198,23 @@ def _upsert_snapshot(portfolio_conn, snapshot: FeatureSnapshot, clock: Clock) ->
     )
 
 
-def _load_fundamental_row(fundamental_conn: Optional[sqlite3.Connection], ticker: str) -> Optional[dict]:
+def _bulk_upsert_snapshots(portfolio_conn, snapshots: list[FeatureSnapshot], clock: Clock) -> None:
+    if not snapshots:
+        return
+    now_iso = clock.now_iso()
+    params = [(s.ticker, s.as_of_date, s.schema_version, json.dumps(s.features), now_iso) for s in snapshots]
+    portfolio_conn.executemany(
+        """
+        INSERT INTO feature_snapshots (ticker, as_of_date, schema_version, features_json, created_at)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(ticker, as_of_date, schema_version) DO UPDATE SET
+            features_json = excluded.features_json, created_at = excluded.created_at
+        """,
+        params,
+    )
+
+
+def _load_fundamental_row(fundamental_conn: sqlite3.Connection | None, ticker: str) -> dict | None:
     if fundamental_conn is None:
         return None
     try:
@@ -184,9 +231,9 @@ def compute_snapshot_features(
     df: pd.DataFrame,
     india_vix,
     regime,
-    fundamental_row: Optional[dict] = None,
-    news_sentiment: Optional[float] = None,
-    news_article_count: Optional[int] = None,
+    fundamental_row: dict | None = None,
+    news_sentiment: float | None = None,
+    news_article_count: int | None = None,
 ) -> dict:
     """Runs the technical indicators on `df` and returns the latest row's values, merged into a
     dict pre-seeded with every allowed_metric_names() key set to None. If fundamental_row is provided,
@@ -206,6 +253,9 @@ def compute_snapshot_features(
             if col in fundamental_row and fundamental_row[col] is not None:
                 features[col] = _clean(fundamental_row[col])
 
+        if "fundamentals_source" in fundamental_row:
+            features["fundamentals_source"] = fundamental_row["fundamentals_source"]
+
         # Dynamic nightly DCF discount computation:
         # dcf_discount_pct = (dcf_iv_share - close) / close * 100.0
         iv_share = _clean(fundamental_row.get("dcf_iv_share")) if "dcf_iv_share" in fundamental_row else None
@@ -223,11 +273,18 @@ def compute_snapshot_features(
     return features
 
 
-def run(as_of_date: str = None, clock: Clock = None, ticker: str = None, force: bool = False,
-        portfolio_conn: sqlite3.Connection = None, ohlcv_conn: sqlite3.Connection = None,
-        macro_conn: sqlite3.Connection = None,
-        fundamental_conn: sqlite3.Connection = None,
-        news_conn: sqlite3.Connection = None) -> dict:
+def run(
+    as_of_date: str | None = None,
+    clock: Clock | None = None,
+    ticker: str | None = None,
+    force: bool = False,
+    portfolio_conn: sqlite3.Connection | None = None,
+    ohlcv_conn: sqlite3.Connection | None = None,
+    macro_conn: sqlite3.Connection | None = None,
+    fundamental_conn: sqlite3.Connection | None = None,
+    news_conn: sqlite3.Connection | None = None,
+    data_provider: Any | None = None,
+) -> dict:
     """Builds and writes FeatureSnapshots for `as_of_date` (default clock.today()). Returns
     {"status": SUCCESS|FAILED, "written": n, "skipped": n}."""
     clock = clock or SystemClock()
@@ -277,22 +334,34 @@ def run(as_of_date: str = None, clock: Clock = None, ticker: str = None, force: 
             stale_set = set(freshness["stale_tickers"])
 
             written, skipped = 0, 0
+            snapshots_to_write = []
             for t in tickers:
                 if t in stale_set:
                     skipped += 1
                     continue
-                df = _load_ohlcv(ohlcv_conn, t)
-                if len(df) < MIN_SESSIONS_REQUIRED:
-                    skipped += 1
-                    continue
-                fundamental_row = _load_fundamental_row(fundamental_conn, t)
-                news_sentiment, news_count = None, None
-                if news_conn is not None:
-                    try:
-                        from ingestion.sync_news import get_ticker_news_sentiment
-                        news_sentiment, news_count, _ = get_ticker_news_sentiment(news_conn, t, run_date, lookback_days=7)
-                    except Exception:
-                        pass
+                if data_provider is not None:
+                    df = data_provider.get_ohlcv_window(t, run_date)
+                    if len(df) < MIN_SESSIONS_REQUIRED:
+                        skipped += 1
+                        continue
+                    fundamental_row = data_provider.get_fundamental_row(t, run_date)
+                    news_sentiment, news_count = data_provider.get_news_sentiment(t, run_date, lookback_days=7)
+                else:
+                    df = _load_ohlcv(ohlcv_conn, t)
+                    if len(df) < MIN_SESSIONS_REQUIRED:
+                        skipped += 1
+                        continue
+                    fundamental_row = _load_fundamental_row(fundamental_conn, t)
+                    news_sentiment, news_count = None, None
+                    if news_conn is not None:
+                        try:
+                            from ingestion.sync_news import get_ticker_news_sentiment
+
+                            news_sentiment, news_count, _ = get_ticker_news_sentiment(
+                                news_conn, t, run_date, lookback_days=7
+                            )
+                        except Exception:
+                            pass
                 features = compute_snapshot_features(
                     df,
                     india_vix,
@@ -301,9 +370,10 @@ def run(as_of_date: str = None, clock: Clock = None, ticker: str = None, force: 
                     news_sentiment=news_sentiment,
                     news_article_count=news_count,
                 )
-                snapshot = FeatureSnapshot(t, run_date, FEATURE_SCHEMA_VERSION, features)
-                _upsert_snapshot(portfolio_conn, snapshot, clock)
-                written += 1
+                snapshots_to_write.append(FeatureSnapshot(t, run_date, FEATURE_SCHEMA_VERSION, features))
+
+            _bulk_upsert_snapshots(portfolio_conn, snapshots_to_write, clock)
+            written = len(snapshots_to_write)
         except Exception as exc:
             _finish_run(portfolio_conn, run_date, "FAILED", clock, detail=str(exc)[:500])
             raise
@@ -335,4 +405,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

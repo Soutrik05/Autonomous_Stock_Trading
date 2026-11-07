@@ -4,6 +4,7 @@ that agents/context_assembler.py (candidate row keys) and agents/prompts.py (the
 list) both generate from, so they can never drift apart.
 See Plan_v3 §3.2, §3.3.
 """
+
 from agents.personas.simons import SIMONS_FUNDAMENTAL_HURDLES, SIMONS_TECHNICAL_HURDLES
 from features.contracts import CORE_TECHNICAL_FIELDS, persona_allowed_metric_names, predicate_feature_names
 

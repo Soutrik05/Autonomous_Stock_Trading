@@ -5,18 +5,18 @@ and fills them when told to (fill_buy/fill_sell/close_position), for the monitor
 once it exists.
 See Plan_v3 §4.2, §4.3.
 """
+
 import json
 import logging
 import sqlite3
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
-from typing import Optional
 
 import learning.forensics as forensics
 from broker.transaction_charges import apply_slippage, compute_transaction_charges_paise
 from core.calendar import is_trading_day, next_trading_day
 from core.clock import Clock
-from settings import settings
+from core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -70,17 +70,23 @@ class Broker:
 
     # --- activity log ------------------------------------------------------------------------------
 
-    def _log_activity(self, agent_id: Optional[str], event_type: str, ticker: Optional[str],
-                       description: str, metadata: dict) -> None:
+    def _log_activity(
+        self, agent_id: str | None, event_type: str, ticker: str | None, description: str, metadata: dict
+    ) -> None:
         self.conn.execute(
             "INSERT INTO activity_log (agent_id, event_type, ticker, description, metadata_json, created_at) "
             "VALUES (?, ?, ?, ?, ?, ?)",
             (agent_id, event_type, ticker, description, json.dumps(metadata), self.clock.now_iso()),
         )
 
-    def _log_cap_breach(self, agent_id: str, ticker: str, cap: str, measured: float, limit: float, decision_id: int) -> None:
+    def _log_cap_breach(
+        self, agent_id: str, ticker: str, cap: str, measured: float, limit: float, decision_id: int
+    ) -> None:
         self._log_activity(
-            agent_id, "CAP_BREACH", ticker, f"{cap} measured={measured:.2f} limit={limit}",
+            agent_id,
+            "CAP_BREACH",
+            ticker,
+            f"{cap} measured={measured:.2f} limit={limit}",
             {"decision_id": decision_id, "cap": cap, "measured": round(measured, 4), "limit": limit},
         )
 
@@ -97,7 +103,10 @@ class Broker:
         return row["sector"] if row else "UNKNOWN"
 
     def _account_value_paise(self, agent_id: str) -> int:
-        cash = _col(self.conn.execute("SELECT cash_paise FROM agents WHERE id = ?", (agent_id,)).fetchone(), "cash_paise") or 0
+        cash = (
+            _col(self.conn.execute("SELECT cash_paise FROM agents WHERE id = ?", (agent_id,)).fetchone(), "cash_paise")
+            or 0
+        )
         invested = self.conn.execute(
             "SELECT COALESCE(SUM(shares * last_price_paise), 0) AS total FROM positions "
             "WHERE agent_id = ? AND status = 'OPEN'",
@@ -117,6 +126,12 @@ class Broker:
             "SELECT COUNT(*) AS n FROM positions WHERE agent_id = ? AND status = 'OPEN'", (agent_id,)
         ).fetchone()["n"]
 
+    def _open_sector_position_count(self, agent_id: str, sector: str) -> int:
+        return self.conn.execute(
+            "SELECT COUNT(*) AS n FROM positions WHERE agent_id = ? AND status = 'OPEN' AND sector = ?",
+            (agent_id, sector),
+        ).fetchone()["n"]
+
     def _decision_already_processed(self, decision) -> bool:
         if self.conn.execute(
             "SELECT 1 FROM pending_orders WHERE decision_id = ? LIMIT 1", (decision["id"],)
@@ -124,8 +139,7 @@ class Broker:
             return True
         # ADJUST creates no order row; its idempotency marker is the activity_log entry.
         rows = self.conn.execute(
-            "SELECT metadata_json FROM activity_log WHERE event_type = 'ADJUSTED' "
-            "AND agent_id = ? AND ticker = ?",
+            "SELECT metadata_json FROM activity_log WHERE event_type = 'ADJUSTED' AND agent_id = ? AND ticker = ?",
             (decision["agent_id"], decision["ticker"]),
         ).fetchall()
         for row in rows:
@@ -158,7 +172,14 @@ class Broker:
             """
             SELECT d.*, w.intensity_score AS watchlist_intensity
             FROM decisions d
-            LEFT JOIN agent_watchlist w ON (w.agent_id = d.agent_id OR (d.agent_id = 'baseline-simons-rules' AND w.agent_id = 'simons')) AND w.ticker = d.ticker
+            LEFT JOIN agent_watchlist w ON (
+                w.agent_id = d.agent_id
+                OR (d.agent_id = 'baseline-simons-rules' AND w.agent_id = 'simons')
+                OR (d.agent_id = 'baseline-varsity-rules' AND w.agent_id = 'varsity')
+                OR (d.agent_id = 'baseline-lynch-rules' AND w.agent_id = 'lynch')
+                OR (d.agent_id = 'baseline-marks-rules' AND w.agent_id = 'marks')
+                OR (d.agent_id = 'baseline-rj-rules' AND w.agent_id = 'jhunjhunwala')
+            ) AND w.ticker = d.ticker
             WHERE d.agent_id = ? AND d.run_date = ?
             ORDER BY
                 CASE d.action WHEN 'ADJUST' THEN 0 WHEN 'SELL' THEN 1 WHEN 'BUY' THEN 2 ELSE 3 END,
@@ -200,13 +221,28 @@ class Broker:
                  valid_for_date, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 'rejected', ?, ?, ?, ?)
             """,
-            (decision["agent_id"], decision["ticker"], side, decision["shares"] or 0,
-             decision["entry_low_paise"], decision["entry_high_paise"], decision["stop_paise"],
-             decision["target_paise"], decision["id"], reason, valid_for_date, now, now),
+            (
+                decision["agent_id"],
+                decision["ticker"],
+                side,
+                decision["shares"] or 0,
+                decision["entry_low_paise"],
+                decision["entry_high_paise"],
+                decision["stop_paise"],
+                decision["target_paise"],
+                decision["id"],
+                reason,
+                valid_for_date,
+                now,
+                now,
+            ),
         )
         self._log_activity(
-            decision["agent_id"], "VALIDATION_FAILED", decision["ticker"],
-            f"{side} rejected: {reason}", {"decision_id": decision["id"], "reason": reason},
+            decision["agent_id"],
+            "VALIDATION_FAILED",
+            decision["ticker"],
+            f"{side} rejected: {reason}",
+            {"decision_id": decision["id"], "reason": reason},
         )
 
     def _process_buy(self, decision, valid_for_date: str) -> bool:
@@ -216,7 +252,8 @@ class Broker:
         stop, target = decision["stop_paise"], decision["target_paise"]
 
         price_logic_ok = (
-            shares is not None and shares >= 1
+            shares is not None
+            and shares >= 1
             and None not in (stop, entry_low, entry_high, target)
             and 0 < stop < entry_low <= entry_high < target
         )
@@ -242,12 +279,26 @@ class Broker:
                  created_at, updated_at)
             VALUES (?, ?, 'BUY', ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
             """,
-            (agent_id, ticker, shares, entry_low, entry_high, stop, target, outlay,
-             decision["id"], valid_for_date, now, now),
+            (
+                agent_id,
+                ticker,
+                shares,
+                entry_low,
+                entry_high,
+                stop,
+                target,
+                outlay,
+                decision["id"],
+                valid_for_date,
+                now,
+                now,
+            ),
         )
         order_id = self.conn.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
         self._log_activity(
-            agent_id, "ORDER_SUBMITTED", ticker,
+            agent_id,
+            "ORDER_SUBMITTED",
+            ticker,
             f"BUY {shares} {ticker} reserved={outlay}",
             {"decision_id": decision["id"], "order_id": order_id, "reserved_amount_paise": outlay},
         )
@@ -262,31 +313,57 @@ class Broker:
         if account_value <= 0:
             return
 
+        try:
+            from agents.personas import get_persona
+
+            persona = get_persona(agent_id)
+        except Exception:
+            persona = None
+
+        target_risk_pct = (
+            getattr(persona, "target_risk_pct", settings.MAX_RISK_PCT_PER_TRADE)
+            if persona
+            else settings.MAX_RISK_PCT_PER_TRADE
+        )
+        max_pos_pct = (
+            getattr(persona, "max_position_pct", settings.MAX_POSITION_PCT_OF_ACCOUNT)
+            if persona
+            else settings.MAX_POSITION_PCT_OF_ACCOUNT
+        )
+        max_pos = (
+            getattr(persona, "max_open_positions", settings.MAX_OPEN_POSITIONS_PER_AGENT)
+            if persona
+            else settings.MAX_OPEN_POSITIONS_PER_AGENT
+        )
+        sector_cap = (
+            getattr(persona, "sector_cap", settings.SECTOR_CAP_PER_AGENT) if persona else settings.SECTOR_CAP_PER_AGENT
+        )
+
         risk_pct = shares * (entry_high_paise - stop_paise) / account_value * 100
-        if risk_pct > settings.MAX_RISK_PCT_PER_TRADE:
-            self._log_cap_breach(agent_id, ticker, "RISK_PCT", risk_pct, settings.MAX_RISK_PCT_PER_TRADE, decision["id"])
+        if risk_pct > target_risk_pct:
+            self._log_cap_breach(agent_id, ticker, "RISK_PCT", risk_pct, target_risk_pct, decision["id"])
 
         position_value = shares * entry_high_paise
         position_pct = position_value / account_value * 100
-        if position_pct > settings.MAX_POSITION_PCT_OF_ACCOUNT:
-            self._log_cap_breach(agent_id, ticker, "POSITION_PCT", position_pct, settings.MAX_POSITION_PCT_OF_ACCOUNT, decision["id"])
+        if position_pct > max_pos_pct:
+            self._log_cap_breach(agent_id, ticker, "POSITION_PCT", position_pct, max_pos_pct, decision["id"])
 
         sector = self._sector_for_ticker(ticker)
         sector_value_after = self._sector_value_paise(agent_id, sector) + position_value
         sector_pct = sector_value_after / account_value * 100
         if sector_pct > settings.MAX_SECTOR_PCT_OF_ACCOUNT:
-            self._log_cap_breach(agent_id, ticker, "SECTOR_PCT", sector_pct, settings.MAX_SECTOR_PCT_OF_ACCOUNT, decision["id"])
+            self._log_cap_breach(
+                agent_id, ticker, "SECTOR_PCT", sector_pct, settings.MAX_SECTOR_PCT_OF_ACCOUNT, decision["id"]
+            )
 
         already_held = self._get_open_position(agent_id, ticker) is not None
         position_count_after = self._open_position_count(agent_id) + (0 if already_held else 1)
-        try:
-            from agents.personas import get_persona
-            persona = get_persona(agent_id)
-            max_pos = getattr(persona, "max_open_positions", settings.MAX_OPEN_POSITIONS_PER_AGENT)
-        except Exception:
-            max_pos = settings.MAX_OPEN_POSITIONS_PER_AGENT
         if position_count_after > max_pos:
             self._log_cap_breach(agent_id, ticker, "MAX_POSITIONS", position_count_after, max_pos, decision["id"])
+
+        sector_count_after = self._open_sector_position_count(agent_id, sector) + (0 if already_held else 1)
+        if sector_count_after > sector_cap:
+            self._log_cap_breach(agent_id, ticker, "SECTOR_CAP", sector_count_after, sector_cap, decision["id"])
 
     def _process_sell(self, decision, valid_for_date: str) -> bool:
         agent_id, ticker = decision["agent_id"], decision["ticker"]
@@ -306,12 +383,24 @@ class Broker:
                  created_at, updated_at)
             VALUES (?, ?, 'SELL', ?, NULL, NULL, ?, ?, 0, ?, 'pending', ?, ?, ?)
             """,
-            (agent_id, ticker, position["shares"], position["stop_paise"], position["target_paise"],
-             decision["id"], valid_for_date, now, now),
+            (
+                agent_id,
+                ticker,
+                position["shares"],
+                position["stop_paise"],
+                position["target_paise"],
+                decision["id"],
+                valid_for_date,
+                now,
+                now,
+            ),
         )
         order_id = self.conn.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
         self._log_activity(
-            agent_id, "ORDER_SUBMITTED", ticker, f"SELL {position['shares']} {ticker}",
+            agent_id,
+            "ORDER_SUBMITTED",
+            ticker,
+            f"SELL {position['shares']} {ticker}",
             {"decision_id": decision["id"], "order_id": order_id},
         )
         return True
@@ -321,7 +410,10 @@ class Broker:
         position = self._get_open_position(agent_id, ticker)
         if position is None:
             self._log_activity(
-                agent_id, "VALIDATION_FAILED", ticker, "ADJUST rejected: no open position",
+                agent_id,
+                "VALIDATION_FAILED",
+                ticker,
+                "ADJUST rejected: no open position",
                 {"decision_id": decision["id"], "reason": "NO_OPEN_POSITION"},
             )
             return False
@@ -331,7 +423,10 @@ class Broker:
 
         if settings.STOP_MAY_ONLY_RISE and new_stop < position["stop_paise"]:
             self._log_activity(
-                agent_id, "VALIDATION_FAILED", ticker, "ADJUST rejected: stop may only rise",
+                agent_id,
+                "VALIDATION_FAILED",
+                ticker,
+                "ADJUST rejected: stop may only rise",
                 {"decision_id": decision["id"], "reason": "STOP_MAY_NOT_FALL"},
             )
             return False
@@ -339,7 +434,9 @@ class Broker:
         last_price = position["last_price_paise"]
         if not (new_stop < last_price < new_target):
             self._log_activity(
-                agent_id, "VALIDATION_FAILED", ticker,
+                agent_id,
+                "VALIDATION_FAILED",
+                ticker,
                 "ADJUST rejected: stop/target must bracket last price",
                 {"decision_id": decision["id"], "reason": "INVALID_ADJUST_PRICES"},
             )
@@ -350,9 +447,16 @@ class Broker:
             (new_stop, new_target, position["id"]),
         )
         self._log_activity(
-            agent_id, "ADJUSTED", ticker, f"stop={new_stop} target={new_target}",
-            {"decision_id": decision["id"], "position_id": position["id"],
-             "new_stop_paise": new_stop, "new_target_paise": new_target},
+            agent_id,
+            "ADJUSTED",
+            ticker,
+            f"stop={new_stop} target={new_target}",
+            {
+                "decision_id": decision["id"],
+                "position_id": position["id"],
+                "new_stop_paise": new_stop,
+                "new_target_paise": new_target,
+            },
         )
         return True
 
@@ -386,19 +490,55 @@ class Broker:
                 decision = self.conn.execute(
                     "SELECT reasoning FROM decisions WHERE id = ?", (order["decision_id"],)
                 ).fetchone()
-                self.conn.execute(
-                    """
-                    INSERT INTO positions
-                        (agent_id, ticker, sector, shares, avg_entry_price_paise, stop_paise,
-                         target_paise, last_price_paise, status, entry_date, entry_decision_id,
-                         entry_reasoning)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, ?)
-                    """,
-                    (order["agent_id"], order["ticker"], sector, order["shares"], fill_price,
-                     order["stop_paise"], order["target_paise"], fill_price,
-                     self.clock.today().isoformat(), order["decision_id"],
-                     decision["reasoning"] if decision else None),
-                )
+                pos_cols = {r["name"] for r in self.conn.execute("PRAGMA table_info(positions)").fetchall()}
+                if "initial_stop_paise" in pos_cols and "peak_price_paise" in pos_cols:
+                    self.conn.execute(
+                        """
+                        INSERT INTO positions
+                            (agent_id, ticker, sector, shares, avg_entry_price_paise, stop_paise,
+                             target_paise, last_price_paise, status, entry_date, entry_decision_id,
+                             entry_reasoning, initial_stop_paise, peak_price_paise)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            order["agent_id"],
+                            order["ticker"],
+                            sector,
+                            order["shares"],
+                            fill_price,
+                            order["stop_paise"],
+                            order["target_paise"],
+                            fill_price,
+                            self.clock.today().isoformat(),
+                            order["decision_id"],
+                            decision["reasoning"] if decision else None,
+                            order["stop_paise"],
+                            fill_price,
+                        ),
+                    )
+                else:
+                    self.conn.execute(
+                        """
+                        INSERT INTO positions
+                            (agent_id, ticker, sector, shares, avg_entry_price_paise, stop_paise,
+                             target_paise, last_price_paise, status, entry_date, entry_decision_id,
+                             entry_reasoning)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, ?)
+                        """,
+                        (
+                            order["agent_id"],
+                            order["ticker"],
+                            sector,
+                            order["shares"],
+                            fill_price,
+                            order["stop_paise"],
+                            order["target_paise"],
+                            fill_price,
+                            self.clock.today().isoformat(),
+                            order["decision_id"],
+                            decision["reasoning"] if decision else None,
+                        ),
+                    )
                 position_id = self.conn.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
             else:
                 position_id = existing["id"]
@@ -424,9 +564,16 @@ class Broker:
                 (cost, now, order["agent_id"]),
             )
             self._log_activity(
-                order["agent_id"], "BUY_FILLED", order["ticker"],
+                order["agent_id"],
+                "BUY_FILLED",
+                order["ticker"],
                 f"BUY {order['shares']} {order['ticker']} @ {fill_price} charges={charges}",
-                {"order_id": order_id, "position_id": position_id, "fill_price_paise": fill_price, "charges_paise": charges},
+                {
+                    "order_id": order_id,
+                    "position_id": position_id,
+                    "fill_price_paise": fill_price,
+                    "charges_paise": charges,
+                },
             )
             self.conn.execute("COMMIT")
             return True
@@ -473,8 +620,9 @@ class Broker:
             self.conn.execute("ROLLBACK")
             raise
 
-    def _close_position_core(self, position, market_price_paise: int, exit_reason: str,
-                              order_id: Optional[int], now: str) -> None:
+    def _close_position_core(
+        self, position, market_price_paise: int, exit_reason: str, order_id: int | None, now: str
+    ) -> None:
         fill_price = apply_slippage(market_price_paise, "SELL")
         charges = compute_transaction_charges_paise(fill_price, position["shares"], "SELL")
         proceeds = position["shares"] * fill_price - charges
@@ -482,7 +630,16 @@ class Broker:
         self.conn.execute(
             "INSERT INTO fills (order_id, position_id, agent_id, ticker, side, shares, "
             "price_paise, charges_paise, executed_at) VALUES (?, ?, ?, ?, 'SELL', ?, ?, ?, ?)",
-            (order_id, position["id"], position["agent_id"], position["ticker"], position["shares"], fill_price, charges, now),
+            (
+                order_id,
+                position["id"],
+                position["agent_id"],
+                position["ticker"],
+                position["shares"],
+                fill_price,
+                charges,
+                now,
+            ),
         )
         self.conn.execute(
             "UPDATE agents SET cash_paise = cash_paise + ?, updated_at = ? WHERE id = ?",
@@ -508,8 +665,16 @@ class Broker:
                 last_price_paise = ?
             WHERE id = ?
             """,
-            (exit_date.isoformat(), fill_price, exit_reason, hold_days, realized_pnl_paise,
-             realized_pnl_pct, fill_price, position["id"]),
+            (
+                exit_date.isoformat(),
+                fill_price,
+                exit_reason,
+                hold_days,
+                realized_pnl_paise,
+                realized_pnl_pct,
+                fill_price,
+                position["id"],
+            ),
         )
         # A stop-hit (or any other close) cancels a still-pending agent SELL for the same ticker.
         self.conn.execute(
@@ -520,10 +685,16 @@ class Broker:
 
         event_type = "STOP_HIT" if exit_reason == "STOP_HIT" else "SELL_FILLED"
         self._log_activity(
-            position["agent_id"], event_type, position["ticker"],
+            position["agent_id"],
+            event_type,
+            position["ticker"],
             f"Closed {position['shares']} {position['ticker']} @ {fill_price}, pnl={realized_pnl_paise}",
-            {"position_id": position["id"], "exit_reason": exit_reason,
-             "realized_pnl_paise": realized_pnl_paise, "realized_pnl_pct": round(realized_pnl_pct, 4)},
+            {
+                "position_id": position["id"],
+                "exit_reason": exit_reason,
+                "realized_pnl_paise": realized_pnl_paise,
+                "realized_pnl_pct": round(realized_pnl_pct, 4),
+            },
         )
         self.on_position_closed(position["id"])
 
@@ -552,12 +723,13 @@ class Broker:
         )
         if cur.rowcount == 0:
             return False
-        order = self.conn.execute(
-            "SELECT agent_id, ticker FROM pending_orders WHERE id = ?", (order_id,)
-        ).fetchone()
+        order = self.conn.execute("SELECT agent_id, ticker FROM pending_orders WHERE id = ?", (order_id,)).fetchone()
         event_type = "ORDER_EXPIRED" if reason == "EXPIRED" else "ORDER_CANCELLED"
         self._log_activity(
-            order["agent_id"], event_type, order["ticker"], f"Order {order_id} cancelled: {reason}",
+            order["agent_id"],
+            event_type,
+            order["ticker"],
+            f"Order {order_id} cancelled: {reason}",
             {"order_id": order_id, "reason": reason},
         )
         return True

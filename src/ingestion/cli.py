@@ -2,6 +2,7 @@
 Ingestion entry point run nightly at 20:00 IST; orchestrates OHLCV, fundamentals, news and macro syncs.
 See Plan_v3 §1.4.
 """
+
 import argparse
 import logging
 import sqlite3
@@ -9,20 +10,22 @@ from datetime import date
 
 from core.calendar import is_trading_day
 from core.clock import Clock, SystemClock
+from core.config import settings
 from core.database import get_connection
 from ingestion.sync_fundamentals import run as sync_fundamentals
 from ingestion.sync_macro import sync_macro
 from ingestion.sync_news import sync_news
 from ingestion.sync_ohlcv import sync_ohlcv
 from ingestion.upstox_client import UpstoxClient
-from settings import settings
 
 logger = logging.getLogger(__name__)
 
 JOB_NAME = "ingestion"
 
 
-def _upsert_terminal_run(conn: sqlite3.Connection, run_date_str: str, status: str, clock: Clock, detail: str = None) -> None:
+def _upsert_terminal_run(
+    conn: sqlite3.Connection, run_date_str: str, status: str, clock: Clock, detail: str = None
+) -> None:
     """One-shot run that starts and finishes at once (used for SKIPPED_HOLIDAY)."""
     now = clock.now_iso()
     conn.execute(
@@ -56,10 +59,17 @@ def _finish_run(conn: sqlite3.Connection, run_date_str: str, status: str, clock:
     )
 
 
-def run(clock: Clock = None, client=None, date_str: str = None, limit: int = None,
-        portfolio_conn: sqlite3.Connection = None, ohlcv_conn: sqlite3.Connection = None,
-        macro_conn: sqlite3.Connection = None, news_conn: sqlite3.Connection = None,
-        fundamental_conn: sqlite3.Connection = None) -> str:
+def run(
+    clock: Clock = None,
+    client=None,
+    date_str: str = None,
+    limit: int = None,
+    portfolio_conn: sqlite3.Connection = None,
+    ohlcv_conn: sqlite3.Connection = None,
+    macro_conn: sqlite3.Connection = None,
+    news_conn: sqlite3.Connection = None,
+    fundamental_conn: sqlite3.Connection = None,
+) -> str:
     """Runs one ingestion pass for the given date (default clock.today()). Returns the final
     pipeline_runs status: SKIPPED_HOLIDAY, SUCCESS or FAILED."""
     clock = clock or SystemClock()
@@ -67,6 +77,7 @@ def run(clock: Clock = None, client=None, date_str: str = None, limit: int = Non
     conn = portfolio_conn or get_connection(settings.PORTFOLIO_DB_PATH)
     try:
         from scripts.init_db import init_db
+
         init_db(conn, clock)
 
         run_date: date = date.fromisoformat(date_str) if date_str else clock.today()
@@ -82,6 +93,7 @@ def run(clock: Clock = None, client=None, date_str: str = None, limit: int = Non
             # Refresh holiday calendar dynamically per Plan_v3 §1.5
             try:
                 from core.calendar import seed_calendar
+
                 seed_calendar(run_client, conn)
             except Exception:
                 pass  # Non-blocking if Upstox holiday endpoint is unreachable
@@ -98,7 +110,14 @@ def run(clock: Clock = None, client=None, date_str: str = None, limit: int = Non
             except Exception as fund_err:
                 logger.warning("Fundamental sync encountered an error: %s", fund_err)
 
-            sync_macro(run_client, clock, macro_conn=macro_conn, portfolio_conn=conn, as_of_date=run_date_str, ohlcv_conn=ohlcv_conn)
+            sync_macro(
+                run_client,
+                clock,
+                macro_conn=macro_conn,
+                portfolio_conn=conn,
+                as_of_date=run_date_str,
+                ohlcv_conn=ohlcv_conn,
+            )
             sync_news(run_client, clock, news_conn=news_conn, portfolio_conn=conn, limit=limit)
         except Exception as exc:  # noqa: BLE001 - a failed nightly job must still write FAILED, not crash the process
             _finish_run(conn, run_date_str, "FAILED", clock, detail=str(exc)[:500])
@@ -109,7 +128,6 @@ def run(clock: Clock = None, client=None, date_str: str = None, limit: int = Non
     finally:
         if owns_conn:
             conn.close()
-
 
 
 def main() -> None:

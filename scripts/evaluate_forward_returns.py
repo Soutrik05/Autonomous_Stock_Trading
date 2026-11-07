@@ -4,6 +4,7 @@ Evaluates:
 1. Decision Forward Returns (T+1, T+5, T+10, T+18) for all decision candidates vs Nifty 500
 2. Multi-day Portfolio NAV Trajectory & Position Lifecycle day-by-day across the full month
 """
+
 import argparse
 import sys
 from datetime import date, datetime
@@ -17,10 +18,10 @@ if str(WORKSPACE_ROOT) not in sys.path:
 from broker.engine import Broker
 from broker.settlement import run_settlement
 from core.clock import Clock
+from core.config import settings
 from core.database import get_connection
 from core.money import paise_to_rupees, rupees_to_paise
 from evaluation.forward_returns import compute_forward_returns, get_forward_trading_dates, get_universe_mean_return
-from settings import settings
 
 IST = ZoneInfo("Asia/Kolkata")
 
@@ -108,41 +109,55 @@ def main() -> None:
 
     print("\n" + "=" * 90)
     print(f"DECISION FORWARD RETURNS TABLE (Base Date: {decision_date})")
-    print(f"Horizons: T+1 ({forward_dates[0]}), T+5 ({forward_dates[4]}), T+10 ({forward_dates[9]}), T+{last_h} ({forward_dates[last_h-1]})")
+    print(
+        f"Horizons: T+1 ({forward_dates[0]}), T+5 ({forward_dates[4]}), T+10 ({forward_dates[9]}), T+{last_h} ({forward_dates[last_h - 1]})"
+    )
     print("=" * 90)
-    print(f"{'Agent ID':<18} {'Action':<5} {'Ticker':<12} {'T+1 Ret %':<11} {'T+5 Ret %':<11} {'T+10 Ret %':<12} {f'T+{last_h} Ret %':<13} {'T+18 Alpha'}")
+    print(
+        f"{'Agent ID':<18} {'Action':<5} {'Ticker':<12} {'T+1 Ret %':<11} {'T+5 Ret %':<11} {'T+10 Ret %':<12} {f'T+{last_h} Ret %':<13} {'T+18 Alpha'}"
+    )
     print("-" * 90)
 
     buy_returns = {1: [], 5: [], 10: [], last_h: []}
     hold_returns = {1: [], 5: [], 10: [], last_h: []}
 
     for r in rows:
-        t1_str = f"{r['ret_t1']:>+7.2f}%" if r['ret_t1'] is not None else "    N/A"
-        t5_str = f"{r['ret_t5']:>+7.2f}%" if r['ret_t5'] is not None else "    N/A"
-        t10_str = f"{r['ret_t10']:>+7.2f}%" if r['ret_t10'] is not None else "    N/A"
-        tL_str = f"{r['ret_tL']:>+7.2f}%" if r['ret_tL'] is not None else "    N/A"
-        
+        t1_str = f"{r['ret_t1']:>+7.2f}%" if r["ret_t1"] is not None else "    N/A"
+        t5_str = f"{r['ret_t5']:>+7.2f}%" if r["ret_t5"] is not None else "    N/A"
+        t10_str = f"{r['ret_t10']:>+7.2f}%" if r["ret_t10"] is not None else "    N/A"
+        tL_str = f"{r['ret_tL']:>+7.2f}%" if r["ret_tL"] is not None else "    N/A"
+
         alpha_str = "    N/A"
-        if r['ret_tL'] is not None and r['nifty_tL'] is not None:
-            alpha = r['ret_tL'] - r['nifty_tL']
+        if r["ret_tL"] is not None and r["nifty_tL"] is not None:
+            alpha = r["ret_tL"] - r["nifty_tL"]
             alpha_str = f"{alpha:>+8.2f}%"
 
-        if r['action'] == 'BUY':
-            if r['ret_t1'] is not None: buy_returns[1].append(r['ret_t1'])
-            if r['ret_t5'] is not None: buy_returns[5].append(r['ret_t5'])
-            if r['ret_t10'] is not None: buy_returns[10].append(r['ret_t10'])
-            if r['ret_tL'] is not None: buy_returns[last_h].append(r['ret_tL'])
+        if r["action"] == "BUY":
+            if r["ret_t1"] is not None:
+                buy_returns[1].append(r["ret_t1"])
+            if r["ret_t5"] is not None:
+                buy_returns[5].append(r["ret_t5"])
+            if r["ret_t10"] is not None:
+                buy_returns[10].append(r["ret_t10"])
+            if r["ret_tL"] is not None:
+                buy_returns[last_h].append(r["ret_tL"])
         else:
-            if r['ret_t1'] is not None: hold_returns[1].append(r['ret_t1'])
-            if r['ret_t5'] is not None: hold_returns[5].append(r['ret_t5'])
-            if r['ret_t10'] is not None: hold_returns[10].append(r['ret_t10'])
-            if r['ret_tL'] is not None: hold_returns[last_h].append(r['ret_tL'])
+            if r["ret_t1"] is not None:
+                hold_returns[1].append(r["ret_t1"])
+            if r["ret_t5"] is not None:
+                hold_returns[5].append(r["ret_t5"])
+            if r["ret_t10"] is not None:
+                hold_returns[10].append(r["ret_t10"])
+            if r["ret_tL"] is not None:
+                hold_returns[last_h].append(r["ret_tL"])
 
-        print(f"{r['agent_id']:<18} {r['action']:<5} {r['ticker']:<12} {t1_str:<11} {t5_str:<11} {t10_str:<12} {tL_str:<13} {alpha_str}")
+        print(
+            f"{r['agent_id']:<18} {r['action']:<5} {r['ticker']:<12} {t1_str:<11} {t5_str:<11} {t10_str:<12} {tL_str:<13} {alpha_str}"
+        )
 
     print("-" * 90)
     # Benchmark Row
-    if rows and rows[0]['nifty_t1'] is not None:
+    if rows and rows[0]["nifty_t1"] is not None:
         b_t1 = f"{rows[0]['nifty_t1']:>+7.2f}%"
         b_t5 = f"{rows[0]['nifty_t5']:>+7.2f}%"
         b_t10 = f"{rows[0]['nifty_t10']:>+7.2f}%"
@@ -230,7 +245,9 @@ def main() -> None:
         daily_trajectory.append((current_date, nifty_ret, nav_map))
 
     # Print Daily Trajectory Summary Table
-    print(f"{'Date':<12} {'Nifty %':<10} {'Simons %':<11} {'Lynch %':<11} {'Marks %':<11} {'Jhunjhunwala %':<15} {'StockMinds-Core %':<18} {'Rules Baseline %'}")
+    print(
+        f"{'Date':<12} {'Nifty %':<10} {'Simons %':<11} {'Lynch %':<11} {'Marks %':<11} {'Jhunjhunwala %':<15} {'StockMinds-Core %':<18} {'Rules Baseline %'}"
+    )
     print("-" * 105)
 
     sample_dates = daily_trajectory[::2]  # every other day
@@ -245,20 +262,30 @@ def main() -> None:
         core_ret = n_map.get("varsity", (0, 0.0))[1]
         base_ret = n_map.get("baseline-simons-rules", (0, 0.0))[1]
 
-        print(f"{d_str:<12} {n_ret:>+7.2f}%   {sim_ret:>+8.2f}%   {lyn_ret:>+8.2f}%   {mar_ret:>+8.2f}%   {jhun_ret:>+10.2f}%      {core_ret:>+12.2f}%       {base_ret:>+10.2f}%")
+        print(
+            f"{d_str:<12} {n_ret:>+7.2f}%   {sim_ret:>+8.2f}%   {lyn_ret:>+8.2f}%   {mar_ret:>+8.2f}%   {jhun_ret:>+10.2f}%      {core_ret:>+12.2f}%       {base_ret:>+10.2f}%"
+        )
 
     # 4. Final Cumulative Summary
     print("\n" + "=" * 90)
     print("CUMULATIVE PERFORMANCE METRICS (Full Month to Oct 23, 2026)")
     print("=" * 90)
-    print(f"{'Agent ID':<22} {'Initial NAV':<14} {'Final NAV (Rs)':<16} {'Total Ret %':<12} {'Open Pos':<10} {'Closed Pos':<10}")
+    print(
+        f"{'Agent ID':<22} {'Initial NAV':<14} {'Final NAV (Rs)':<16} {'Total Ret %':<12} {'Open Pos':<10} {'Closed Pos':<10}"
+    )
     print("-" * 90)
 
     for a_id in sorted(agent_ids, key=lambda x: daily_trajectory[-1][2].get(x, (0, 0))[1], reverse=True):
         final_nav, final_ret = daily_trajectory[-1][2].get(a_id, (1000000.0, 0.0))
-        open_cnt = sim_conn.execute("SELECT count(*) FROM positions WHERE agent_id = ? AND status = 'OPEN'", (a_id,)).fetchone()[0]
-        closed_cnt = sim_conn.execute("SELECT count(*) FROM positions WHERE agent_id = ? AND status = 'CLOSED'", (a_id,)).fetchone()[0]
-        print(f"{a_id:<22} Rs 10,00,000   Rs {final_nav:>12,.2f}   {final_ret:>+8.2f}%     {open_cnt:<10} {closed_cnt:<10}")
+        open_cnt = sim_conn.execute(
+            "SELECT count(*) FROM positions WHERE agent_id = ? AND status = 'OPEN'", (a_id,)
+        ).fetchone()[0]
+        closed_cnt = sim_conn.execute(
+            "SELECT count(*) FROM positions WHERE agent_id = ? AND status = 'CLOSED'", (a_id,)
+        ).fetchone()[0]
+        print(
+            f"{a_id:<22} Rs 10,00,000   Rs {final_nav:>12,.2f}   {final_ret:>+8.2f}%     {open_cnt:<10} {closed_cnt:<10}"
+        )
 
     final_nifty = daily_trajectory[-1][1]
     print(f"{'[NIFTY 500 BENCHMARK]':<38} {final_nifty:>+8.2f}%")

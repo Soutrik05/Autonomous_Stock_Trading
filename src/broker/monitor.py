@@ -2,19 +2,19 @@
 Stateless monitor: one poll per run against pending-order and open-position tickers, applies fill rules.
 See Plan_v3 §4.3, §4.4.
 """
+
 import argparse
-import json
 import logging
-from decimal import Decimal, ROUND_HALF_UP
-from typing import Optional
+from decimal import ROUND_HALF_UP, Decimal
 
 from broker.engine import Broker
 from broker.quotes import LiveQuoteProvider
+from broker.trailing import compute_graduated_stop
 from core.calendar import is_trading_day
 from core.clock import Clock, SystemClock
+from core.config import settings
 from core.database import get_connection
 from core.interfaces import QuoteProvider
-from settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ def poll_once(
     portfolio_conn,
     clock: Clock,
     quote_provider: QuoteProvider,
-    run_date_str: Optional[str] = None,
+    run_date_str: str | None = None,
 ) -> dict:
     """Executes a single stateless monitor poll over pending orders and open positions."""
     today = clock.today()
@@ -97,10 +97,23 @@ def poll_once(
                 continue
 
             # Stop-loss check
-            if price <= pos["stop_paise"]:
-                if broker.close_position(pos["id"], price, "STOP_HIT"):
-                    summary["stops_hit"] += 1
-                continue
+            if pos["stop_paise"] and price <= pos["stop_paise"]:
+                is_long_horizon = pos["agent_id"] in (
+                    "jhunjhunwala",
+                    "baseline-rj-rules",
+                    "lynch",
+                    "baseline-lynch-rules",
+                    "marks",
+                    "baseline-marks-rules",
+                )
+                now_dt = clock.now()
+                is_closing_window = (now_dt.hour == 15 and now_dt.minute >= 15) or now_dt.hour > 15
+                severe_crash = price <= int(pos["stop_paise"] * 0.90)
+
+                if (not is_long_horizon) or is_closing_window or severe_crash:
+                    if broker.close_position(pos["id"], price, "STOP_HIT"):
+                        summary["stops_hit"] += 1
+                    continue
 
             # Target check (soft signal, logged at most once per position per day)
             if price >= pos["target_paise"]:
@@ -123,6 +136,33 @@ def poll_once(
                     )
                     summary["targets_reached"] += 1
 
+            # (a.3) Broker-Level Graduated Trailing Stop Protection
+            pos_keys = pos.keys()
+            initial_stop = pos["initial_stop_paise"] if "initial_stop_paise" in pos_keys else None
+            stored_peak = (
+                pos["peak_price_paise"]
+                if ("peak_price_paise" in pos_keys and pos["peak_price_paise"])
+                else pos["avg_entry_price_paise"]
+            )
+            new_peak = max(stored_peak, price)
+            candidate_stop = compute_graduated_stop(
+                avg_entry_price_paise=pos["avg_entry_price_paise"],
+                current_stop_paise=pos["stop_paise"],
+                initial_stop_paise=initial_stop,
+                peak_price_paise=new_peak,
+            )
+            if candidate_stop > pos["stop_paise"]:
+                if "peak_price_paise" in pos_keys:
+                    portfolio_conn.execute(
+                        "UPDATE positions SET stop_paise = ?, peak_price_paise = ? WHERE id = ?",
+                        (candidate_stop, new_peak, pos["id"]),
+                    )
+                else:
+                    portfolio_conn.execute(
+                        "UPDATE positions SET stop_paise = ? WHERE id = ?",
+                        (candidate_stop, pos["id"]),
+                    )
+
         # (b) Check pending orders for this ticker
         orders_for_ticker = portfolio_conn.execute(
             "SELECT * FROM pending_orders WHERE ticker = ? AND status = 'pending' AND valid_for_date <= ?",
@@ -136,18 +176,19 @@ def poll_once(
                 if broker.fill_sell(order["id"], price):
                     summary["sells_filled"] += 1
             elif side == "BUY":
-                stop_paise = order["stop_paise"]
-                entry_low = order["entry_low_paise"]
+                stop_paise = order["stop_paise"] or 0
                 entry_high_overshoot = _entry_high_with_overshoot_paise(order["entry_high_paise"])
 
-                if price <= stop_paise:
+                if stop_paise > 0 and price <= stop_paise:
                     # Crash cancellation: price hit stop before filling
                     if broker.cancel_order(order["id"], "CRASH_CANCELLED"):
                         summary["crashes_cancelled"] += 1
-                elif entry_low <= price <= entry_high_overshoot:
+                elif price <= entry_high_overshoot:
+                    # Exchange limit buy mechanics: fill at prevailing price when price <= limit high
+                    # (provides price improvement on gap-downs below entry_low)
                     if broker.fill_buy(order["id"], price):
                         summary["buys_filled"] += 1
-                # Otherwise, price is either below entry_low (waiting) or above overshoot (waiting)
+                # Otherwise, price is above overshoot (waiting)
 
     return summary
 

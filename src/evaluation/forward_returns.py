@@ -2,18 +2,17 @@
 Nightly job that backfills each decision's forward return and the Nifty 500 forward return per horizon.
 See Plan_v3 §5.3.
 """
+
 import logging
 import sqlite3
-from typing import Dict, List, Optional, Tuple
 
 from core.clock import Clock, SystemClock
-from core.database import get_connection
-from settings import settings
+from core.config import settings
 
 logger = logging.getLogger(__name__)
 
 
-def get_forward_trading_dates(ohlcv_conn: sqlite3.Connection, start_date: str, min_coverage: int = 200) -> List[str]:
+def get_forward_trading_dates(ohlcv_conn: sqlite3.Connection, start_date: str, min_coverage: int = 200) -> list[str]:
     """Returns sorted unique trading dates strictly after start_date having sufficient market volume/coverage."""
     rows = ohlcv_conn.execute(
         """
@@ -45,8 +44,8 @@ def get_universe_mean_return(ohlcv_conn: sqlite3.Connection, start_date: str, en
 def compute_forward_returns(
     portfolio_conn: sqlite3.Connection,
     ohlcv_conn: sqlite3.Connection,
-    clock: Optional[Clock] = None,
-    horizons: Optional[List[int]] = None,
+    clock: Clock | None = None,
+    horizons: list[int] | None = None,
     min_date_coverage: int = 200,
 ) -> dict:
     """
@@ -57,21 +56,43 @@ def compute_forward_returns(
     now_iso = clock.now_iso()
     horizons = horizons or getattr(settings, "FORWARD_HORIZONS", [1, 5, 10, 20])
 
-    # Fetch all decisions that have not been computed for all horizons
+    # Fetch only decisions that do not yet have all horizons computed
     decisions = portfolio_conn.execute(
         """
-        SELECT id, run_date, ticker, agent_id, action
-        FROM decisions
-        ORDER BY run_date ASC, id ASC
-        """
+        SELECT d.id, d.run_date, d.ticker, d.agent_id, d.action
+        FROM decisions d
+        LEFT JOIN (
+            SELECT decision_id, COUNT(*) AS computed_count
+            FROM forward_returns
+            GROUP BY decision_id
+        ) fr ON d.id = fr.decision_id
+        WHERE fr.computed_count IS NULL OR fr.computed_count < ?
+        ORDER BY d.run_date ASC, d.id ASC
+        """,
+        (len(horizons),),
     ).fetchall()
 
     if not decisions:
         return {"status": "SUCCESS", "decisions_checked": 0, "rows_written": 0}
 
+    cand_ids = [d["id"] for d in decisions]
+    # Fetch all already computed (decision_id, horizon_days) pairs in bulk
+    placeholders = ",".join("?" * len(cand_ids))
+    existing_rows = portfolio_conn.execute(
+        f"SELECT decision_id, horizon_days FROM forward_returns WHERE decision_id IN ({placeholders})",
+        cand_ids,
+    ).fetchall()
+    already_computed = {
+        (
+            r[0] if isinstance(r, (tuple, list)) else r["decision_id"],
+            r[1] if isinstance(r, (tuple, list)) else r["horizon_days"],
+        )
+        for r in existing_rows
+    }
+
     # Cache forward dates per run_date
-    dates_cache: Dict[str, List[str]] = {}
-    benchmark_cache: Dict[Tuple[str, str], float] = {}
+    dates_cache: dict[str, list[str]] = {}
+    benchmark_cache: dict[tuple[str, str], float] = {}
 
     rows_written = 0
     for d in decisions:
@@ -94,11 +115,7 @@ def compute_forward_returns(
 
         for h in horizons:
             # Check if already computed
-            exists = portfolio_conn.execute(
-                "SELECT 1 FROM forward_returns WHERE decision_id = ? AND horizon_days = ?",
-                (did, h),
-            ).fetchone()
-            if exists:
+            if (did, h) in already_computed:
                 continue
 
             # Check if enough forward dates have elapsed

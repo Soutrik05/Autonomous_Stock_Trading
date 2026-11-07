@@ -4,42 +4,29 @@ persona hurdles, the sector cap, TTL lock/expiry, and the review pool — all ag
 databases and fake FeatureSnapshots (no live network, no real OHLCV fetch).
 See Plan_v3 §6.
 """
+
 import json
 import sqlite3
-from datetime import date, timedelta
-from pathlib import Path
+from datetime import date, datetime, timedelta
 
 import pytest
 
 from core.clock import FakeClock
-from datetime import datetime
+from core.config import settings
 from ingestion.sync_ohlcv import ensure_schema as ensure_ohlcv_schema
+from tests.conftest import (
+    make_passing_simons_features,
+    make_portfolio_db,
+)
 from watchlist.watchlist_refresh import (
     compute_sector_percentiles,
     get_review_pool,
     run,
     stage1_filter,
 )
-from settings import settings
-from tests.conftest import (
-    make_canonical_features,
-    make_passing_lynch_features,
-    make_passing_marks_features,
-    make_passing_rj_features,
-    make_passing_simons_features,
-    make_passing_varsity_features,
-)
 
-PORTFOLIO_SCHEMA_PATH = Path(__file__).resolve().parents[2] / "db" / "schema.sql"
 AS_OF = "2026-03-02"
 NOW = "2026-03-02T22:00:00+05:30"
-
-
-def make_portfolio_db() -> sqlite3.Connection:
-    conn = sqlite3.connect(":memory:")
-    conn.row_factory = sqlite3.Row
-    conn.executescript(PORTFOLIO_SCHEMA_PATH.read_text(encoding="utf-8"))
-    return conn
 
 
 def make_ohlcv_db() -> sqlite3.Connection:
@@ -65,7 +52,9 @@ def insert_symbol(conn, ticker, sector="TestSector"):
     )
 
 
-def insert_ohlcv(ohlcv_conn, ticker, as_of=AS_OF, n_days=20, volume=600_000, close=100.0, boost_last_n=0, boost_volume=None):
+def insert_ohlcv(
+    ohlcv_conn, ticker, as_of=AS_OF, n_days=20, volume=600_000, close=100.0, boost_last_n=0, boost_volume=None
+):
     """Writes n_days of daily rows ending at as_of. If boost_last_n > 0, the most recent
     boost_last_n rows use boost_volume instead (to control SMA5 vs SMA20)."""
     end = date.fromisoformat(as_of)
@@ -79,9 +68,7 @@ def insert_ohlcv(ohlcv_conn, ticker, as_of=AS_OF, n_days=20, volume=600_000, clo
 
 
 def set_status(ohlcv_conn, ticker, status="OK"):
-    ohlcv_conn.execute(
-        "INSERT INTO ticker_status (ticker, status, updated_at) VALUES (?, ?, ?)", (ticker, status, NOW)
-    )
+    ohlcv_conn.execute("INSERT INTO ticker_status (ticker, status, updated_at) VALUES (?, ?, ?)", (ticker, status, NOW))
 
 
 def insert_snapshot(portfolio_conn, ticker, features, as_of=AS_OF):
@@ -109,8 +96,9 @@ def seed_qualifying_candidate(portfolio_conn, ohlcv_conn, ticker, sector="TestSe
 
 # --- Stage 0 -------------------------------------------------------------------------------------
 
+
 def test_stage0_excludes_low_turnover_stock():
-    portfolio, ohlcv = make_portfolio_db(), make_ohlcv_db()
+    portfolio, ohlcv = make_portfolio_db(foreign_keys=False), make_ohlcv_db()
     mark_features_success(portfolio)
     seed_qualifying_candidate(portfolio, ohlcv, "GOODVOL")
 
@@ -119,15 +107,20 @@ def test_stage0_excludes_low_turnover_stock():
     set_status(ohlcv, "LOWVOL", "OK")
     insert_snapshot(portfolio, "LOWVOL", passing_simons_features())
 
-    result = run(as_of_date=AS_OF, agent_id="simons", clock=FakeClock(datetime(2026, 3, 2, 22, 0)),
-                 portfolio_conn=portfolio, ohlcv_conn=ohlcv)
+    result = run(
+        as_of_date=AS_OF,
+        agent_id="simons",
+        clock=FakeClock(datetime(2026, 3, 2, 22, 0)),
+        portfolio_conn=portfolio,
+        ohlcv_conn=ohlcv,
+    )
     tickers = [r["ticker"] for r in result["watchlist"]]
     assert "GOODVOL" in tickers
     assert "LOWVOL" not in tickers
 
 
 def test_stage0_excludes_locked_circuit_stock():
-    portfolio, ohlcv = make_portfolio_db(), make_ohlcv_db()
+    portfolio, ohlcv = make_portfolio_db(foreign_keys=False), make_ohlcv_db()
     mark_features_success(portfolio)
     seed_qualifying_candidate(portfolio, ohlcv, "GOODVOL")
 
@@ -136,13 +129,19 @@ def test_stage0_excludes_locked_circuit_stock():
     set_status(ohlcv, "FROZEN", "LOCKED_CIRCUIT")
     insert_snapshot(portfolio, "FROZEN", passing_simons_features())
 
-    result = run(as_of_date=AS_OF, agent_id="simons", clock=FakeClock(datetime(2026, 3, 2, 22, 0)),
-                 portfolio_conn=portfolio, ohlcv_conn=ohlcv)
+    result = run(
+        as_of_date=AS_OF,
+        agent_id="simons",
+        clock=FakeClock(datetime(2026, 3, 2, 22, 0)),
+        portfolio_conn=portfolio,
+        ohlcv_conn=ohlcv,
+    )
     tickers = [r["ticker"] for r in result["watchlist"]]
     assert "FROZEN" not in tickers
 
 
 # --- Stage 1 -------------------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize(
     "overrides",
@@ -155,13 +154,18 @@ def test_stage0_excludes_locked_circuit_stock():
     ],
 )
 def test_stage1_respects_each_hurdle(overrides):
-    portfolio, ohlcv = make_portfolio_db(), make_ohlcv_db()
+    portfolio, ohlcv = make_portfolio_db(foreign_keys=False), make_ohlcv_db()
     mark_features_success(portfolio)
     seed_qualifying_candidate(portfolio, ohlcv, "BASELINE")
     seed_qualifying_candidate(portfolio, ohlcv, "VIOLATOR", **overrides)
 
-    result = run(as_of_date=AS_OF, agent_id="simons", clock=FakeClock(datetime(2026, 3, 2, 22, 0)),
-                 portfolio_conn=portfolio, ohlcv_conn=ohlcv)
+    result = run(
+        as_of_date=AS_OF,
+        agent_id="simons",
+        clock=FakeClock(datetime(2026, 3, 2, 22, 0)),
+        portfolio_conn=portfolio,
+        ohlcv_conn=ohlcv,
+    )
     tickers = [r["ticker"] for r in result["watchlist"]]
     assert "BASELINE" in tickers
     assert "VIOLATOR" not in tickers
@@ -169,16 +173,22 @@ def test_stage1_respects_each_hurdle(overrides):
 
 # --- Sector cap ----------------------------------------------------------------------------------
 
+
 def test_sector_cap_enforcement():
-    portfolio, ohlcv = make_portfolio_db(), make_ohlcv_db()
+    portfolio, ohlcv = make_portfolio_db(foreign_keys=False), make_ohlcv_db()
     mark_features_success(portfolio)
     # 5 candidates, same sector, decreasing intensity (via decreasing macd_hist -> lower score).
     for i, macd in enumerate([5.0, 4.0, 3.0, 2.0, 1.0]):
         seed_qualifying_candidate(portfolio, ohlcv, f"SEC{i}", sector="Crowded", macd_hist=macd)
 
     # Simons has persona-level sector_cap = 3 configured in PersonaConfig
-    result = run(as_of_date=AS_OF, agent_id="simons", clock=FakeClock(datetime(2026, 3, 2, 22, 0)),
-                 portfolio_conn=portfolio, ohlcv_conn=ohlcv)
+    result = run(
+        as_of_date=AS_OF,
+        agent_id="simons",
+        clock=FakeClock(datetime(2026, 3, 2, 22, 0)),
+        portfolio_conn=portfolio,
+        ohlcv_conn=ohlcv,
+    )
     crowded = [r for r in result["watchlist"] if r["sector"] == "Crowded"]
     assert len(crowded) == 3
     assert {r["ticker"] for r in crowded} == {"SEC0", "SEC1", "SEC2"}  # the three highest-intensity
@@ -186,8 +196,9 @@ def test_sector_cap_enforcement():
 
 # --- TTL lock / expiry -----------------------------------------------------------------------------
 
+
 def test_unexpired_row_survives_and_expired_row_is_replaced():
-    portfolio, ohlcv = make_portfolio_db(), make_ohlcv_db()
+    portfolio, ohlcv = make_portfolio_db(foreign_keys=False), make_ohlcv_db()
     mark_features_success(portfolio)
 
     # LOCKED: pre-existing row, not expired, still passes Stage0, close > ema_200.
@@ -209,8 +220,13 @@ def test_unexpired_row_survives_and_expired_row_is_replaced():
     # A fresh new candidate that should be able to take a free slot.
     seed_qualifying_candidate(portfolio, ohlcv, "FRESH", sector="SectorC")
 
-    result = run(as_of_date=AS_OF, agent_id="simons", clock=FakeClock(datetime(2026, 3, 2, 22, 0)),
-                 portfolio_conn=portfolio, ohlcv_conn=ohlcv)
+    result = run(
+        as_of_date=AS_OF,
+        agent_id="simons",
+        clock=FakeClock(datetime(2026, 3, 2, 22, 0)),
+        portfolio_conn=portfolio,
+        ohlcv_conn=ohlcv,
+    )
     final_by_ticker = {r["ticker"]: r for r in result["watchlist"]}
 
     assert "LOCKED" in final_by_ticker
@@ -227,11 +243,12 @@ def test_unexpired_row_survives_and_expired_row_is_replaced():
 
 # --- Review pool -----------------------------------------------------------------------------------
 
+
 def test_held_stock_that_left_the_watchlist_is_still_in_the_review_pool():
-    portfolio = make_portfolio_db()
+    portfolio = make_portfolio_db(foreign_keys=False)
     portfolio.execute(
         "INSERT INTO agents (id, name, philosophy, kind, starting_cash_paise, cash_paise, created_at, updated_at) "
-        "VALUES ('simons', 'Jim Simons', 'Quant', 'LLM', 10000000, 10000000, ?, ?)",
+        "VALUES ('simons', 'Jim Simons', 'Quant', 'LLM', 50000000, 50000000, ?, ?)",
         (NOW, NOW),
     )
     portfolio.execute(
@@ -252,10 +269,10 @@ def test_held_stock_that_left_the_watchlist_is_still_in_the_review_pool():
 
 
 def test_cap_never_drops_a_held_stock():
-    portfolio = make_portfolio_db()
+    portfolio = make_portfolio_db(foreign_keys=False)
     portfolio.execute(
         "INSERT INTO agents (id, name, philosophy, kind, starting_cash_paise, cash_paise, created_at, updated_at) "
-        "VALUES ('simons', 'Jim Simons', 'Quant', 'LLM', 10000000, 10000000, ?, ?)",
+        "VALUES ('simons', 'Jim Simons', 'Quant', 'LLM', 50000000, 50000000, ?, ?)",
         (NOW, NOW),
     )
     # MAX_CANDIDATES_PER_RUN held positions (fills the whole cap on its own).
@@ -282,13 +299,19 @@ def test_cap_never_drops_a_held_stock():
 
 # --- Empty funnel ------------------------------------------------------------------------------------
 
+
 def test_empty_funnel_writes_empty_watchlist_and_funnel_counts_row():
-    portfolio, ohlcv = make_portfolio_db(), make_ohlcv_db()
+    portfolio, ohlcv = make_portfolio_db(foreign_keys=False), make_ohlcv_db()
     mark_features_success(portfolio)
     # No symbols at all -> nothing can survive Stage 0.
 
-    result = run(as_of_date=AS_OF, agent_id="simons", clock=FakeClock(datetime(2026, 3, 2, 22, 0)),
-                 portfolio_conn=portfolio, ohlcv_conn=ohlcv)
+    result = run(
+        as_of_date=AS_OF,
+        agent_id="simons",
+        clock=FakeClock(datetime(2026, 3, 2, 22, 0)),
+        portfolio_conn=portfolio,
+        ohlcv_conn=ohlcv,
+    )
 
     assert result["status"] == "SUCCESS"
     assert result["counts"] == {"stage0": 0, "stage1": 0, "final": 0}
@@ -302,6 +325,7 @@ def test_empty_funnel_writes_empty_watchlist_and_funnel_counts_row():
 
 
 # --- Sector percentiles -------------------------------------------------------------------------------
+
 
 def test_compute_sector_percentiles_large_cohort_vs_small_cohort():
     # Large cohort (size 10 >= 8): within-sector percentiles
@@ -328,13 +352,28 @@ def test_compute_sector_percentiles_large_cohort_vs_small_cohort():
 
 def test_stage1_filter_respects_sector_percentile_min():
     from agents.personas import get_persona
+
     persona = get_persona("simons")
 
     stage0 = ["T1", "T2"]
     # Both satisfy Simons technical hurdles
     features = {
-        "T1": {"ema_20_above_50": True, "rsi_14": 60.0, "volume_surge": 1.5, "macd_hist": 2.0, "adx_14": 25.0, "kaufman_er_20": 0.50},
-        "T2": {"ema_20_above_50": True, "rsi_14": 60.0, "volume_surge": 1.5, "macd_hist": 2.0, "adx_14": 25.0, "kaufman_er_20": 0.50},
+        "T1": {
+            "ema_20_above_50": True,
+            "rsi_14": 60.0,
+            "volume_surge": 1.5,
+            "macd_hist": 2.0,
+            "adx_14": 25.0,
+            "kaufman_er_20": 0.50,
+        },
+        "T2": {
+            "ema_20_above_50": True,
+            "rsi_14": 60.0,
+            "volume_surge": 1.5,
+            "macd_hist": 2.0,
+            "adx_14": 25.0,
+            "kaufman_er_20": 0.50,
+        },
     }
     percentiles = {"T1": 80.0, "T2": 40.0}
 
@@ -356,6 +395,7 @@ def test_stage1_filter_respects_sector_percentile_min():
 def test_stage2_sort_lynch_multi_factor_percentile():
     from agents.personas import get_persona
     from watchlist.watchlist_refresh import stage2_sort
+
     persona = get_persona("lynch")
 
     stage1 = ["STOCK_A", "STOCK_B", "STOCK_C"]
@@ -377,13 +417,35 @@ def test_stage2_sort_lynch_multi_factor_percentile():
 def test_stage2_sort_marks_multi_factor_percentile():
     from agents.personas import get_persona
     from watchlist.watchlist_refresh import stage2_sort
+
     persona = get_persona("marks")
 
     stage1 = ["STOCK_A", "STOCK_B", "STOCK_C"]
     features = {
-        "STOCK_A": {"rsi_14": 22.0, "dist_52w_low_pct": 3.0, "roce_pct": 25.0, "cfo_to_pat": 1.3, "debt_to_equity": 0.2, "regime": "PANIC"},
-        "STOCK_B": {"rsi_14": 30.0, "dist_52w_low_pct": 12.0, "roce_pct": 15.0, "cfo_to_pat": 0.9, "debt_to_equity": 0.5, "regime": "NORMAL"},
-        "STOCK_C": {"rsi_14": 34.0, "dist_52w_low_pct": 19.0, "roce_pct": 11.0, "cfo_to_pat": 0.6, "debt_to_equity": 0.8, "regime": "NORMAL"},
+        "STOCK_A": {
+            "rsi_14": 22.0,
+            "dist_52w_low_pct": 3.0,
+            "roce_pct": 25.0,
+            "cfo_to_pat": 1.3,
+            "debt_to_equity": 0.2,
+            "regime": "PANIC",
+        },
+        "STOCK_B": {
+            "rsi_14": 30.0,
+            "dist_52w_low_pct": 12.0,
+            "roce_pct": 15.0,
+            "cfo_to_pat": 0.9,
+            "debt_to_equity": 0.5,
+            "regime": "NORMAL",
+        },
+        "STOCK_C": {
+            "rsi_14": 34.0,
+            "dist_52w_low_pct": 19.0,
+            "roce_pct": 11.0,
+            "cfo_to_pat": 0.6,
+            "debt_to_equity": 0.8,
+            "regime": "NORMAL",
+        },
     }
     sectors = {"STOCK_A": "Metals", "STOCK_B": "Infra", "STOCK_C": "Textiles"}
     sorted_candidates = stage2_sort(stage1, features, sectors, persona)
@@ -398,13 +460,32 @@ def test_stage2_sort_marks_multi_factor_percentile():
 def test_stage2_sort_rj_multi_factor_percentile():
     from agents.personas import get_persona
     from watchlist.watchlist_refresh import stage2_sort
+
     persona = get_persona("jhunjhunwala")
 
     stage1 = ["STOCK_A", "STOCK_B", "STOCK_C"]
     features = {
-        "STOCK_A": {"pat_growth_yoy_pct": 35.0, "fii_dii_qoq_delta_pct": 2.5, "volume_surge": 2.2, "roce_pct": 28.0, "promoter_holding_pct": 55.0},
-        "STOCK_B": {"pat_growth_yoy_pct": 20.0, "fii_dii_qoq_delta_pct": 0.0, "volume_surge": 1.4, "roce_pct": 20.0, "promoter_holding_pct": 45.0},
-        "STOCK_C": {"pat_growth_yoy_pct": 12.0, "fii_dii_qoq_delta_pct": -1.0, "volume_surge": 1.2, "roce_pct": 16.0, "promoter_holding_pct": 41.0},
+        "STOCK_A": {
+            "pat_growth_yoy_pct": 35.0,
+            "fii_dii_qoq_delta_pct": 2.5,
+            "volume_surge": 2.2,
+            "roce_pct": 28.0,
+            "promoter_holding_pct": 55.0,
+        },
+        "STOCK_B": {
+            "pat_growth_yoy_pct": 20.0,
+            "fii_dii_qoq_delta_pct": 0.0,
+            "volume_surge": 1.4,
+            "roce_pct": 20.0,
+            "promoter_holding_pct": 45.0,
+        },
+        "STOCK_C": {
+            "pat_growth_yoy_pct": 12.0,
+            "fii_dii_qoq_delta_pct": -1.0,
+            "volume_surge": 1.2,
+            "roce_pct": 16.0,
+            "promoter_holding_pct": 41.0,
+        },
     }
     sectors = {"STOCK_A": "Auto", "STOCK_B": "CapGoods", "STOCK_C": "Consumer"}
     sorted_candidates = stage2_sort(stage1, features, sectors, persona)
@@ -419,13 +500,32 @@ def test_stage2_sort_rj_multi_factor_percentile():
 def test_stage2_sort_varsity_multi_factor_percentile():
     from agents.personas import get_persona
     from watchlist.watchlist_refresh import stage2_sort
+
     persona = get_persona("varsity")
 
     stage1 = ["STOCK_A", "STOCK_B", "STOCK_C"]
     features = {
-        "STOCK_A": {"volume_surge": 2.0, "rsi_14": 60.0, "roce_pct": 25.0, "debt_to_equity": 0.3, "news_sentiment": 0.5},
-        "STOCK_B": {"volume_surge": 1.3, "rsi_14": 55.0, "roce_pct": 18.0, "debt_to_equity": 0.8, "news_sentiment": 0.0},
-        "STOCK_C": {"volume_surge": 1.0, "rsi_14": 48.0, "roce_pct": 13.0, "debt_to_equity": 1.4, "news_sentiment": 0.0},
+        "STOCK_A": {
+            "volume_surge": 2.0,
+            "rsi_14": 60.0,
+            "roce_pct": 25.0,
+            "debt_to_equity": 0.3,
+            "news_sentiment": 0.5,
+        },
+        "STOCK_B": {
+            "volume_surge": 1.3,
+            "rsi_14": 55.0,
+            "roce_pct": 18.0,
+            "debt_to_equity": 0.8,
+            "news_sentiment": 0.0,
+        },
+        "STOCK_C": {
+            "volume_surge": 1.0,
+            "rsi_14": 48.0,
+            "roce_pct": 13.0,
+            "debt_to_equity": 1.4,
+            "news_sentiment": 0.0,
+        },
     }
     sectors = {"STOCK_A": "IT", "STOCK_B": "Pharma", "STOCK_C": "Energy"}
     sorted_candidates = stage2_sort(stage1, features, sectors, persona)
@@ -441,7 +541,7 @@ def test_stage3_retains_marks_candidate_below_ema200():
     from agents.personas import get_persona
     from watchlist.watchlist_refresh import stage3_update_watchlist
 
-    portfolio = make_portfolio_db()
+    portfolio = make_portfolio_db(foreign_keys=False)
     marks_persona = get_persona("marks")
 
     # Insert locked Marks row with unexpired TTL
@@ -452,9 +552,7 @@ def test_stage3_retains_marks_candidate_below_ema200():
 
     stage0_tickers = ["MARKS_OVERSOLD"]
     # Candle is trading well below 200 EMA (close 80 < ema_200 100), typical for 52-week low distress
-    features_by_ticker = {
-        "MARKS_OVERSOLD": {"close": 80.0, "ema_200": 100.0, "rsi_14": 28.0, "dist_52w_low_pct": 5.0}
-    }
+    features_by_ticker = {"MARKS_OVERSOLD": {"close": 80.0, "ema_200": 100.0, "rsi_14": 28.0, "dist_52w_low_pct": 5.0}}
 
     res = stage3_update_watchlist(
         portfolio_conn=portfolio,
@@ -477,7 +575,7 @@ def test_stage3_purges_simons_candidate_below_ema200():
     from agents.personas import get_persona
     from watchlist.watchlist_refresh import stage3_update_watchlist
 
-    portfolio = make_portfolio_db()
+    portfolio = make_portfolio_db(foreign_keys=False)
     simons_persona = get_persona("simons")
 
     # Insert locked Simons row with unexpired TTL
@@ -488,9 +586,7 @@ def test_stage3_purges_simons_candidate_below_ema200():
 
     stage0_tickers = ["BROKEN_TREND"]
     # Candle is below 200 EMA (structural breakdown for momentum)
-    features_by_ticker = {
-        "BROKEN_TREND": {"close": 80.0, "ema_200": 100.0}
-    }
+    features_by_ticker = {"BROKEN_TREND": {"close": 80.0, "ema_200": 100.0}}
 
     res = stage3_update_watchlist(
         portfolio_conn=portfolio,

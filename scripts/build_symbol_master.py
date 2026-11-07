@@ -2,12 +2,12 @@
 Builds the symbols table: ticker, instrument key, ISIN, company name, sector from the Nifty 500 constituents file.
 See Plan_v3 §1.2.
 """
+
 import csv
 import gzip
 import io
 import sys
 from pathlib import Path
-from typing import Dict, List, Tuple
 
 WORKSPACE_ROOT = Path(__file__).resolve().parent.parent
 if str(WORKSPACE_ROOT) not in sys.path:
@@ -15,20 +15,20 @@ if str(WORKSPACE_ROOT) not in sys.path:
 
 import requests
 
-from settings import settings
+from core.config import settings
 from core.database import get_connection
 
 NIFTY500_CSV = Path(__file__).resolve().parent.parent / "storage" / "market" / "nifty500_constituents.csv"
 UPSTOX_INSTRUMENTS_URL = "https://assets.upstox.com/market-quote/instruments/exchange/NSE.csv.gz"
 
 
-def load_nifty500(csv_path: Path = NIFTY500_CSV) -> List[Dict[str, str]]:
+def load_nifty500(csv_path: Path = NIFTY500_CSV) -> list[dict[str, str]]:
     """Reads data/nifty500_constituents.csv (Company Name, Industry, Symbol, Series, ISIN Code)."""
     with csv_path.open(encoding="utf-8") as f:
         return list(csv.DictReader(f))
 
 
-def fetch_upstox_nse_equities(url: str = UPSTOX_INSTRUMENTS_URL) -> Dict[str, dict]:
+def fetch_upstox_nse_equities(url: str = UPSTOX_INSTRUMENTS_URL) -> dict[str, dict]:
     """Downloads Upstox's public NSE instrument master (no authentication required) and returns
     EQUITY rows keyed by instrument_key."""
     resp = requests.get(url, timeout=30)
@@ -42,9 +42,7 @@ def fetch_upstox_nse_equities(url: str = UPSTOX_INSTRUMENTS_URL) -> Dict[str, di
     }
 
 
-def match_symbols(
-    nifty_rows: List[Dict[str, str]], upstox_equities: Dict[str, dict]
-) -> Tuple[List[dict], List[str]]:
+def match_symbols(nifty_rows: list[dict[str, str]], upstox_equities: dict[str, dict]) -> tuple[list[dict], list[str]]:
     """Matches each Nifty 500 row to an Upstox instrument_key, primarily by ISIN
     (instrument_key == 'NSE_EQ|<isin>'), falling back to an exact tradingsymbol match.
     Returns (matched_rows, unmatched_tickers)."""
@@ -82,7 +80,7 @@ def match_symbols(
     return matched, unmatched
 
 
-def write_symbols(matched: List[dict], db_path: str = None) -> None:
+def write_symbols(matched: list[dict], db_path: str = None) -> None:
     """Writes matched rows into the symbols table (upsert, keyed by ticker)."""
     conn = get_connection(db_path or settings.PORTFOLIO_DB_PATH)
     try:

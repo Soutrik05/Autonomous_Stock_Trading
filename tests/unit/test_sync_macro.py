@@ -2,28 +2,20 @@
 Unit tests for ingestion/sync_macro.py: regime computation, FII/DII net cash flow extraction,
 advance/decline breadth calculation, index trend derivation, and database persistence/upsert.
 """
+
 import sqlite3
-from datetime import datetime, timezone, timedelta
-from pathlib import Path
+from datetime import datetime, timedelta, timezone
 
 from core.clock import FakeClock
 from ingestion.sync_macro import (
-    ensure_schema,
-    sync_macro,
-    compute_regime,
     _extract_net_cr,
     compute_advance_decline,
     compute_index_trends,
+    compute_regime,
+    ensure_schema,
+    sync_macro,
 )
-
-PORTFOLIO_SCHEMA_PATH = Path(__file__).resolve().parents[2] / "db" / "schema.sql"
-
-
-def make_portfolio_db() -> sqlite3.Connection:
-    conn = sqlite3.connect(":memory:")
-    conn.row_factory = sqlite3.Row
-    conn.executescript(PORTFOLIO_SCHEMA_PATH.read_text(encoding="utf-8"))
-    return conn
+from tests.conftest import make_portfolio_db
 
 
 def make_macro_db() -> sqlite3.Connection:
@@ -155,18 +147,10 @@ def test_compute_advance_decline_zero_declines():
 
 def test_compute_index_trends_from_candles():
     # 20 sessions of candles where close rises steadily
-    candles_50 = [
-        [f"2026-10-{i:02d}T00:00:00+05:30", 22000, 22100, 21900, 22000 + i * 50, 0, 0]
-        for i in range(1, 21)
-    ]
+    candles_50 = [[f"2026-10-{i:02d}T00:00:00+05:30", 22000, 22100, 21900, 22000 + i * 50, 0, 0] for i in range(1, 21)]
     # 20 sessions of candles where close falls steadily
-    candles_500 = [
-        [f"2026-10-{i:02d}T00:00:00+05:30", 22000, 22100, 21900, 22000 - i * 50, 0, 0]
-        for i in range(1, 21)
-    ]
-    client = FakeMacroClient(
-        candles={"NSE_INDEX|Nifty 50": candles_50, "NSE_INDEX|Nifty 500": candles_500}
-    )
+    candles_500 = [[f"2026-10-{i:02d}T00:00:00+05:30", 22000, 22100, 21900, 22000 - i * 50, 0, 0] for i in range(1, 21)]
+    client = FakeMacroClient(candles={"NSE_INDEX|Nifty 50": candles_50, "NSE_INDEX|Nifty 500": candles_500})
     n50_trend, n500_trend = compute_index_trends(client, "2026-10-20")
     assert n50_trend == "BULLISH"
     assert n500_trend == "BEARISH"

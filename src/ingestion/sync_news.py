@@ -8,14 +8,13 @@ See Plan_v3 §2.4.
 import argparse
 import logging
 import sqlite3
-from datetime import date, datetime, timezone, timedelta
-from typing import Dict, List, Optional, Tuple
+from datetime import date, datetime, timedelta, timezone
 
 from core.clock import Clock, SystemClock
+from core.config import settings
 from core.database import get_connection
-from ingestion.upstox_client import UpstoxClient
 from features.sentiment import FinBertScorer, get_finbert_scorer
-from settings import settings
+from ingestion.upstox_client import UpstoxClient
 
 logger = logging.getLogger(__name__)
 
@@ -61,14 +60,14 @@ def _format_published_time(ts_val) -> str:
 
 
 def sync_news(
-    client: Optional[UpstoxClient] = None,
-    clock: Optional[Clock] = None,
-    news_conn: Optional[sqlite3.Connection] = None,
-    portfolio_conn: Optional[sqlite3.Connection] = None,
-    scorer: Optional[FinBertScorer] = None,
-    limit: Optional[int] = None,
-    ticker: Optional[str] = None,
-) -> Dict[str, int]:
+    client: UpstoxClient | None = None,
+    clock: Clock | None = None,
+    news_conn: sqlite3.Connection | None = None,
+    portfolio_conn: sqlite3.Connection | None = None,
+    scorer: FinBertScorer | None = None,
+    limit: int | None = None,
+    ticker: str | None = None,
+) -> dict[str, int]:
     """Syncs news from Upstox API for active tickers, runs FinBERT scoring on new articles,
     and upserts into data/news.db.
 
@@ -102,8 +101,8 @@ def sync_news(
             logger.info("No active symbols found to sync news.")
             return {"tickers_queried": 0, "articles_fetched": 0, "articles_scored": 0}
 
-        ticker_map: Dict[str, str] = {row[1]: row[0] for row in rows}  # instrument_key -> ticker
-        instrument_keys: List[str] = [row[1] for row in rows]
+        ticker_map: dict[str, str] = {row[1]: row[0] for row in rows}  # instrument_key -> ticker
+        instrument_keys: list[str] = [row[1] for row in rows]
 
         total_fetched = 0
         total_scored = 0
@@ -115,12 +114,12 @@ def sync_news(
             try:
                 news_by_key = client.get_news(chunk)
             except Exception as e:
-                logger.warning(f"Failed to fetch news chunk {i}-{i+len(chunk)}: {e}")
+                logger.warning(f"Failed to fetch news chunk {i}-{i + len(chunk)}: {e}")
                 continue
 
             # 3. Filter for articles that are not yet stored in news.db
-            new_articles_to_score: List[Tuple[str, str, dict]] = []  # (inst_key, tkr, art)
-            scoring_texts: List[str] = []
+            new_articles_to_score: list[tuple[str, str, dict]] = []  # (inst_key, tkr, art)
+            scoring_texts: list[str] = []
 
             for inst_key, articles in news_by_key.items():
                 tkr = ticker_map.get(inst_key, "")
@@ -248,7 +247,7 @@ def get_ticker_news_sentiment(
     ticker: str,
     as_of_date: str,
     lookback_days: int = 7,
-) -> Tuple[Optional[float], int, List[dict]]:
+) -> tuple[float | None, int, list[dict]]:
     """Calculates aggregate sentiment score and article count for a ticker over a lookback window.
     Returns: (aggregate_sentiment_score, article_count, top_articles)
     where top_articles includes relative_age, truncated heading, and FinBERT score.

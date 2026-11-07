@@ -2,22 +2,24 @@
 Order expiry job run at 15:30 IST: marks all still-pending orders as expired.
 See Plan_v3 §4.3 item 10, §4.4.
 """
+
 import argparse
 import logging
 import sqlite3
-from typing import Optional
 
 from broker.engine import Broker
 from core.calendar import is_trading_day
 from core.clock import Clock, SystemClock
+from core.config import settings
 from core.database import get_connection
-from settings import settings
 
 logger = logging.getLogger(__name__)
 JOB_NAME = "expiry"
 
 
-def _upsert_terminal_run(conn: sqlite3.Connection, run_date_str: str, status: str, clock: Clock, detail: str = None) -> None:
+def _upsert_terminal_run(
+    conn: sqlite3.Connection, run_date_str: str, status: str, clock: Clock, detail: str | None = None
+) -> None:
     now = clock.now_iso()
     conn.execute(
         """
@@ -34,7 +36,7 @@ def _upsert_terminal_run(conn: sqlite3.Connection, run_date_str: str, status: st
 def expire_pending_orders(
     portfolio_conn: sqlite3.Connection,
     clock: Clock,
-    run_date_str: Optional[str] = None,
+    run_date_str: str | None = None,
 ) -> dict:
     """Cancels all still-pending orders with reason 'EXPIRED' and records status in pipeline_runs."""
     today = clock.today()

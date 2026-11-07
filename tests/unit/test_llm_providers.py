@@ -5,13 +5,13 @@ output, finish-reason mapping, empty-text/MAX_TOKENS treated as a failed attempt
 retries then succeeds, and a clear error when an API key or model id is missing.
 See Plan_v3 §3.2.
 """
+
 from types import SimpleNamespace
 
 import pytest
 
 from agents.parsers import is_truncated
 from llm.client import GeminiProvider, GroqProvider, LLMConfigError, build_provider, require_setting
-
 
 # --- GeminiProvider: faked google-genai SDK ---------------------------------------------------
 
@@ -62,7 +62,9 @@ def _make_gemini_provider(monkeypatch, scripted, **kwargs):
 def test_gemini_thinking_budget_reaches_the_request_for_0_1024_and_dynamic(monkeypatch):
     for budget in (0, 1024, -1):
         provider, client = _make_gemini_provider(
-            monkeypatch, [_FakeGeminiResponse('{"decisions": []}')], thinking_budget=budget,
+            monkeypatch,
+            [_FakeGeminiResponse('{"decisions": []}')],
+            thinking_budget=budget,
         )
         provider.complete("system", "user", response_schema={"type": "object"})
         config = client.models.captured_configs[0]
@@ -88,7 +90,8 @@ def test_gemini_finish_reason_stop_maps_to_stop(monkeypatch):
 
 def test_gemini_finish_reason_max_tokens_maps_to_length_and_is_truncated(monkeypatch):
     provider, _ = _make_gemini_provider(
-        monkeypatch, [_FakeGeminiResponse("cut off", finish_reason_name="MAX_TOKENS")],
+        monkeypatch,
+        [_FakeGeminiResponse("cut off", finish_reason_name="MAX_TOKENS")],
     )
     result = provider.complete("system", "user")
     assert result.finish_reason == "length"
@@ -109,7 +112,8 @@ def test_gemini_other_finish_reason_maps_to_other(monkeypatch):
 
 def test_gemini_thinking_tokens_are_reported_separately_from_candidates_tokens(monkeypatch):
     provider, _ = _make_gemini_provider(
-        monkeypatch, [_FakeGeminiResponse("hi", thoughts_tokens=42)],
+        monkeypatch,
+        [_FakeGeminiResponse("hi", thoughts_tokens=42)],
     )
     result = provider.complete("system", "user")
     assert result.thinking_tokens == 42
@@ -136,9 +140,55 @@ def test_gemini_non_retryable_client_error_raises_immediately(monkeypatch):
 
 
 def test_gemini_missing_api_key_gives_a_clear_error(monkeypatch):
-    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    import os
+
+    for k in list(os.environ.keys()):
+        if k.upper().startswith("GEMINI_API_KEY"):
+            monkeypatch.delenv(k, raising=False)
     with pytest.raises(LLMConfigError, match="GEMINI_API_KEY"):
         GeminiProvider(model="gemini-flash-latest")
+
+
+def test_gemini_rotates_api_keys_on_429(monkeypatch):
+    import os
+
+    for k in list(os.environ.keys()):
+        if k.upper().startswith("GEMINI_API_KEY"):
+            monkeypatch.delenv(k, raising=False)
+    from google.genai import errors as gerrors
+
+    monkeypatch.setenv("GEMINI_API_KEY_1", "key-1")
+    monkeypatch.setenv("GEMINI_API_KEY_2", "key-2")
+    monkeypatch.setenv("LLM_MODEL", "gemini-flash-latest")
+
+    clients_created = []
+
+    class MockGenAIClient:
+        def __init__(self, api_key=None):
+            self.api_key = api_key
+            clients_created.append(self)
+            self.models = self
+
+        def generate_content(self, model, contents, config):
+            if self.api_key == "key-1":
+                raise gerrors.ClientError(429, {"error": {"message": "Resource has been exhausted (quota)"}})
+            return _FakeGeminiResponse('{"decisions": []}')
+
+    import google.genai
+
+    monkeypatch.setattr(google.genai, "Client", MockGenAIClient)
+
+    provider = GeminiProvider(model="gemini-flash-latest", sleep_func=lambda s: None)
+    assert len(provider._key_pool) >= 2
+    assert provider._key_pool[0][0] == "gemini_api_key_1"
+    assert provider._key_pool[1][0] == "gemini_api_key_2"
+
+    res = provider.complete("system prompt", "user prompt")
+    assert res.text == '{"decisions": []}'
+    assert len(clients_created) == 2
+    assert clients_created[0].api_key == "key-1"
+    assert clients_created[1].api_key == "key-2"
+    assert provider._active_key_idx == 1
 
 
 def test_missing_model_id_gives_a_clear_error_naming_the_right_setting():
@@ -192,8 +242,8 @@ def _make_groq_provider(monkeypatch, scripted):
 
 
 def test_groq_429_retries_then_succeeds(monkeypatch):
-    import httpx
     import groq
+    import httpx
 
     http_response = httpx.Response(status_code=429, request=httpx.Request("POST", "https://fake"))
     rate_limited = groq.APIStatusError("rate limited", response=http_response, body=None)
@@ -208,3 +258,23 @@ def test_groq_missing_api_key_gives_a_clear_error(monkeypatch):
     monkeypatch.delenv("GROQ_API_KEY", raising=False)
     with pytest.raises(LLMConfigError, match="GROQ_API_KEY"):
         GroqProvider(model="openai/gpt-oss-120b")
+
+
+def test_gemini_network_transport_error_retries_then_succeeds(monkeypatch):
+    import httpx
+
+    conn_error = httpx.ConnectError("[WinError 10054] An existing connection was forcibly closed by the remote host")
+    provider, client = _make_gemini_provider(monkeypatch, [conn_error, _FakeGeminiResponse("recovered")])
+    result = provider.complete("system", "user")
+    assert result.text == "recovered"
+    assert len(client.models.captured_configs) == 2
+
+
+def test_groq_network_transport_error_retries_then_succeeds(monkeypatch):
+    import httpx
+
+    conn_error = httpx.ConnectError("Connection refused")
+    provider, completions = _make_groq_provider(monkeypatch, [conn_error, _FakeGroqResponse("recovered")])
+    result = provider.complete("system", "user")
+    assert result.text == "recovered"
+    assert len(completions.calls) == 2

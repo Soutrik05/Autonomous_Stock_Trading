@@ -6,21 +6,18 @@ Live Agent Readiness Check (Week 2 Objective):
 4. Verifies prompt token budgeting and metric alignment per persona.
 See Plan_v3 §3.1, §3.2, §Week 2 Objectives.
 """
-from datetime import datetime
+
 import json
 import sqlite3
+from datetime import datetime
 
-import pytest
-
-from agents.personas import all_personas, get_persona
+from agents.personas import all_personas
 from agents.runner import run as run_agents
-from broker.engine import Broker
 from core.clock import FakeClock
-from core.money import rupees_to_paise
+from core.config import settings
 from ingestion.sync_ohlcv import ensure_schema as ensure_ohlcv_schema
 from llm.client import FakeLLMClient
 from scripts.init_db import init_db
-from settings import settings
 from tests.conftest import make_portfolio_db
 
 RUN_DATE = "2026-10-19"
@@ -160,70 +157,94 @@ def test_decision_execution_and_orders_all_personas():
 
     # Mock Decision payloads tailored for each persona
     responses = {
-        "simons": json.dumps({
-            "decisions": [{
-                "ticker": "TATAMOTORS",
-                "action": "BUY",
-                "shares": 10,
-                "entry_low": 995.0,
-                "entry_high": 1005.0,
-                "stop_loss_price": 960.0,
-                "target_price": 1080.0,
-                "pre_mortem_risk": "Momentum exhaustion near resistance.",
-                "reasoning": "Breakout confirmed by RSI and MACD expansion.",
-                "cited_metrics": {"rsi_14": 60.0, "volume_surge": 1.4, "macd_hist": 2.5},
-            }]
-        }),
-        "lynch": json.dumps({
-            "decisions": [{
-                "ticker": "ITC",
-                "action": "BUY",
-                "shares": 15,
-                "entry_low": 990.0,
-                "entry_high": 1010.0,
-                "stop_loss_price": 950.0,
-                "target_price": 1120.0,
-                "pre_mortem_risk": "Input inflation impacting operating margins.",
-                "reasoning": "High ROCE and favorable PEG below 1.0.",
-                "cited_metrics": {"roce_pct": 20.0, "peg": 0.8, "debt_to_equity": 0.4},
-            }]
-        }),
-        "marks": json.dumps({
-            "decisions": [{
-                "ticker": "TATAMOTORS",
-                "action": "HOLD",
-                "reasoning": "Market conditions not showing sufficient margin of safety.",
-                "cited_metrics": {"dist_52w_low_pct": 18.0},
-            }]
-        }),
-        "jhunjhunwala": json.dumps({
-            "decisions": [{
-                "ticker": "INFY",
-                "action": "BUY",
-                "shares": 8,
-                "entry_low": 995.0,
-                "entry_high": 1005.0,
-                "stop_loss_price": 955.0,
-                "target_price": 1150.0,
-                "pre_mortem_risk": "Slowdown in BFSI client tech spending.",
-                "reasoning": "High promoter quality and persistent compounding growth.",
-                "cited_metrics": {"promoter_holding_pct": 52.0, "pat_growth_yoy_pct": 16.0, "volume_surge": 1.4},
-            }]
-        }),
-        "varsity": json.dumps({
-            "decisions": [{
-                "ticker": "HDFCBANK",
-                "action": "BUY",
-                "shares": 10,
-                "entry_low": 990.0,
-                "entry_high": 1010.0,
-                "stop_loss_price": 960.0,
-                "target_price": 1100.0,
-                "pre_mortem_risk": "Asset quality deterioration in retail unsecured book.",
-                "reasoning": "Disciplined multi-indicator alignment with manageable leverage.",
-                "cited_metrics": {"rsi_14": 60.0, "roce_pct": 20.0, "debt_to_equity": 0.4},
-            }]
-        }),
+        "simons": json.dumps(
+            {
+                "decisions": [
+                    {
+                        "ticker": "TATAMOTORS",
+                        "action": "BUY",
+                        "shares": 10,
+                        "entry_low": 995.0,
+                        "entry_high": 1005.0,
+                        "stop_loss_price": 960.0,
+                        "target_price": 1080.0,
+                        "pre_mortem_risk": "Momentum exhaustion near resistance.",
+                        "reasoning": "Breakout confirmed by RSI and MACD expansion.",
+                        "cited_metrics": {"rsi_14": 60.0, "volume_surge": 1.4, "macd_hist": 2.5},
+                    }
+                ]
+            }
+        ),
+        "lynch": json.dumps(
+            {
+                "decisions": [
+                    {
+                        "ticker": "ITC",
+                        "action": "BUY",
+                        "shares": 15,
+                        "entry_low": 990.0,
+                        "entry_high": 1010.0,
+                        "stop_loss_price": 950.0,
+                        "target_price": 1120.0,
+                        "pre_mortem_risk": "Input inflation impacting operating margins.",
+                        "reasoning": "High ROCE and favorable PEG below 1.0.",
+                        "cited_metrics": {"roce_pct": 20.0, "peg": 0.8, "debt_to_equity": 0.4},
+                    }
+                ]
+            }
+        ),
+        "marks": json.dumps(
+            {
+                "decisions": [
+                    {
+                        "ticker": "TATAMOTORS",
+                        "action": "HOLD",
+                        "reasoning": "Market conditions not showing sufficient margin of safety.",
+                        "cited_metrics": {"dist_52w_low_pct": 18.0},
+                    }
+                ]
+            }
+        ),
+        "jhunjhunwala": json.dumps(
+            {
+                "decisions": [
+                    {
+                        "ticker": "INFY",
+                        "action": "BUY",
+                        "shares": 8,
+                        "entry_low": 995.0,
+                        "entry_high": 1005.0,
+                        "stop_loss_price": 955.0,
+                        "target_price": 1150.0,
+                        "pre_mortem_risk": "Slowdown in BFSI client tech spending.",
+                        "reasoning": "High promoter quality and persistent compounding growth.",
+                        "cited_metrics": {
+                            "promoter_holding_pct": 52.0,
+                            "pat_growth_yoy_pct": 16.0,
+                            "volume_surge": 1.4,
+                        },
+                    }
+                ]
+            }
+        ),
+        "varsity": json.dumps(
+            {
+                "decisions": [
+                    {
+                        "ticker": "HDFCBANK",
+                        "action": "BUY",
+                        "shares": 10,
+                        "entry_low": 990.0,
+                        "entry_high": 1010.0,
+                        "stop_loss_price": 960.0,
+                        "target_price": 1100.0,
+                        "pre_mortem_risk": "Asset quality deterioration in retail unsecured book.",
+                        "reasoning": "Disciplined multi-indicator alignment with manageable leverage.",
+                        "cited_metrics": {"rsi_14": 60.0, "roce_pct": 20.0, "debt_to_equity": 0.4},
+                    }
+                ]
+            }
+        ),
     }
 
     for persona in all_personas():
@@ -243,7 +264,9 @@ def test_decision_execution_and_orders_all_personas():
         dec_rows = portfolio_conn.execute(
             "SELECT * FROM decisions WHERE agent_id = ? AND run_date = ?", (persona.id, RUN_DATE)
         ).fetchall()
-        assert len(dec_rows) == 3, f"Expected 3 decisions (1 explicit + 2 auto-hold) for {persona.id}, got {len(dec_rows)}"
+        assert len(dec_rows) == 3, (
+            f"Expected 3 decisions (1 explicit + 2 auto-hold) for {persona.id}, got {len(dec_rows)}"
+        )
 
         buy_decs = [d for d in dec_rows if d["action"] == "BUY"]
         if buy_decs:
@@ -287,20 +310,24 @@ def test_primary_to_fallback_failover_simulation():
     # Fallback client (Llama 3.3 70B on Groq) produces clean valid decision
     fallback_client = FakeLLMClient(
         responses=[
-            json.dumps({
-                "decisions": [{
-                    "ticker": "TATAMOTORS",
-                    "action": "BUY",
-                    "shares": 10,
-                    "entry_low": 995.0,
-                    "entry_high": 1005.0,
-                    "stop_loss_price": 960.0,
-                    "target_price": 1080.0,
-                    "pre_mortem_risk": "Breakout pullback into support.",
-                    "reasoning": "Fallback model recovered valid breakout setup.",
-                    "cited_metrics": {"rsi_14": 60.0, "volume_surge": 1.4, "macd_hist": 2.5},
-                }]
-            })
+            json.dumps(
+                {
+                    "decisions": [
+                        {
+                            "ticker": "TATAMOTORS",
+                            "action": "BUY",
+                            "shares": 10,
+                            "entry_low": 995.0,
+                            "entry_high": 1005.0,
+                            "stop_loss_price": 960.0,
+                            "target_price": 1080.0,
+                            "pre_mortem_risk": "Breakout pullback into support.",
+                            "reasoning": "Fallback model recovered valid breakout setup.",
+                            "cited_metrics": {"rsi_14": 60.0, "volume_surge": 1.4, "macd_hist": 2.5},
+                        }
+                    ]
+                }
+            )
         ],
         model=settings.LLM_FALLBACK_MODEL,
         provider=settings.LLM_FALLBACK_PROVIDER,

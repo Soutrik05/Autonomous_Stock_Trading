@@ -5,8 +5,9 @@ including None handling. Also covers evaluation/faithfulness.py's compute_faithf
 scoring itself: a wrong value, an unregistered name, and citing fewer than 3 metrics.
 See Plan_v3 §3.3.
 """
-from features.contracts import evaluate_predicate, matches
+
 from evaluation.faithfulness import compute_faithfulness
+from features.contracts import evaluate_predicate, matches
 
 
 def test_rel_rule_within_tolerance():
@@ -37,7 +38,7 @@ def test_exact_rule_label():
 
 def test_macd_hist_near_zero_uses_pct_of_close_context():
     context = {"close": 1000.0}
-    assert matches("macd_hist", 0.5, 0.0, context) is True   # tolerance = 0.1% * 1000 = 1.0
+    assert matches("macd_hist", 0.5, 0.0, context) is True  # tolerance = 0.1% * 1000 = 1.0
     assert matches("macd_hist", 2.0, 0.0, context) is False
 
 
@@ -97,10 +98,12 @@ def test_evaluate_predicate_nested_groups():
     predicate = {
         "all": [
             {"feature": "regime", "op": "==", "value": "NORMAL"},
-            {"any": [
-                {"feature": "rsi_14", "op": ">=", "value": 60},
-                {"feature": "macd_hist", "op": ">", "value": 0},
-            ]},
+            {
+                "any": [
+                    {"feature": "rsi_14", "op": ">=", "value": 60},
+                    {"feature": "macd_hist", "op": ">", "value": 0},
+                ]
+            },
         ]
     }
     assert evaluate_predicate({"regime": "NORMAL", "rsi_14": 65, "macd_hist": -1}, predicate) is True

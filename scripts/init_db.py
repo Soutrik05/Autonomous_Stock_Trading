@@ -2,36 +2,45 @@
 Applies all numbered migrations in db/migrations/, then seeds the five LLM agents and the baseline agent.
 See Plan_v3 §7.
 """
+
 import re
 import sqlite3
 import sys
 from pathlib import Path
-from typing import List, Tuple
 
 WORKSPACE_ROOT = Path(__file__).resolve().parent.parent
 if str(WORKSPACE_ROOT) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_ROOT))
 
-from settings import settings
 from core.clock import Clock, SystemClock
+from core.config import settings
 from core.database import get_connection
 
 MIGRATIONS_DIR = Path(__file__).resolve().parent.parent / "db" / "migrations"
 
 # (id, name, philosophy, kind)
-AGENTS: List[Tuple[str, str, str, str]] = [
+AGENTS: list[tuple[str, str, str, str]] = [
     ("simons", "Jim Simons", "Quant Momentum", "LLM"),
     ("lynch", "Peter Lynch", "GARP (Growth At a Reasonable Price)", "LLM"),
     ("marks", "Howard Marks", "Contrarian", "LLM"),
     ("jhunjhunwala", "Rakesh Jhunjhunwala", "Growth & Promoter Quality", "LLM"),
     ("varsity", "StockMinds Core", "Zerodha Varsity Balanced", "LLM"),
     ("baseline-simons-rules", "Baseline Simons Rules", "Rules-only momentum baseline", "BASELINE"),
+    ("baseline-varsity-rules", "Baseline Varsity Rules", "Rules-only Zerodha Varsity confluence baseline", "BASELINE"),
+    ("baseline-lynch-rules", "Baseline Lynch Rules", "Rules-only Peter Lynch GARP baseline", "BASELINE"),
+    ("baseline-marks-rules", "Baseline Marks Rules", "Rules-only Howard Marks contrarian baseline", "BASELINE"),
+    (
+        "baseline-rj-rules",
+        "Baseline Jhunjhunwala Rules",
+        "Rules-only Rakesh Jhunjhunwala compounder baseline",
+        "BASELINE",
+    ),
 ]
 
 _MIGRATION_VERSION_RE = re.compile(r"^(\d+)_")
 
 
-def discover_migrations(migrations_dir: Path = MIGRATIONS_DIR) -> List[Tuple[int, Path]]:
+def discover_migrations(migrations_dir: Path = MIGRATIONS_DIR) -> list[tuple[int, Path]]:
     """Returns (version, path) pairs for every db/migrations/NNNN_*.sql file, sorted by version."""
     migrations = []
     for path in migrations_dir.glob("*.sql"):
@@ -45,9 +54,7 @@ def discover_migrations(migrations_dir: Path = MIGRATIONS_DIR) -> List[Tuple[int
 def applied_versions(conn: sqlite3.Connection) -> set:
     """Returns the set of migration versions already recorded in schema_version, or empty if the
     table does not exist yet."""
-    tables = conn.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='schema_version'"
-    ).fetchall()
+    tables = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='schema_version'").fetchall()
     if not tables:
         return set()
     rows = conn.execute("SELECT version FROM schema_version").fetchall()
