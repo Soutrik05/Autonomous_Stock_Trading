@@ -85,6 +85,38 @@ def test_pagination_limit_and_offset(tmp_path):
     assert len(body["events"]) == 2
 
 
+def test_pagination_is_correct_after_severity_filtering_across_multiple_pages(tmp_path):
+    """Severity has no DB column, so it's derived and filtered in Python -- this proves the
+    filter runs BEFORE pagination (both `total` and the page contents reflect the filtered set,
+    not the unfiltered one), across more than two pages."""
+    db_path = str(tmp_path / "portfolio.db")
+    build_file_db(db_path)
+    # 7 WARNING (CAP_BREACH) events interleaved with 4 INFO (WATCHLIST_REFRESH) events = 11 rows,
+    # 7 of which match severity=WARNING.
+    severities_in_order = ["CAP_BREACH", "WATCHLIST_REFRESH"] * 4 + ["CAP_BREACH"] * 3
+    for i, event_type in enumerate(severities_in_order):
+        _insert_event(db_path, event_type, created_at=f"2026-11-04T10:{i:02d}:00+05:30")
+    client = make_client(db_path)
+
+    seen_ids = []
+    offset = 0
+    limit = 3
+    total_reported = None
+    for _ in range(10):  # safety bound against an infinite loop if pagination were ever broken
+        resp = client.get(f"/api/activity?severity=WARNING&limit={limit}&offset={offset}")
+        body = resp.json()
+        total_reported = body["total"]
+        if not body["events"]:
+            break
+        seen_ids.extend(e["id"] for e in body["events"])
+        assert all(e["severity"] == "WARNING" for e in body["events"])
+        offset += limit
+
+    assert total_reported == 7  # the filtered count, not the unfiltered 11
+    assert len(seen_ids) == 7  # every WARNING event seen exactly once across all pages
+    assert len(set(seen_ids)) == 7  # no duplicates, no gaps
+
+
 def test_filters_by_agent_id_and_severity(tmp_path):
     db_path = str(tmp_path / "portfolio.db")
     build_file_db(db_path)

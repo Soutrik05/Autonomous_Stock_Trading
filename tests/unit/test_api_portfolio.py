@@ -194,3 +194,27 @@ def test_decisions_parse_cited_metrics_from_json(tmp_path):
     assert decision["allocated_paise"] is None
     cited = {m["name"]: m["cited_value"] for m in decision["cited_metrics"]}
     assert cited == {"rsi_14": 65.3, "adx_14": 32.4}
+
+
+def test_decisions_cited_metrics_is_null_when_column_is_really_empty(tmp_path):
+    db_path = str(tmp_path / "portfolio.db")
+    build_file_db(db_path)
+    seed_agent(db_path, "simons", "Jim Simons", "Quant Momentum")
+    conn = sqlite3.connect(db_path, isolation_level=None)
+    # Three ways the column can be "really empty": NULL, '', and '{}' (a HOLD decision cites
+    # nothing). None of these should produce an empty list -- they must all be null.
+    conn.execute(
+        "INSERT INTO decisions (run_date, agent_id, ticker, source, action, cited_metrics_json, created_at) "
+        "VALUES ('2026-11-04', 'simons', 'A', 'LLM', 'HOLD', NULL, ?)", (NOW,),
+    )
+    conn.execute(
+        "INSERT INTO decisions (run_date, agent_id, ticker, source, action, cited_metrics_json, created_at) "
+        "VALUES ('2026-11-04', 'simons', 'B', 'LLM', 'HOLD', '{}', ?)", (NOW,),
+    )
+    conn.close()
+    client = make_client(db_path)
+
+    resp = client.get("/api/agents/simons/decisions")
+
+    for decision in resp.json():
+        assert decision["cited_metrics"] is None

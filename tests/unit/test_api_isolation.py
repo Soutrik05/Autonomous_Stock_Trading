@@ -15,7 +15,10 @@ from ._api_test_helpers import build_file_db, clear_overrides, make_client, seed
 from api.deps import get_ro_conn
 
 _API_ROUTES_DIR = Path(__file__).resolve().parents[2] / "src" / "api" / "routes"
-_LIVE_ROUTE_FILES = ["health.py", "activity.py", "leaderboard.py", "portfolio.py"]
+_LIVE_ROUTE_FILES = [
+    "health.py", "activity.py", "leaderboard.py", "portfolio.py",
+    "memory.py", "baseline.py", "funnel.py",
+]
 
 
 @pytest.fixture(autouse=True)
