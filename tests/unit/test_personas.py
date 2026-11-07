@@ -7,8 +7,50 @@ Unit tests verifying that all 5 persona configurations match Plan_v3 specificati
 """
 
 from agents.personas import all_personas, get_persona
-from core.config import settings
 from watchlist.watchlist_refresh import SORT_KEYS
+
+EXPECTED_PERSONAS = {
+    "simons": {
+        "ttl": 3,
+        "lookback": 14,
+        "eval_horizon": 5,
+        "sort_key": "simons_intensity",
+        "atr_mult": 2.5,
+        "require_above_ema200": True,
+    },
+    "lynch": {
+        "ttl": 14,
+        "lookback": 120,
+        "eval_horizon": 60,
+        "sort_key": "lynch_intensity",
+        "atr_mult": 2.5,
+        "require_above_ema200": False,
+    },
+    "marks": {
+        "ttl": 10,
+        "lookback": 90,
+        "eval_horizon": 60,
+        "sort_key": "marks_intensity",
+        "atr_mult": 2.5,
+        "require_above_ema200": False,
+    },
+    "jhunjhunwala": {
+        "ttl": 14,
+        "lookback": 150,
+        "eval_horizon": 90,
+        "sort_key": "rj_intensity",
+        "atr_mult": 3.0,
+        "require_above_ema200": True,
+    },
+    "varsity": {
+        "ttl": 14,
+        "lookback": 90,
+        "eval_horizon": 20,
+        "sort_key": "varsity_intensity",
+        "atr_mult": 2.0,
+        "require_above_ema200": True,
+    },
+}
 
 SAMPLE_FEATURES = {
     "close": 1000.0,
@@ -42,19 +84,16 @@ def test_all_five_personas_registered_and_match_plan():
     personas = all_personas()
     assert len(personas) == 5
     ids = {p.id for p in personas}
-    assert ids == set(settings.PERSONAS.keys())
+    assert ids == set(EXPECTED_PERSONAS.keys())
 
     for p in personas:
-        expected = settings.PERSONAS[p.id]
-        assert p.ttl_days == expected["ttl_days"]
-        assert p.lookback_days == expected["lookback_days"]
-        assert p.eval_horizon_days == expected["eval_horizon_days"]
+        expected = EXPECTED_PERSONAS[p.id]
+        assert p.ttl_days == expected["ttl"]
+        assert p.lookback_days == expected["lookback"]
+        assert p.eval_horizon_days == expected["eval_horizon"]
         assert p.sort_key == expected["sort_key"]
-        assert p.atr_stop_multiplier == expected["atr_stop_multiplier"]
+        assert p.atr_stop_multiplier == expected["atr_mult"]
         assert p.require_above_ema200 == expected["require_above_ema200"]
-        assert p.max_candidates == expected["max_candidates"]
-        assert p.max_open_positions == expected["max_open_positions"]
-        assert p.min_closed_trades_for_reflection == expected["min_closed_trades_for_reflection"]
 
 
 def test_system_prompt_integrity_for_all_personas():

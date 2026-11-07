@@ -185,7 +185,18 @@ def resolve_day(
             stops_count += 1
             continue
 
-        # 2e. Broker-Level Graduated Trailing Stop Protection
+        # 2e. Mechanical Alpha-Decay Stop (for Simons / Baseline)
+        # If held >= 8 sessions and current price has not gained at least 1.0x ATR from entry
+        if agent_id in ("simons", "baseline-simons-rules") and hold_sessions >= 8:
+            initial_risk = max(1, entry_price - (stop or int(entry_price * 0.94)))
+            atr_approx = int(initial_risk / 2.5)
+            if c["open"] < entry_price + atr_approx:
+                exit_price = c["open"]
+                broker.close_position(pos["id"], exit_price, "ALPHA_DECAY_HIT")
+                stops_count += 1
+                continue
+
+        # 2f. Broker-Level Graduated Trailing Stop Protection
         pos_keys = pos.keys()
         initial_stop = pos["initial_stop_paise"] if "initial_stop_paise" in pos_keys else None
         stored_peak = (

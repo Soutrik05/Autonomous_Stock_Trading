@@ -6,7 +6,6 @@ See Plan_v3 §3.1.
 
 from agents.personas.base import PersonaConfig
 from agents.prompt_base import OUTPUT_CONTRACT
-from core.config import settings
 from features.contracts import persona_allowed_metric_names
 
 VARSITY_PHILOSOPHY = (
@@ -93,19 +92,33 @@ VARSITY_FUNDAMENTAL_HURDLES = {
 
 VARSITY_EXTRA_METRICS = ["news_sentiment", "macd_hist", "volume_surge", "kaufman_er_20", "dcf_discount_pct"]
 
-VARSITY_CFG = settings.PERSONAS["varsity"]
-
 VARSITY = PersonaConfig(
     id="varsity",
     name="StockMinds Core",
     system_prompt=build_varsity_system_prompt(
         VARSITY_TECHNICAL_HURDLES,
         VARSITY_FUNDAMENTAL_HURDLES,
-        atr_multiplier=VARSITY_CFG["atr_stop_multiplier"],
+        atr_multiplier=2.0,
         extra_metrics=VARSITY_EXTRA_METRICS,
     ),
     technical_hurdles=VARSITY_TECHNICAL_HURDLES,
     fundamental_hurdles=VARSITY_FUNDAMENTAL_HURDLES,
+    sort_key="varsity_intensity",
+    ttl_days=14,
+    lookback_days=90,
+    eval_horizon_days=20,
+    fundamentals_depth="8q",
+    strategy_type="HYBRID",
+    min_win_pnl_pct=5.0,
+    min_win_hold_days=10,
+    news_lookback_days=7,
+    atr_stop_multiplier=2.0,
+    max_candidates=10,
+    max_open_positions=10,
+    max_position_pct=15.0,
+    target_risk_pct=1.5,
+    sector_cap=2,
+    prompt_ceiling=4200,
     extra_metrics=tuple(VARSITY_EXTRA_METRICS),
-    **VARSITY_CFG,
+    require_above_ema200=True,
 )

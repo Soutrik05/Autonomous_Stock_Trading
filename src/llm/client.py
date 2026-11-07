@@ -302,12 +302,11 @@ class GeminiProvider(LLMClient):
     def _discover_key_pool() -> list[tuple[str, str]]:
         """Discovers Gemini API keys from environment"""
         preferred_order = [
-            "GEMINI_API_KEY_AH",
-            "GEMINI_API_KEY_77",
-            "GEMINI_API_KEY_AS",
             "GEMINI_API_KEY_RH",
+            "GEMINI_API_KEY_AS",
+            "GEMINI_API_KEY_77",
             "GEMINI_API_KEY_SAYA",
-            
+            "GEMINI_API_KEY_AH",
         ]
         seen_keys = set()
         pool = []

@@ -1,5 +1,6 @@
 # Credentials
 .env
+.env.*
 
 # Data & SQLite Databases
 *.xlsx
@@ -15,6 +16,7 @@ storage/market/*_backup.db
 storage/ledger/*.db
 backups/*.db
 data/
+storage/
 
 # Results & Artifacts
 results/
@@ -24,7 +26,12 @@ docs/
 reports/
 *.md
 !README.md
-Claude.md
+*.zip
+
+# Private / local-only project files
+CLAUDE.md
+.claude/
+handover_for_claude/
 
 # Python
 __pycache__/
