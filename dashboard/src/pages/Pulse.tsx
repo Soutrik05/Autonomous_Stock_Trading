@@ -29,6 +29,9 @@ export default function Pulse() {
       }
     }
     load();
+    const handleSync = () => load();
+    window.addEventListener('mock_mode_changed', handleSync);
+    return () => window.removeEventListener('mock_mode_changed', handleSync);
   }, []);
 
   const filtered = events.filter((evt) => {

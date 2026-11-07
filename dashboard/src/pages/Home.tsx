@@ -43,8 +43,12 @@ const PERSONA_NAMES: Record<string, string> = {
   lynch: 'Peter Lynch · GARP',
   marks: 'Howard Marks · Contrarian Value',
   jhunjhunwala: 'Rakesh Jhunjhunwala · High-Conviction Growth',
-  'stockminds-core': 'StockMinds Core · Dual-Confluence Balanced',
+  varsity: 'Zerodha Varsity · Dual-Confluence Balanced',
   'baseline-simons-rules': 'Simons · Rules Control Baseline',
+  'baseline-lynch-rules': 'Lynch · Rules Control Baseline',
+  'baseline-marks-rules': 'Marks · Rules Control Baseline',
+  'baseline-rj-rules': 'Jhunjhunwala · Rules Control Baseline',
+  'baseline-varsity-rules': 'Varsity · Rules Control Baseline',
 };
 
 export default function Home() {
@@ -67,6 +71,9 @@ export default function Home() {
       }
     }
     load();
+    const handleSync = () => load();
+    window.addEventListener('mock_mode_changed', handleSync);
+    return () => window.removeEventListener('mock_mode_changed', handleSync);
   }, []);
 
   // Auto-rotate through live decisions every 5 seconds
@@ -94,13 +101,13 @@ export default function Home() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-20 space-y-28 animate-fade-in font-sans">
-      
+
       {/* 1. EDITORIAL ASYMMETRIC HERO */}
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-start">
-        
+
         {/* Left Column: Editorial Display Typography & Single Action */}
         <div className="lg:col-span-7 space-y-8">
-          
+
           {/* Eyebrow */}
           <div className="text-xs font-mono text-zinc-500 tracking-widest lowercase">
             a study on nse's nifty 500
@@ -133,7 +140,7 @@ export default function Home() {
         <div className="lg:col-span-5">
           {currentDecision ? (
             <div className="rounded-lg border border-white/10 bg-[#09090C] p-6 space-y-5 shadow-2xl relative">
-              
+
               {/* Blotter Header */}
               <div className="flex items-center justify-between border-b border-white/[0.06] pb-3 text-[10px] font-mono">
                 <div className="flex items-center gap-2 text-zinc-400">
@@ -148,9 +155,8 @@ export default function Home() {
                     {decisions.map((_, i) => (
                       <span
                         key={i}
-                        className={`w-1.5 h-1.5 rounded-full transition-colors ${
-                          i === activeDecisionIdx ? 'bg-[#D4AF37]' : 'bg-white/10'
-                        }`}
+                        className={`w-1.5 h-1.5 rounded-full transition-colors ${i === activeDecisionIdx ? 'bg-[#D4AF37]' : 'bg-white/10'
+                          }`}
                       />
                     ))}
                   </div>
@@ -167,13 +173,12 @@ export default function Home() {
                     {currentDecision.symbol}
                   </span>
                   <span
-                    className={`font-mono text-xs px-2 py-0.5 rounded font-semibold border ${
-                      currentDecision.action === 'BUY'
+                    className={`font-mono text-xs px-2 py-0.5 rounded font-semibold border ${currentDecision.action === 'BUY'
                         ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
                         : currentDecision.action === 'SELL'
-                        ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
-                        : 'bg-zinc-800 text-zinc-300 border-zinc-700'
-                    }`}
+                          ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                          : 'bg-zinc-800 text-zinc-300 border-zinc-700'
+                      }`}
                   >
                     {currentDecision.action}
                   </span>
@@ -292,9 +297,8 @@ export default function Home() {
                     className="hover:bg-white/[0.02] transition-colors group"
                   >
                     <td
-                      className={`py-3.5 px-3 font-semibold ${
-                        isTop ? 'text-[#D4AF37]' : 'text-zinc-500'
-                      }`}
+                      className={`py-3.5 px-3 font-semibold ${isTop ? 'text-[#D4AF37]' : 'text-zinc-500'
+                        }`}
                     >
                       0{idx + 1}
                     </td>
@@ -308,9 +312,8 @@ export default function Home() {
                     </td>
 
                     <td
-                      className={`py-3.5 px-3 text-right font-bold ${
-                        ag.returnPct >= 0 ? 'text-emerald-400' : 'text-rose-400'
-                      }`}
+                      className={`py-3.5 px-3 text-right font-bold ${ag.returnPct >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                        }`}
                     >
                       {formatPct(ag.returnPct)}
                     </td>
@@ -324,11 +327,10 @@ export default function Home() {
                     </td>
 
                     <td
-                      className={`py-3.5 px-4 text-right ${
-                        ag.alphaVsBenchmarkPct >= 0
+                      className={`py-3.5 px-4 text-right ${ag.alphaVsBenchmarkPct >= 0
                           ? 'text-emerald-400'
                           : 'text-zinc-500'
-                      }`}
+                        }`}
                     >
                       {ag.alphaVsBenchmarkPct >= 0
                         ? `+${formatPct(ag.alphaVsBenchmarkPct)}`

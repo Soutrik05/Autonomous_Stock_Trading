@@ -44,6 +44,12 @@ export default function Header() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    const handleSync = () => setIsMock(getIsMockMode());
+    window.addEventListener('mock_mode_changed', handleSync);
+    return () => window.removeEventListener('mock_mode_changed', handleSync);
+  }, []);
+
   const handleToggleMock = () => {
     const next = !isMock;
     setIsMock(next);
@@ -127,10 +133,14 @@ export default function Header() {
 
               <button
                 onClick={handleToggleMock}
-                className="px-2 py-0.5 rounded border border-white/10 text-zinc-400 hover:text-white transition-colors cursor-pointer text-[10px]"
-                title="Toggle Mock / Live"
+                className={`px-2.5 py-0.5 rounded border transition-colors cursor-pointer text-[10px] font-mono ${
+                  !isMock
+                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400 font-semibold'
+                    : 'border-white/10 text-zinc-400 hover:text-white'
+                }`}
+                title="Toggle Live backend API / Mock data"
               >
-                {isMock ? 'Mock' : 'Live'}
+                {!isMock ? '● Live API' : '○ Mock Mode'}
               </button>
             </div>
 

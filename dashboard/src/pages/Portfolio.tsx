@@ -27,8 +27,12 @@ const AGENT_LIST = [
   { id: 'lynch', name: 'Peter Lynch' },
   { id: 'marks', name: 'Howard Marks' },
   { id: 'jhunjhunwala', name: 'Rakesh Jhunjhunwala' },
-  { id: 'stockminds-core', name: 'StockMinds Core (Varsity)' },
+  { id: 'varsity', name: 'StockMinds Core (Varsity)' },
   { id: 'baseline-simons-rules', name: 'Simons (Rules Baseline)' },
+  { id: 'baseline-lynch-rules', name: 'Lynch (Rules Baseline)' },
+  { id: 'baseline-marks-rules', name: 'Marks (Rules Baseline)' },
+  { id: 'baseline-rj-rules', name: 'Jhunjhunwala (Rules Baseline)' },
+  { id: 'baseline-varsity-rules', name: 'Varsity (Rules Baseline)' },
 ];
 
 export default function Portfolio() {
@@ -67,6 +71,9 @@ export default function Portfolio() {
       }
     }
     loadData();
+    const handleSync = () => loadData();
+    window.addEventListener('mock_mode_changed', handleSync);
+    return () => window.removeEventListener('mock_mode_changed', handleSync);
   }, [currentAgentId]);
 
   if (loading) {

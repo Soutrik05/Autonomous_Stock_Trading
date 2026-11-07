@@ -129,6 +129,7 @@ class Decision(BaseModel):
     decision_date: str
     action: str
     rationale: Optional[str] = None
+    pre_mortem_risk: Optional[str] = None
     faithfulness_score: Optional[float] = None
     sizing_fidelity_score: Optional[float] = None
     candidate_rank: Optional[int] = None

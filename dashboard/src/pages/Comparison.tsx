@@ -34,6 +34,9 @@ export default function Comparison() {
       }
     }
     load();
+    const handleSync = () => load();
+    window.addEventListener('mock_mode_changed', handleSync);
+    return () => window.removeEventListener('mock_mode_changed', handleSync);
   }, []);
 
   if (loading || !data) {
