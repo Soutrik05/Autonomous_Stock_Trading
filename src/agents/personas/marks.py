@@ -6,6 +6,7 @@ See Plan_v3 §3.1.
 
 from agents.personas.base import PersonaConfig
 from agents.prompt_base import OUTPUT_CONTRACT
+from core.config import settings
 from features.contracts import persona_allowed_metric_names
 
 MARKS_PHILOSOPHY = (
@@ -121,33 +122,19 @@ MARKS_EXTRA_METRICS = [
     "roce_pct",
 ]
 
+MARKS_CFG = settings.PERSONAS["marks"]
+
 MARKS = PersonaConfig(
     id="marks",
     name="Howard Marks",
     system_prompt=build_marks_system_prompt(
         MARKS_TECHNICAL_HURDLES,
         MARKS_FUNDAMENTAL_HURDLES,
-        atr_multiplier=2.5,
+        atr_multiplier=MARKS_CFG["atr_stop_multiplier"],
         extra_metrics=MARKS_EXTRA_METRICS,
     ),
     technical_hurdles=MARKS_TECHNICAL_HURDLES,
     fundamental_hurdles=MARKS_FUNDAMENTAL_HURDLES,
-    sort_key="marks_intensity",
-    ttl_days=10,
-    lookback_days=90,
-    eval_horizon_days=60,
-    fundamentals_depth="3y",
-    strategy_type="VALUE_CONTRARIAN",
-    min_win_pnl_pct=6.0,
-    min_win_hold_days=14,
-    news_lookback_days=14,
-    atr_stop_multiplier=2.5,
-    max_candidates=15,
-    max_open_positions=8,
-    max_position_pct=15.0,
-    target_risk_pct=1.5,
-    sector_cap=2,
-    prompt_ceiling=4200,
     extra_metrics=tuple(MARKS_EXTRA_METRICS),
-    require_above_ema200=False,
+    **MARKS_CFG,
 )

@@ -6,6 +6,7 @@ See Plan_v3 §3.1 and docs/persona_references.md §4.
 
 from agents.personas.base import PersonaConfig
 from agents.prompt_base import OUTPUT_CONTRACT
+from core.config import settings
 from features.contracts import persona_allowed_metric_names
 
 JHUNJHUNWALA_PHILOSOPHY = (
@@ -112,33 +113,19 @@ JHUNJHUNWALA_EXTRA_METRICS = [
     "debt_to_equity",
 ]
 
+JHUNJHUNWALA_CFG = settings.PERSONAS["jhunjhunwala"]
+
 JHUNJHUNWALA = PersonaConfig(
     id="jhunjhunwala",
     name="Rakesh Jhunjhunwala",
     system_prompt=build_jhunjhunwala_system_prompt(
         JHUNJHUNWALA_TECHNICAL_HURDLES,
         JHUNJHUNWALA_FUNDAMENTAL_HURDLES,
-        atr_multiplier=3.0,
+        atr_multiplier=JHUNJHUNWALA_CFG["atr_stop_multiplier"],
         extra_metrics=JHUNJHUNWALA_EXTRA_METRICS,
     ),
     technical_hurdles=JHUNJHUNWALA_TECHNICAL_HURDLES,
     fundamental_hurdles=JHUNJHUNWALA_FUNDAMENTAL_HURDLES,
-    sort_key="rj_intensity",
-    ttl_days=14,
-    lookback_days=150,
-    eval_horizon_days=90,
-    fundamentals_depth="12q",
-    strategy_type="GROWTH_COMPOUNDER",
-    min_win_pnl_pct=15.0,
-    min_win_hold_days=45,
-    news_lookback_days=21,
-    atr_stop_multiplier=3.0,
-    max_candidates=12,
-    max_open_positions=6,
-    max_position_pct=20.0,
-    target_risk_pct=2.25,
-    sector_cap=2,
-    prompt_ceiling=4200,
     extra_metrics=tuple(JHUNJHUNWALA_EXTRA_METRICS),
-    require_above_ema200=True,
+    **JHUNJHUNWALA_CFG,
 )

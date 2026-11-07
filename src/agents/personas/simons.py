@@ -6,6 +6,7 @@ See Plan_v3 §3.1.
 
 from agents.personas.base import PersonaConfig
 from agents.prompt_base import OUTPUT_CONTRACT
+from core.config import settings
 from features.contracts import persona_allowed_metric_names
 
 SIMONS_PHILOSOPHY = (
@@ -53,10 +54,11 @@ MATHEMATICAL SIZING & VOLATILITY-PARITY RULES:
 - Volatility-Aware Stop: Set stop_loss_price below entry_low by AT LEAST {atr_multiplier:.1f}x ATR-14 to clear normal market noise and prevent premature whipsaws. If parkinson_vol_ratio is elevated (> 3.0%), intrabar turbulence is heightened; widen your stop margin accordingly.
 - Target Sizing: Target price should reflect statistical excursion, typically entry_high + 4.5x to 5.0x ATR-14 for high-efficiency trends (maintaining >= 1.8:1 reward-to-risk ratio).
 - Edge-Scaled Risk: Determine your capital risk budget between 0.50% and 1.00% of current account value based on your statistical conviction (higher intensity/efficiency merits higher risk; lower conviction merits 0.50%).
-- Position Sizing Reasoning: Derive position shares from your selected risk budget and distance to stop loss. Position capital commitment must never exceed 10% of total account value. Maximum 6 simultaneous open positions across the portfolio.
-- Regime-Adaptive Risk Scaling:
-  * In HIGH_VOLATILITY regimes (VIX elevated), momentum breakouts suffer elevated failure rates. Throttle your risk budget to 0.40% per trade and maintain at most 3 simultaneous open positions, sitting predominantly in cash.
-  * In RANGE_BOUND regimes (sideways consolidation / compressed VIX / low ADX), breakout momentum strategies suffer ~90% false-breakout whipsaws. Maintain a 100% cash preservation posture: DO NOT issue new BUY orders (output HOLD on all unheld candidates) and preserve cash liquidity.
+- Position Sizing Reasoning: Derive position shares from your selected risk budget and distance to stop loss. Position capital commitment must never exceed 10% of total account value. Maximum 10 simultaneous open positions across the portfolio (diversified statistical book).
+- Regime-Adaptive Risk Scaling & Volatility Defenses:
+  * In NORMAL and LOW_VOL regimes: Full statistical capacity. Run up to 10 open positions across top-ranked candidates with 0.75% to 1.00% capital risk per trade.
+  * In ELEVATED regime (India VIX 18-24 / choppy market conditions): Elevated whipsaw hazard. Reduce capital risk per trade to 0.40%-0.50%, restrict total open positions to at most 4-5, and require higher hurdle conviction (KER >= 0.45, ADX >= 28) before opening new positions.
+  * In PANIC regime (India VIX >= 24) or systemic market corrections: Momentum collapse hazard. Strictly freeze new BUY orders (output HOLD on all unheld candidates), preserve cash liquidity, and tighten trailing stops on active holdings.
 
 SYSTEMATIC EXITS (Alpha Decay):
 - For open positions (pos=held), evaluate duration. If a position has been held >= 8 sessions without achieving at least 1.0x ATR-14 profit, or if Kaufman Efficiency collapses (KER < 0.20) or ADX drops below 20, the statistical edge has expired -- output SELL to recycle capital into higher-conviction candidates.
@@ -104,33 +106,19 @@ SIMONS_EXTRA_METRICS = [
     "obv_slope_sign",
 ]
 
+SIMONS_CFG = settings.PERSONAS["simons"]
+
 SIMONS = PersonaConfig(
     id="simons",
     name="Jimmy",
     system_prompt=build_simons_system_prompt(
         SIMONS_TECHNICAL_HURDLES,
         SIMONS_FUNDAMENTAL_HURDLES,
-        atr_multiplier=2.5,
+        atr_multiplier=SIMONS_CFG["atr_stop_multiplier"],
         extra_metrics=SIMONS_EXTRA_METRICS,
     ),
     technical_hurdles=SIMONS_TECHNICAL_HURDLES,
     fundamental_hurdles=SIMONS_FUNDAMENTAL_HURDLES,
-    sort_key="simons_intensity",
-    ttl_days=3,
-    lookback_days=14,
-    eval_horizon_days=5,
-    fundamentals_depth="none",
-    strategy_type="QUANT_MOMENTUM",
-    min_win_pnl_pct=4.0,
-    min_win_hold_days=1,
-    news_lookback_days=0,
-    atr_stop_multiplier=2.5,
-    max_candidates=8,
-    max_open_positions=6,
-    max_position_pct=10.0,
-    target_risk_pct=0.75,
-    sector_cap=3,
-    prompt_ceiling=4500,
     extra_metrics=tuple(SIMONS_EXTRA_METRICS),
-    require_above_ema200=True,
+    **SIMONS_CFG,
 )

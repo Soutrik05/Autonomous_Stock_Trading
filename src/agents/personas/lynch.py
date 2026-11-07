@@ -6,6 +6,7 @@ See Plan_v3 §3.1.
 
 from agents.personas.base import PersonaConfig
 from agents.prompt_base import OUTPUT_CONTRACT
+from core.config import settings
 from features.contracts import persona_allowed_metric_names
 
 LYNCH_PHILOSOPHY = (
@@ -116,33 +117,19 @@ LYNCH_EXTRA_METRICS = [
     "dii_holding_pct",
 ]
 
+LYNCH_CFG = settings.PERSONAS["lynch"]
+
 LYNCH = PersonaConfig(
     id="lynch",
     name="Peter Lynch",
     system_prompt=build_lynch_system_prompt(
         LYNCH_TECHNICAL_HURDLES,
         LYNCH_FUNDAMENTAL_HURDLES,
-        atr_multiplier=2.5,
+        atr_multiplier=LYNCH_CFG["atr_stop_multiplier"],
         extra_metrics=LYNCH_EXTRA_METRICS,
     ),
     technical_hurdles=LYNCH_TECHNICAL_HURDLES,
     fundamental_hurdles=LYNCH_FUNDAMENTAL_HURDLES,
-    sort_key="lynch_intensity",
-    ttl_days=14,
-    lookback_days=120,
-    eval_horizon_days=60,
-    fundamentals_depth="4y",
-    strategy_type="GARP",
-    min_win_pnl_pct=10.0,
-    min_win_hold_days=15,
-    news_lookback_days=30,
-    atr_stop_multiplier=2.5,
-    max_candidates=10,
-    max_open_positions=5,
-    max_position_pct=20.0,
-    target_risk_pct=2.0,
-    sector_cap=2,
-    prompt_ceiling=4200,
     extra_metrics=tuple(LYNCH_EXTRA_METRICS),
-    require_above_ema200=False,
+    **LYNCH_CFG,
 )
