@@ -24,7 +24,7 @@ docs/
 reports/
 *.md
 !README.md
-!Claude.md
+Claude.md
 
 # Python
 __pycache__/
