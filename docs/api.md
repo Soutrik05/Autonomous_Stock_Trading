@@ -1,4 +1,4 @@
-# StockMinds REST API — Phase 1
+# StockMinds REST API — Phase 1 + 2
 
 Read-only FastAPI backend for the React dashboard. Every DB connection it opens is read-only
 (`sqlite3.connect(f"file:{path}?mode=ro", ...)`); it never writes anything, anywhere.
@@ -132,15 +132,79 @@ Unknown `id` → 404.
 ### `GET /api/agents/{id}/decisions`
 `decisions` with `cited_metrics_json` parsed into a list.
 
-### `GET /api/backtest/...` (bug fixes only this phase; routes unchanged otherwise)
+### `GET /api/backtest/...`
 `windows`, `runs`, `runs/{window_id}/leaderboard`, `runs/{window_id}/nav`,
-`runs/{window_id}/positions`, `runs/{window_id}/comparison` — all pre-existing, all still tagged
-`"evidence_label": "BACKTEST_DERIVED"`.
+`runs/{window_id}/positions`, `runs/{window_id}/holding-duration` (new, Phase 2),
+`runs/{window_id}/comparison` — all tagged `"evidence_label": "BACKTEST_DERIVED"`, money in paise,
+`window_id` validated (400 if it contains a path separator or `..`) before ever touching disk.
 
-### Not built yet (Phase 2)
-`GET /api/agents/{id}/memory` and `GET /api/baseline/comparison` — their route files
-(`src/api/routes/memory.py`, `src/api/routes/baseline.py`) are still docstring-only stubs with no
-`router` object, so they are not imported in `src/api/main.py` yet.
+## Endpoints (Phase 2)
+
+### `GET /api/agents/{id}/memory?status=`
+Heuristics from `agent_memory`, plus a "recent success rate" computed over the most recent
+`settings.HEURISTIC_ROLLING_WINDOW` resolved `heuristic_applications` (fewer if that many don't
+exist yet; `null` if none have resolved at all). `lifecycle_reason` is the most recent
+`HEURISTIC_STATUS_CHANGED` reason for that heuristic from `activity_log.metadata_json` — the
+reason is never stored on `agent_memory` itself (see `learning/memory_manager.py::update_lifecycle`).
+Unknown agent → 404; no heuristics → `[]`.
+
+```json
+[
+  {
+    "id": 19, "agent_id": "simons", "kind": "AVOID",
+    "rule_text": "Avoid entering when price is overextended with zscore_close_20 above 1.3 and rsi_14 above 67.",
+    "context": "ENTRY", "status": "reinforced", "confidence": 0.7284,
+    "applications": 79, "successes": 58, "recent_success_rate": 100.0,
+    "created_at": "2026-08-02T10:00:00+05:30", "updated_at": "2026-10-29T15:45:00+05:30",
+    "lifecycle_reason": "promotion_epoch"
+  }
+]
+```
+
+### `GET /api/baseline/comparison?persona=`
+`persona` must be one of `simons`, `lynch`, `marks`, `jhunjhunwala`, `varsity` — anything else is
+422 with the valid set named in the message. Reuses the now-fixed
+`evaluation.comparison.compare_*_vs_baseline` and `compare_selection_alpha` (which gained an
+optional `agent_id` filter this phase — see Bug fixes). A horizon with no decisions at all is
+`null` throughout, never `0`.
+
+```json
+{
+  "persona_id": "simons",
+  "llm_agent": {"return_pct": -5.12, "sharpe_ratio": -3.61, "win_rate_pct": 28.6, "max_drawdown_pct": -5.42, "trades": 56},
+  "rules_agent": {"return_pct": -5.62, "sharpe_ratio": -4.49, "win_rate_pct": 31.0, "max_drawdown_pct": -5.69, "trades": 42},
+  "deltas": {"excess_return_pct": 0.5, "excess_sharpe": 0.88, "excess_alpha_pct": 0.5, "excess_win_rate_pct": -2.4},
+  "is_provisional": false,
+  "sample_notice": "VALIDATED (>=30 closed trades)",
+  "evidence_label": "LIVE_PILOT",
+  "horizon_returns": [
+    {
+      "horizon_days": 1, "llm_buy_avg_pct": 0.21, "llm_hold_avg_pct": -0.1,
+      "rules_buy_avg_pct": 0.19, "nifty500_avg_pct": 0.1, "selection_alpha_pct": 0.31,
+      "llm_buy_count": 63, "rules_buy_count": 44
+    }
+  ]
+}
+```
+
+### `GET /api/backtest/runs/{window_id}/holding-duration`
+New this phase: Question B evidence (average and median `hold_days`, and closed-trade count,
+per persona, for one backtest run).
+
+### `GET /api/funnel?agent_id=`
+Each agent's **latest** `FUNNEL_COUNTS` `activity_log` row (live DB only), newest `created_at`
+per agent. Stage keys are returned exactly as stored, in their original order — never renamed or
+invented. Unknown `agent_id` → 404; no rows → `[]`; a row whose `metadata_json` isn't valid JSON
+is skipped (falling through to an older valid row for that agent if one exists), never a 500.
+
+```json
+[{"agent_id": "simons", "run_date": "2026-10-29", "stages": [{"key": "stage0", "count": 237}, {"key": "stage1", "count": 2}, {"key": "final", "count": 8}]}]
+```
+
+**The real funnel has 3 stages** (`stage0`, `stage1`, `final`) — it does **not** match
+`docs/frontend_implementation_plan_week5.md`'s mock funnel (500 → 350 → 20 → 3-5, four stages).
+The frontend should label whatever stage keys this endpoint actually returns, not assume the
+mock's four-step shape or its stage names.
 
 ---
 
@@ -192,6 +256,27 @@ real schema (nulling what has no real source), here is every place the two diver
 10. **`PENDING`/`pending_orders.status` values are uppercased** in the response (`"FILLED"`, not
     `"filled"`) to match the guide's sample casing — a pure string transform, not new data.
 11. **The suggested run command doesn't work as written** — see "Running it" above.
+12. **`/api/agents/{id}/decisions`'s `cited_metrics` is `null` only when the column is really
+    empty** (`NULL`, `''`, or `'{}'` — a HOLD decision cites nothing) — confirmed against real
+    data (`storage/ledger/portfolio.db` has 21/82 decisions with non-empty `cited_metrics_json`;
+    `storage/backtest/rolling_w2_heuristics_on.db` has 679/18831). Phase 1 returned `[]` for the
+    empty case; Phase 2 corrected this to `null`, per instruction.
+13. **`horizon_returns`' field names are generic** (`llm_buy_avg_pct`, `rules_buy_avg_pct`, …),
+    not baked with a persona name the way the guide's sample shows it for Simons specifically
+    (`llm_simons_buy_avg_pct`, …) — this is one endpoint serving all 5 personas via `?persona=`,
+    so persona-specific field names would force the frontend to parse 5 different shapes.
+14. **`selection_alpha_pct` is the LLM persona's own candidate-selection alpha** (its BUY decisions'
+    average forward return minus its HOLD-rejected candidates' average), not the LLM-vs-rules
+    performance delta — that's already covered by `deltas.excess_return_pct`. This matches
+    `evaluation/comparison.py::compare_selection_alpha`'s existing definition and the frontend
+    plan's own description ("verifying whether BUY decisions outperform candidates rejected as
+    HOLD").
+15. **`/api/backtest/runs`'s shape changed**: each entry is now `{pair_id, heuristics_on,
+    heuristics_off}` instead of a flat list of runs, so the dashboard can show a heuristics-ON
+    run next to its OFF counterpart. A run with no counterpart on disk still appears, with the
+    missing side `null`. No `_heuristics_on`/`_heuristics_off`-suffixed window still appears,
+    filed under `heuristics_on` by convention (never silently dropped).
+16. **The real funnel has 3 stages, not the mock's 4** — see "GET /api/funnel" above.
 
 ## Bug fixes this phase
 
@@ -210,28 +295,51 @@ real schema (nulling what has no real source), here is every place the two diver
   rounded rupee float (see Deviation 3 above). The positions endpoint's `avg_entry_price` (a
   rupee float) was also replaced with `avg_entry_price_paise` (an integer) for the same reason.
 
+### Phase 2
+
+- **`evaluation/comparison.py::compare_selection_alpha`** gained an optional `agent_id` filter
+  (default `None`, preserving its original global behavior) so `/api/baseline/comparison` can
+  compute per-persona BUY/HOLD forward returns. Also now exposes `avg_benchmark_pct` in each
+  stats dict (previously computed internally but never returned), which `/api/baseline/comparison`
+  uses for `nifty500_avg_pct`.
+- Everything else flagged in Phase 1 for Phase 2 (`/memory`, `/baseline/comparison`) is now built
+  — see "Endpoints (Phase 2)" above.
+
 ## Test suite
 
-- **Before this phase:** 488 passed.
-- **After this phase:** 519 passed (31 new tests, 0 regressions).
+- **Before Phase 1:** 488 passed.
+- **After Phase 1:** 519 passed (31 new, 0 regressions).
+- **After Phase 2:** 541 passed (22 more new, 0 regressions).
 - Run with: `python -m pytest tests -q`
-- New test files: `tests/unit/test_api_health.py`, `test_api_activity.py`,
+- Phase 1 test files: `tests/unit/test_api_health.py`, `test_api_activity.py`,
   `test_api_leaderboard.py`, `test_api_portfolio.py`, `test_api_isolation.py`,
-  `test_api_bugfixes.py`, plus a shared (non-test) helper module
-  `tests/unit/_api_test_helpers.py` that builds a real on-disk temp SQLite file per test (the
-  API's `mode=ro` URI connection can't attach to an in-memory `:memory:` database from a second
-  connection, which is what `tests/conftest.py`'s usual fixture uses).
+  `test_api_bugfixes.py`.
+- Phase 2 test files: `tests/unit/test_api_memory.py`, `test_api_baseline.py`,
+  `test_api_funnel.py`, `test_api_backtest_phase2.py`, plus one added test each to
+  `test_api_portfolio.py` (cited_metrics null case), `test_api_activity.py` (multi-page severity
+  pagination), and `test_api_isolation.py`'s static guard list (memory/baseline/funnel added).
+- Shared (non-test) helper module: `tests/unit/_api_test_helpers.py` builds a real on-disk temp
+  SQLite file per test — the API's `mode=ro` URI connection can't attach to an in-memory
+  `:memory:` database from a second connection, which is what `tests/conftest.py`'s usual fixture
+  uses.
 
 ## Real smoke run
 
-Ran the live app (`uvicorn api.main:app`) against a **copy** of
-`storage/backtest/rolling_w2_heuristics_on.db` (the richest database on disk — 478 positions, 10
-agents) — never the original file, and never `storage/ledger/portfolio.db`. All three required
-endpoints returned real, correctly-shaped data on the first try:
+**Phase 1** — ran the live app against a copy of `storage/backtest/rolling_w2_heuristics_on.db`
+(the richest database on disk — 478 positions, 10 agents): `GET /api/health`, `GET
+/api/leaderboard`, `GET /api/agents/simons/positions` all returned real, correctly-shaped data.
 
-- `GET /api/health` → `{"database_reachable": true, "jobs": [...6 jobs...]}`
-- `GET /api/leaderboard` → 10 entries, real Sharpe/drawdown/win-rate/faithfulness numbers
-- `GET /api/agents/simons/positions` → 58 real positions, correct paise math, correct forensic
-  tags where present
+**Phase 2** — ran it again against a fresh copy of the same database, curling the four
+newly-required endpoints:
 
-The temp copy was deleted after the smoke run; nothing under `storage/` was modified.
+- `GET /api/agents/simons/memory` → real heuristics (e.g. an AVOID rule, `reinforced`, 79
+  applications, 58 successes, `lifecycle_reason: "promotion_epoch"`)
+- `GET /api/baseline/comparison?persona=simons` → real LLM-vs-rules stats and all 5 horizons
+  populated with real forward-return numbers
+- `GET /api/backtest/runs` → the real on-disk windows (`rolling_w1`, `rolling_w2`,
+  `supplementary_range`), each paired (`heuristics_off: null` for all three, since no `_off`
+  variant exists on disk yet)
+- `GET /api/funnel` → real 3-stage funnel counts for every agent
+
+Both temp copies were deleted after their smoke runs; nothing under `storage/` was modified
+either time.
