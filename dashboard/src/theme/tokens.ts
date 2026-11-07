@@ -8,53 +8,53 @@
 import type { ForensicTag, EventSeverity } from '../types';
 
 export const THEME_COLORS = {
-  // Canvas & Surfaces (OpenRouter Deep Obsidian & Frosted Glass)
-  canvas: '#030712',          // Pitch cosmic obsidian void
-  surface: 'rgba(15, 23, 42, 0.65)',         // Translucent dark slate glass
-  surfaceSubdued: 'rgba(255, 255, 255, 0.03)',// Sunken data wells & table headers
-  surfaceHover: 'rgba(255, 255, 255, 0.06)',  // Subtle row & card hover
-  surfaceInset: 'rgba(0, 0, 0, 0.5)',         // Inset wells
+  // Canvas & Surfaces (Institutional Obsidian Slate)
+  canvas: '#090B10',                          // Deep matte obsidian
+  surface: 'rgba(16, 20, 29, 0.75)',         // Matte institutional slate glass
+  surfaceSubdued: 'rgba(255, 255, 255, 0.025)',// Data wells & table headers
+  surfaceHover: 'rgba(255, 255, 255, 0.05)',  // Micro hover
+  surfaceInset: 'rgba(0, 0, 0, 0.4)',         // Recessed wells
 
-  // Borders & Dividers
+  // Borders & Hairlines
   border: 'rgba(255, 255, 255, 0.08)',       // Structural micro-border
-  borderSubdued: 'rgba(255, 255, 255, 0.04)',  // Inner row dividers
-  borderStrong: 'rgba(255, 255, 255, 0.18)',   // Highlighted active borders
+  borderSubdued: 'rgba(255, 255, 255, 0.04)',  // Inner dividers
+  borderStrong: 'rgba(255, 255, 255, 0.16)',   // Focused / active border
 
   // Typography Ink
-  inkPrimary: '#F8FAFC',      // Crisp, high-contrast white
-  inkSecondary: '#94A3B8',    // Steely secondary slate
-  inkSubdued: '#64748B',      // Muted captions & units
+  inkPrimary: '#FFFFFF',                      // Solid high-contrast white
+  inkSecondary: '#94A3B8',                    // Steely slate secondary
+  inkSubdued: '#64748B',                      // Muted tertiary & units
 
-  // Semantic Signals: Electric Cyber Cyan (Brand Accent)
-  accent: '#06B6D4',          // Cyber Cyan
-  accentHover: '#0891B2',     // Darker cyan hover
-  accentSubdued: 'rgba(6, 182, 212, 0.12)', // Cyan glow container
-  accentBorder: 'rgba(6, 182, 212, 0.35)', // Cyan border
+  // Semantic Signals: Institutional Cobalt (Brand Accent)
+  accent: '#2563EB',                          // Institutional royal cobalt
+  accentHover: '#1D4ED8',                     // Deepened cobalt hover
+  accentSubdued: 'rgba(37, 99, 235, 0.10)',   // Subtle cobalt background
+  accentBorder: 'rgba(37, 99, 235, 0.30)',   // Subtle cobalt border
 
-  // Semantic Signals: Vivid Emerald (Profit / Positive Alpha)
-  profit: '#10B981',          // Vivid emerald
-  profitSubdued: 'rgba(16, 185, 129, 0.12)', // Emerald tint background
-  profitBorder: 'rgba(16, 185, 129, 0.35)',  // Emerald hairline border
+  // Semantic Signals: Tabular Emerald (Profit / Positive Alpha)
+  profit: '#10B981',                          // Muted crisp emerald
+  profitSubdued: 'rgba(16, 185, 129, 0.10)',  // Emerald background tint
+  profitBorder: 'rgba(16, 185, 129, 0.25)',   // Emerald border
 
-  // Semantic Signals: Vivid Rose (Loss / Downside / Risk)
-  loss: '#F43F5E',            // Vivid rose / crimson
-  lossSubdued: 'rgba(244, 63, 94, 0.12)',    // Rose tint background
-  lossBorder: 'rgba(244, 63, 94, 0.35)',     // Rose hairline border
+  // Semantic Signals: Tabular Crimson (Loss / Drawdown)
+  loss: '#EF4444',                            // Crisp tabular crimson
+  lossSubdued: 'rgba(239, 68, 68, 0.10)',     // Crimson background tint
+  lossBorder: 'rgba(239, 68, 68, 0.25)',      // Crimson border
 
   // Architecture Layer Badges
-  llmBadge: '#3B82F6',        // Electric royal blue
-  llmBadgeSubdued: 'rgba(59, 130, 246, 0.12)',
-  llmBadgeBorder: 'rgba(59, 130, 246, 0.35)',
+  llmBadge: '#3B82F6',                        // Cobalt blue for LLM
+  llmBadgeSubdued: 'rgba(59, 130, 246, 0.10)',
+  llmBadgeBorder: 'rgba(59, 130, 246, 0.25)',
 
-  rulesBadge: '#64748B',      // Steely graphite
-  rulesBadgeSubdued: 'rgba(100, 116, 139, 0.12)',
-  rulesBadgeBorder: 'rgba(100, 116, 139, 0.35)',
+  rulesBadge: '#64748B',                      // Slate for Rules controls
+  rulesBadgeSubdued: 'rgba(100, 116, 139, 0.10)',
+  rulesBadgeBorder: 'rgba(100, 116, 139, 0.25)',
 
   // Guardrail Badges
-  provisional: '#F59E0B',     // Amber alert (<30 closed trades)
-  backtestDerived: '#8B5CF6', // Electric violet for historical simulation
-  backtestSubdued: 'rgba(139, 92, 246, 0.12)',
-  backtestBorder: 'rgba(139, 92, 246, 0.35)',
+  provisional: '#F59E0B',                     // Amber alert (<30 closed trades)
+  backtestDerived: '#8B5CF6',                 // Violet for backtest simulation
+  backtestSubdued: 'rgba(139, 92, 246, 0.10)',
+  backtestBorder: 'rgba(139, 92, 246, 0.25)',
 } as const;
 
 export const FONT_STACKS = {
@@ -149,7 +149,7 @@ export const STRATEGY_THEME: Record<string, StrategyVisualConfig> = {
     name: 'StockMinds Core (LLM)',
     shortName: 'Varsity LLM',
     badge: 'LLM',
-    color: '#06B6D4', // Cyan Teal
+    color: '#0284C7', // Deep Sky Blue
     family: 'Dual Confluence',
   },
   'baseline-varsity-rules': {
@@ -157,7 +157,7 @@ export const STRATEGY_THEME: Record<string, StrategyVisualConfig> = {
     name: 'Varsity Core (Rules Control)',
     shortName: 'Varsity Rules',
     badge: 'RULES',
-    color: '#22D3EE',
+    color: '#38BDF8',
     strokeDasharray: '4 4',
     family: 'Dual Confluence',
   },
@@ -184,9 +184,9 @@ export const FORENSIC_TAG_THEME: Record<ForensicTag, { label: string; bg: string
   },
   WIN_TREND_CONTINUATION: {
     label: 'Trend Win',
-    bg: 'bg-cyan-500/10',
-    text: 'text-cyan-400',
-    border: 'border-cyan-500/30',
+    bg: 'bg-blue-500/10',
+    text: 'text-blue-400',
+    border: 'border-blue-500/30',
   },
   WIN_CATALYST: {
     label: 'Catalyst Win',

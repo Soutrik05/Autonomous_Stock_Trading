@@ -53,7 +53,7 @@ export default function Pulse() {
       case 'ERROR':
         return <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0" />;
       default:
-        return <Info className="w-4 h-4 text-cyan-400 flex-shrink-0" />;
+        return <Info className="w-4 h-4 text-blue-400 flex-shrink-0" />;
     }
   };
 
@@ -62,11 +62,11 @@ export default function Pulse() {
       {/* Header */}
       <div className="border-b border-white/10 pb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <div className="flex items-center gap-2 text-xs font-mono text-cyan-400 mb-1 font-semibold">
-            <Activity className="w-3.5 h-3.5" />
+          <div className="flex items-center gap-2 text-xs font-mono text-slate-400 mb-1 font-semibold uppercase tracking-wider">
+            <Activity className="w-3.5 h-3.5 text-blue-400" />
             <span>Real-Time Audit & Transparency Stream</span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
             System Pulse
           </h1>
           <p className="text-sm text-slate-400 mt-1 max-w-2xl leading-relaxed">
@@ -75,8 +75,8 @@ export default function Pulse() {
         </div>
 
         {/* Live Status Pill */}
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs font-mono">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs font-mono">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           <span>Telemetry Active · IST Synchronized</span>
         </div>
       </div>
@@ -90,7 +90,7 @@ export default function Pulse() {
             placeholder="Search by symbol, agent, or message..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 rounded-lg border border-white/10 bg-black/40 text-white font-mono text-xs focus:ring-1 focus:ring-cyan-400"
+            className="w-full pl-9 pr-3 py-2 rounded border border-white/10 bg-black/40 text-white font-mono text-xs focus:ring-1 focus:ring-blue-500"
           />
         </div>
 
@@ -101,7 +101,7 @@ export default function Pulse() {
             <select
               value={selectedAgent}
               onChange={(e) => setSelectedAgent(e.target.value)}
-              className="bg-[#0B0F19] border border-white/10 text-white rounded-lg px-2.5 py-1.5 text-xs cursor-pointer focus:ring-1 focus:ring-cyan-400"
+              className="bg-[#090B10] border border-white/10 text-white rounded px-2.5 py-1.5 text-xs cursor-pointer focus:ring-1 focus:ring-blue-500"
             >
               <option value="ALL">All Agents</option>
               <option value="simons">Simons (LLM)</option>
@@ -119,7 +119,7 @@ export default function Pulse() {
             <select
               value={selectedSeverity}
               onChange={(e) => setSelectedSeverity(e.target.value)}
-              className="bg-[#0B0F19] border border-white/10 text-white rounded-lg px-2.5 py-1.5 text-xs cursor-pointer focus:ring-1 focus:ring-cyan-400"
+              className="bg-[#090B10] border border-white/10 text-white rounded px-2.5 py-1.5 text-xs cursor-pointer focus:ring-1 focus:ring-blue-500"
             >
               <option value="ALL">All Severity</option>
               <option value="INFO">Info</option>
@@ -156,7 +156,7 @@ export default function Pulse() {
                       {evt.eventType}
                     </span>
                     {evt.agentId && (
-                      <span className="text-xs font-semibold text-cyan-400">
+                      <span className="text-xs font-semibold text-blue-400">
                         @{evt.agentId}
                       </span>
                     )}

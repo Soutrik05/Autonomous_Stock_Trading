@@ -32,15 +32,15 @@ export default function PositionTable({ positions, title, defaultStatus = 'ALL' 
               </p>
             </div>
           )}
-          <div className="flex items-center gap-1 text-xs font-mono bg-white/[0.04] p-1 rounded-xl border border-white/10 backdrop-blur-md">
+          <div className="flex items-center gap-1 text-xs font-mono bg-white/[0.04] p-1 rounded border border-white/10">
             {(['ALL', 'OPEN', 'CLOSED'] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setFilter(tab)}
-                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                className={`px-3 py-1.5 rounded transition-all cursor-pointer ${
                   filter === tab
-                    ? 'bg-cyan-500/20 text-cyan-300 font-semibold border border-cyan-500/30 shadow-[0_0_12px_rgba(6,182,212,0.2)]'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-blue-600 text-white font-semibold'
+                    : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
                 }`}
               >
                 {tab === 'ALL' ? 'All' : tab === 'OPEN' ? 'Open' : 'Closed'} (
@@ -104,7 +104,7 @@ export default function PositionTable({ positions, title, defaultStatus = 'ALL' 
                             {pos.symbol}
                           </span>
                           {pos.isFrozen && (
-                            <span title="Strategy frozen pending reflection review" className="text-cyan-400">
+                            <span title="Strategy frozen pending reflection review" className="text-blue-400">
                               <Snowflake className="w-3.5 h-3.5 inline animate-pulse" />
                             </span>
                           )}
@@ -118,7 +118,7 @@ export default function PositionTable({ positions, title, defaultStatus = 'ALL' 
                         <span
                           className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border ${
                             pos.status === 'OPEN'
-                              ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30'
+                              ? 'bg-blue-500/15 text-blue-300 border-blue-500/30'
                               : 'bg-white/5 text-slate-400 border-white/10'
                           }`}
                         >
@@ -172,7 +172,7 @@ export default function PositionTable({ positions, title, defaultStatus = 'ALL' 
                       <td className="py-3.5 px-2 text-center text-slate-500">
                         {pos.status === 'CLOSED' ? (
                           <span title="Open Trade Autopsy">
-                            <Activity className="w-3.5 h-3.5 text-cyan-400 group-hover:scale-110 transition-transform" />
+                            <Activity className="w-3.5 h-3.5 text-blue-400 group-hover:scale-110 transition-transform" />
                           </span>
                         ) : isExpanded ? (
                           <ChevronUp className="w-3.5 h-3.5 inline" />
@@ -190,10 +190,10 @@ export default function PositionTable({ positions, title, defaultStatus = 'ALL' 
 
         {/* Expandable Thesis Rationale Drawer for Open Positions */}
         {expandedRow !== null && (
-          <div className="arena-glass-subdued p-5 border-t border-white/10 text-xs space-y-2 m-4 rounded-xl">
+          <div className="arena-glass-subdued p-5 border-t border-white/10 text-xs space-y-2 m-4 rounded">
             <div className="font-semibold text-white flex items-center gap-2">
               <span>Trading Thesis & Execution Rationale</span>
-              <span className="font-mono text-cyan-400 text-[11px]">(Position #{expandedRow})</span>
+              <span className="font-mono text-blue-400 text-[11px]">(Position #{expandedRow})</span>
             </div>
             <p className="text-slate-300 leading-relaxed font-sans">
               {positions.find((p) => p.id === expandedRow)?.thesisSummary ||

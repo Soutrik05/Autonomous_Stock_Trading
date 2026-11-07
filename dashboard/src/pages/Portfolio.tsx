@@ -73,7 +73,7 @@ export default function Portfolio() {
     return (
       <div className="max-w-7xl mx-auto px-4 py-24 flex justify-center items-center">
         <div className="flex items-center gap-3 text-slate-400 font-mono text-sm">
-          <div className="w-5 h-5 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+          <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
           <span>Loading agent portfolio...</span>
         </div>
       </div>
@@ -105,7 +105,7 @@ export default function Portfolio() {
           <select
             value={currentAgentId}
             onChange={(e) => navigate(`/portfolio/${e.target.value}`)}
-            className="bg-[#0B0F19] border border-white/10 text-white rounded-lg px-3 py-1.5 font-mono text-xs cursor-pointer focus:ring-1 focus:ring-cyan-400"
+            className="bg-[#090B10] border border-white/10 text-white rounded px-3 py-1.5 font-mono text-xs cursor-pointer focus:ring-1 focus:ring-blue-500"
           >
             {AGENT_LIST.map((ag) => (
               <option key={ag.id} value={ag.id}>
@@ -197,11 +197,11 @@ export default function Portfolio() {
             onClick={() => setActiveTab(key as typeof activeTab)}
             className={`pb-3.5 flex items-center gap-2 border-b-2 transition-all cursor-pointer whitespace-nowrap ${
               activeTab === key
-                ? 'border-cyan-400 text-white font-semibold'
+                ? 'border-blue-500 text-white font-semibold'
                 : 'border-transparent text-slate-400 hover:text-white'
             }`}
           >
-            <Icon className="w-4 h-4 text-cyan-400" />
+            <Icon className="w-4 h-4 text-blue-400" />
             <span>{label}</span>
             <span className="px-2 py-0.5 rounded-full text-[10px] bg-white/[0.04] text-slate-400 border border-white/10">
               {count}

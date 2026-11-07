@@ -128,21 +128,21 @@ export default function TradeAutopsyDrawer({ trade, onClose }: TradeAutopsyDrawe
             {/* Deterministic Forensics & Reflection Loop */}
             <div className="arena-glass-subdued p-4 space-y-3">
               <div className="flex items-center gap-2 text-xs font-bold text-white">
-                <Activity className="w-4 h-4 text-cyan-400" />
+                <Activity className="w-4 h-4 text-blue-400" />
                 <span>Causal Forensics & Reflection Loop</span>
               </div>
 
-              <div className="p-3.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20 space-y-2 text-xs">
+              <div className="p-3.5 rounded bg-blue-500/10 border border-blue-500/20 space-y-2 text-xs">
                 <div className="flex items-center justify-between text-white font-semibold font-mono text-[11px]">
                   <span>Classification: {forensic.label}</span>
-                  <span className="text-[10px] text-cyan-400">Autonomous Reflection Engine</span>
+                  <span className="text-[10px] text-blue-400">Autonomous Reflection Engine</span>
                 </div>
 
                 <p className="text-[11px] text-slate-300 leading-relaxed font-sans">
                   Deterministic classification marked as <strong>{forensic.label}</strong> based on exit trigger breach and volatility behavior.
                 </p>
 
-                <div className="pt-2 border-t border-cyan-500/20 font-mono text-[10px] text-cyan-400 flex items-center justify-between">
+                <div className="pt-2 border-t border-blue-500/20 font-mono text-[10px] text-slate-400 flex items-center justify-between">
                   <span>Weekly Reflection Status:</span>
                   <span className="font-semibold text-emerald-400 flex items-center gap-1">
                     <CheckCircle2 className="w-3 h-3" /> Reviewed & Watermarked

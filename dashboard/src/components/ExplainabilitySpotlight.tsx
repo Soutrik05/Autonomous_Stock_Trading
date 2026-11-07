@@ -40,13 +40,13 @@ export default function ExplainabilitySpotlight() {
       </div>
 
       {/* Verbatim Reasoning Card */}
-      <div className="arena-glass-subdued p-5 rounded-xl border border-white/10 relative space-y-2.5">
-        <Quote className="w-6 h-6 text-cyan-400/20 absolute top-4 right-4" />
+      <div className="arena-glass-subdued p-5 rounded border border-white/10 relative space-y-2.5">
+        <Quote className="w-6 h-6 text-slate-600/30 absolute top-4 right-4" />
         <div className="flex items-center gap-2 text-xs font-mono">
           <span className="font-bold text-white">{sampleDecision.agentName}</span>
           <span className="text-slate-600">·</span>
           <span className="text-slate-400">{sampleDecision.agentFamily}</span>
-          <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
+          <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-500/15 text-blue-300 border border-blue-500/30">
             BUY {sampleDecision.symbol}
           </span>
         </div>

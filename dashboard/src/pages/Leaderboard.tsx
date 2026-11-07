@@ -44,7 +44,7 @@ export default function Leaderboard() {
     return (
       <div className="max-w-7xl mx-auto px-4 py-24 flex justify-center items-center">
         <div className="flex items-center gap-3 text-slate-400 font-mono text-sm">
-          <div className="w-5 h-5 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+          <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
           <span>Synchronizing strategy telemetry...</span>
         </div>
       </div>
@@ -75,11 +75,11 @@ export default function Leaderboard() {
       {/* Header */}
       <div className="border-b border-white/10 pb-6 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
-          <div className="flex items-center gap-2 text-xs font-mono text-cyan-400 uppercase tracking-wider mb-1 font-semibold">
-            <Award className="w-3.5 h-3.5" />
+          <div className="flex items-center gap-2 text-xs font-mono text-slate-400 uppercase tracking-wider mb-1 font-semibold">
+            <Award className="w-3.5 h-3.5 text-blue-400" />
             <span>Autonomous Trading Strategy Arena</span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
             Strategy Leaderboard
           </h1>
           <p className="text-sm text-slate-400 mt-1 max-w-2xl leading-relaxed">
@@ -88,15 +88,15 @@ export default function Leaderboard() {
         </div>
 
         {/* Strategy Category Filter Chips */}
-        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-white/[0.04] border border-white/10 text-xs font-mono backdrop-blur-md">
+        <div className="flex items-center gap-1.5 p-1 rounded bg-white/[0.04] border border-white/10 text-xs font-mono">
           {(['ALL', 'LLM', 'RULES'] as const).map((filter) => (
             <button
               key={filter}
               onClick={() => setStrategyFilter(filter)}
-              className={`px-3.5 py-1.5 rounded-lg font-medium transition-all cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded font-medium transition-all cursor-pointer ${
                 strategyFilter === filter
-                  ? 'bg-cyan-500/20 text-cyan-300 font-semibold border border-cyan-500/30 shadow-[0_0_12px_rgba(6,182,212,0.2)]'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-blue-600 text-white font-semibold'
+                  : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
               }`}
             >
               {filter === 'ALL'
@@ -214,7 +214,7 @@ export default function Leaderboard() {
                         </span>
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="font-semibold text-white text-sm group-hover:text-cyan-400 transition-colors">
+                            <span className="font-semibold text-white text-sm group-hover:text-blue-400 transition-colors">
                               {agent.name}
                             </span>
                             <span

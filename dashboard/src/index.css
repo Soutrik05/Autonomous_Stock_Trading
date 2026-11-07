@@ -1,24 +1,23 @@
 @import "tailwindcss";
 
 :root {
-  /* OpenRouter-Inspired Deep Obsidian Trading Arena (SSOT) */
-  --canvas-bg: #030712;
-  --surface-glass: rgba(11, 16, 27, 0.72);
-  --surface-glass-subdued: rgba(255, 255, 255, 0.03);
-  --surface-glass-hover: rgba(255, 255, 255, 0.06);
+  /* Institutional Obsidian Dark Architecture (SSOT) */
+  --canvas-bg: #090B10;
+  --surface-glass: rgba(16, 20, 29, 0.75);
+  --surface-glass-subdued: rgba(255, 255, 255, 0.025);
+  --surface-glass-hover: rgba(255, 255, 255, 0.05);
 
   --border-primary: rgba(255, 255, 255, 0.08);
   --border-subdued: rgba(255, 255, 255, 0.04);
-  --border-glow: rgba(6, 182, 212, 0.35);
+  --border-strong: rgba(255, 255, 255, 0.16);
 
-  --ink-primary: #F8FAFC;
+  --ink-primary: #FFFFFF;
   --ink-secondary: #94A3B8;
   --ink-subdued: #64748B;
 
-  --brand-cyan: #06B6D4;
-  --brand-cobalt: #3B82F6;
+  --brand-cobalt: #2563EB;
   --profit-color: #10B981;
-  --loss-color: #F43F5E;
+  --loss-color: #EF4444;
 
   --font-sans: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, Menlo, monospace;
@@ -34,13 +33,12 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  /* Atmospheric Cosmic Arena Background (Deep nebula mesh + orbital grid) */
+  /* Subtle institutional structural grid (No fuzzy cyan/purple neon clouds) */
   background-image: 
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(6, 182, 212, 0.12), transparent 70%),
-    radial-gradient(ellipse 60% 40% at 85% 60%, rgba(59, 130, 246, 0.08), transparent 60%),
-    radial-gradient(circle 800px at 15% 90%, rgba(139, 92, 246, 0.06), transparent 70%),
-    radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-  background-size: 100% 100%, 100% 100%, 100% 100%, 32px 32px;
+    radial-gradient(100% 80% at 50% 0%, rgba(37, 99, 235, 0.04) 0%, transparent 70%),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+    linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+  background-size: 100% 100%, 48px 48px, 48px 48px;
   background-attachment: fixed;
 }
 
@@ -63,8 +61,8 @@ code, kbd, samp, pre, .font-mono {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border-primary);
-  border-radius: 0.75rem; /* rounded-xl */
-  box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.6);
+  border-radius: 0.5rem;
+  box-shadow: 0 12px 36px -8px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .arena-glass-subdued {
@@ -72,7 +70,7 @@ code, kbd, samp, pre, .font-mono {
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border: 1px solid var(--border-subdued);
-  border-radius: 0.5rem; /* rounded-lg */
+  border-radius: 0.375rem;
 }
 
 .arena-glass-hover:hover {
@@ -80,14 +78,14 @@ code, kbd, samp, pre, .font-mono {
   border-color: rgba(255, 255, 255, 0.14);
 }
 
-/* Glow Border & Gradient Highlight */
+/* Institutional Structured Card (No neon glow shadows) */
 .arena-glow-card {
   position: relative;
   background-color: var(--surface-glass);
   backdrop-filter: blur(16px);
-  border: 1px solid rgba(6, 182, 212, 0.25);
-  box-shadow: 0 0 35px -10px rgba(6, 182, 212, 0.15);
-  border-radius: 0.75rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 0.5rem;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 /* Translucent Financial Ledger Table */
@@ -122,7 +120,7 @@ a:focus-visible,
 button:focus-visible,
 input:focus-visible,
 select:focus-visible {
-  outline: 2px solid var(--brand-cyan);
+  outline: 2px solid var(--brand-cobalt);
   outline-offset: 2px;
 }
 

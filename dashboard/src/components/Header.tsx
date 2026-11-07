@@ -64,20 +64,20 @@ export default function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-[#030712]/80 backdrop-blur-xl border-b border-white/10 transition-colors">
+      <header className="sticky top-0 z-40 bg-[#090B10]/90 backdrop-blur-md border-b border-white/[0.08] transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            {/* Brand Mark: OpenRouter / Arena Identity */}
+            {/* Brand Mark: Institutional Identity */}
             <Link to="/" className="flex items-center gap-3 group">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/20 group-hover:scale-105 transition-transform">
+              <div className="w-8 h-8 rounded bg-blue-600 flex items-center justify-center text-white shadow-sm transition-transform">
                 <TrendingUp className="h-4 w-4" />
               </div>
               <div className="flex flex-col">
                 <div className="flex items-center gap-2">
-                  <span className="text-base font-display font-extrabold tracking-tight text-white">
-                    StockMinds<span className="text-cyan-400">.arena</span>
+                  <span className="text-base font-display font-bold tracking-tight text-white">
+                    StockMinds<span className="text-slate-400 font-normal">.arena</span>
                   </span>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 font-medium">
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/[0.04] text-slate-300 border border-white/10 font-medium">
                     Paper Pilot
                   </span>
                 </div>
@@ -111,7 +111,7 @@ export default function Header() {
                         </span>
                       )}
                       {isActive && (
-                        <span className="absolute bottom-0 left-2 right-2 h-[2px] rounded-full bg-cyan-400 shadow-[0_0_8px_#06B6D4]" />
+                        <span className="absolute bottom-0 left-2 right-2 h-[2px] rounded-full bg-blue-500" />
                       )}
                     </>
                   )}

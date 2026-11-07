@@ -47,11 +47,11 @@ export default function SystemHealthDrawer({ isOpen, onClose }: SystemHealthDraw
       />
 
       <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-        <div className="w-screen max-w-md bg-[#070A11] border-l border-white/10 shadow-2xl flex flex-col animate-fade-in">
+        <div className="w-screen max-w-md bg-[#090B10] border-l border-white/10 shadow-2xl flex flex-col animate-fade-in">
           {/* Header */}
           <div className="p-5 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+              <div className="w-8 h-8 rounded bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400">
                 <ShieldCheck className="w-4 h-4" />
               </div>
               <div>
@@ -68,14 +68,14 @@ export default function SystemHealthDrawer({ isOpen, onClose }: SystemHealthDraw
               <button
                 onClick={refreshData}
                 disabled={loading}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+                className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
                 title="Refresh jobs"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
               </button>
               <button
                 onClick={onClose}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+                className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -84,7 +84,7 @@ export default function SystemHealthDrawer({ isOpen, onClose }: SystemHealthDraw
 
           {/* Quick Metrics */}
           <div className="p-4 grid grid-cols-2 gap-3 border-b border-white/10 bg-black/40">
-            <div className="p-3 rounded-lg border border-white/10 bg-white/[0.02] font-mono text-xs">
+            <div className="p-3 rounded border border-white/10 bg-white/[0.02] font-mono text-xs">
               <div className="flex items-center justify-between text-slate-400 text-[10px]">
                 <span>CRON PIPELINE</span>
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
@@ -95,14 +95,14 @@ export default function SystemHealthDrawer({ isOpen, onClose }: SystemHealthDraw
               <div className="text-[10px] text-slate-500 mt-0.5">Zero unhandled locks</div>
             </div>
 
-            <div className="p-3 rounded-lg border border-white/10 bg-white/[0.02] font-mono text-xs">
+            <div className="p-3 rounded border border-white/10 bg-white/[0.02] font-mono text-xs">
               <div className="flex items-center justify-between text-slate-400 text-[10px]">
                 <span>FASTAPI SERVER</span>
-                <Server className="w-3.5 h-3.5 text-cyan-400" />
+                <Server className="w-3.5 h-3.5 text-blue-400" />
               </div>
               <div className="text-base font-bold text-white mt-1 flex items-center gap-1.5">
                 <span>{isBackendHealthy ? 'Online' : 'Standby'}</span>
-                <span className={`w-2 h-2 rounded-full ${isBackendHealthy ? 'bg-emerald-400 animate-pulse' : 'bg-cyan-500'}`} />
+                <span className={`w-2 h-2 rounded-full ${isBackendHealthy ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
               </div>
               <div className="text-[10px] text-slate-500 mt-0.5">Port 8000 REST API</div>
             </div>

@@ -29,7 +29,7 @@ export default function Backtest() {
     return (
       <div className="max-w-7xl mx-auto px-4 py-24 flex justify-center items-center">
         <div className="flex items-center gap-3 text-slate-400 font-mono text-sm">
-          <div className="w-5 h-5 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+          <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
           <span>Loading historical walk-forward backtest data...</span>
         </div>
       </div>
@@ -50,7 +50,7 @@ export default function Backtest() {
             </span>
             <BacktestDerivedBadge size="sm" />
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
             Historical Walk-Forward Backtesting Lab
           </h1>
           <p className="text-sm text-slate-400 mt-1 max-w-3xl leading-relaxed">
@@ -73,9 +73,9 @@ export default function Backtest() {
             <button
               key={win.windowId}
               onClick={() => setSelectedWindowId(win.windowId)}
-              className={`p-5 rounded-xl border text-left transition-all cursor-pointer flex-1 min-w-[280px] ${
+              className={`p-5 rounded border text-left transition-all cursor-pointer flex-1 min-w-[280px] ${
                 isSelected
-                  ? 'border-cyan-500/50 bg-cyan-500/10 shadow-[0_0_25px_rgba(6,182,212,0.15)]'
+                  ? 'border-blue-500 bg-blue-500/10'
                   : 'border-white/10 bg-white/[0.02] hover:bg-white/[0.05]'
               }`}
             >

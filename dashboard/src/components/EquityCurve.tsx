@@ -86,7 +86,7 @@ function EquityCurveComponent({
                 className={`px-2.5 py-1 rounded-md border transition-all cursor-pointer flex items-center gap-1.5 ${
                   isEnabled
                     ? isHovered
-                      ? 'ring-1 ring-cyan-400 font-semibold text-white'
+                      ? 'ring-1 ring-white/60 font-semibold text-white'
                       : 'border-transparent text-white'
                     : 'bg-white/5 text-slate-500 border-white/10 opacity-50'
                 }`}

@@ -40,7 +40,7 @@ export default function Comparison() {
     return (
       <div className="max-w-7xl mx-auto px-4 py-24 flex justify-center items-center">
         <div className="flex items-center gap-3 text-slate-400 font-mono text-sm">
-          <div className="w-5 h-5 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+          <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
           <span>Loading paired comparison experiment...</span>
         </div>
       </div>
@@ -59,11 +59,11 @@ export default function Comparison() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-fade-in font-sans">
       {/* Header */}
       <div className="border-b border-white/10 pb-6">
-        <div className="flex items-center gap-2 text-xs font-mono text-cyan-400 mb-1 font-semibold">
-          <Scale className="w-3.5 h-3.5" />
+        <div className="flex items-center gap-2 text-xs font-mono text-slate-400 mb-1 font-semibold uppercase tracking-wider">
+          <Scale className="w-3.5 h-3.5 text-blue-400" />
           <span>Paired Experimental Benchmark</span>
         </div>
-        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
+        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
           Cognitive Alpha vs. Deterministic Rules
         </h1>
         <p className="text-sm text-slate-400 mt-1 max-w-3xl leading-relaxed">
@@ -76,18 +76,18 @@ export default function Comparison() {
       {/* Triple Head-to-Head Comparison Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {/* Card 1: LLM Simons */}
-        <div className="arena-glass p-6 border-cyan-500/30 bg-cyan-500/5 space-y-4 shadow-[0_0_30px_rgba(6,182,212,0.1)]">
+        <div className="arena-glow-card p-6 border-blue-500/30 bg-blue-500/5 space-y-4">
           <div className="flex justify-between items-center">
             <span className="flex items-center gap-2 font-bold text-lg text-white">
-              <Brain className="w-4 h-4 text-cyan-400" />
+              <Brain className="w-4 h-4 text-blue-400" />
               <span>Simons (LLM)</span>
             </span>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/40">
               LLM Persona
             </span>
           </div>
 
-          <div className="text-3xl font-extrabold font-mono text-cyan-400">
+          <div className="text-3xl font-bold font-mono text-blue-400">
             {formatPct(data.llmSimons.returnPct)}
           </div>
 
@@ -251,7 +251,7 @@ export default function Comparison() {
               {data.horizonReturns.map((hr) => (
                 <tr key={hr.horizonDays} className="hover:bg-white/[0.04] transition-colors">
                   <td className="py-2.5 px-3 font-semibold text-white">{hr.horizonDays} Trading Days</td>
-                  <td className="py-2.5 px-3 text-right text-cyan-400 font-semibold">{formatPct(hr.llmSimonsBuyAvgPct)}</td>
+                  <td className="py-2.5 px-3 text-right text-blue-400 font-semibold">{formatPct(hr.llmSimonsBuyAvgPct)}</td>
                   <td className="py-2.5 px-3 text-right text-slate-400">{formatPct(hr.llmSimonsHoldAvgPct)}</td>
                   <td className="py-2.5 px-3 text-right text-emerald-400 font-semibold">+{hr.selectionAlphaPct.toFixed(2)}%</td>
                   <td className="py-2.5 px-3 text-right text-white">{formatPct(hr.rulesSimonsBuyAvgPct)}</td>

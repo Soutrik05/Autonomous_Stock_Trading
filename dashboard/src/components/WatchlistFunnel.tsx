@@ -164,8 +164,8 @@ export default function WatchlistFunnel() {
       {/* Header & Persona Selector */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-white/10 pb-5">
         <div>
-          <div className="flex items-center gap-1.5 text-xs font-mono text-cyan-400 mb-1">
-            <Filter className="w-3.5 h-3.5" />
+          <div className="flex items-center gap-1.5 text-xs font-mono text-slate-400 mb-1 uppercase tracking-wider font-semibold">
+            <Filter className="w-3.5 h-3.5 text-blue-400" />
             <span>Multi-Stage Quantitative Filter</span>
           </div>
           <h3 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
@@ -177,7 +177,7 @@ export default function WatchlistFunnel() {
         </div>
 
         {/* Persona Select Chips */}
-        <div className="flex items-center gap-1 p-1 rounded-xl bg-white/[0.04] border border-white/10 text-xs font-mono backdrop-blur-md">
+        <div className="flex items-center gap-1 p-1 rounded-lg bg-white/[0.04] border border-white/10 text-xs font-mono">
           {[
             { id: 'simons', label: 'Simons' },
             { id: 'lynch', label: 'Lynch' },
@@ -189,10 +189,10 @@ export default function WatchlistFunnel() {
                 setSelectedPersona(p.id);
                 setActiveStep(null);
               }}
-              className={`px-3.5 py-1.5 rounded-lg transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded transition-all cursor-pointer ${
                 selectedPersona === p.id
-                  ? 'bg-cyan-500/20 text-cyan-300 font-semibold border border-cyan-500/30 shadow-[0_0_12px_rgba(6,182,212,0.2)]'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-blue-600 text-white font-semibold'
+                  : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
               }`}
             >
               {p.label}
@@ -209,9 +209,9 @@ export default function WatchlistFunnel() {
             <div
               key={st.step}
               onClick={() => setActiveStep(isSelected ? null : st.step)}
-              className={`p-5 rounded-xl border transition-all cursor-pointer relative ${
+              className={`p-4 rounded border transition-all cursor-pointer relative ${
                 isSelected
-                  ? 'border-cyan-500/50 bg-cyan-500/10 shadow-[0_0_20px_rgba(6,182,212,0.15)]'
+                  ? 'border-blue-500 bg-blue-500/10'
                   : 'border-white/10 bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/20'
               }`}
             >
@@ -234,7 +234,7 @@ export default function WatchlistFunnel() {
               </div>
 
               {idx < 3 && (
-                <div className="hidden md:flex absolute -right-3 top-1/2 -translate-y-1/2 z-10 w-6 h-6 rounded-full bg-[#0B0F17] border border-white/20 items-center justify-center text-slate-400 shadow-md">
+                <div className="hidden md:flex absolute -right-3 top-1/2 -translate-y-1/2 z-10 w-6 h-6 rounded-full bg-[#090B10] border border-white/20 items-center justify-center text-slate-400 shadow-sm">
                   <ChevronRight className="w-3.5 h-3.5" />
                 </div>
               )}
@@ -245,12 +245,12 @@ export default function WatchlistFunnel() {
 
       {/* Interactive Step Detail Drawer */}
       {activeStep !== null && (
-        <div className="arena-glass-subdued p-5 rounded-xl border border-cyan-500/30 text-xs font-mono space-y-2.5">
+        <div className="arena-glass-subdued p-5 rounded border border-blue-500/30 text-xs font-mono space-y-2.5">
           <div className="flex items-center justify-between text-white font-semibold">
             <span>
               Stage {activeStep}: {current.stages[activeStep].name} Inspection
             </span>
-            <span className="text-xs text-cyan-400">
+            <span className="text-xs text-blue-400">
               {current.stages[activeStep].droppedCount} stocks eliminated at this hurdle
             </span>
           </div>
