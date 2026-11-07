@@ -34,6 +34,3 @@ class PersonaConfig:
     min_closed_trades_for_reflection: int = (
         3  # Minimum closed trades since last watermark required to trigger reflection
     )
-    min_closed_trades_for_reflection: int = (
-        3  # Minimum closed trades since last watermark required to trigger reflection
-    )
