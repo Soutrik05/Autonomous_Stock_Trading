@@ -3,13 +3,14 @@ Unit tests for features/builder.py's day-3c data-date integrity guard: check_dat
 and the job-level FAIL-vs-skip behaviour around the 5% stale-ticker tolerance.
 See Plan_v3 §1.4, §2.1.
 """
+
 import sqlite3
 from datetime import datetime
 
 import pytest
 
-from features.builder import check_data_freshness, run
 from core.clock import FakeClock
+from features.builder import check_data_freshness, run
 from ingestion.sync_ohlcv import ensure_schema as ensure_ohlcv_schema
 from tests.conftest import make_portfolio_db
 
@@ -51,9 +52,7 @@ def insert_ohlcv_history(ohlcv_conn, ticker, latest_date, n=250):
             "INSERT INTO ohlcv (ticker, trade_date, open, high, low, close, volume) VALUES (?,?,?,?,?,?,?)",
             (ticker, d.isoformat(), 100.0, 101.0, 99.0, 100.0, 10000),
         )
-    ohlcv_conn.execute(
-        "INSERT INTO ticker_status (ticker, status, updated_at) VALUES (?, 'OK', ?)", (ticker, NOW)
-    )
+    ohlcv_conn.execute("INSERT INTO ticker_status (ticker, status, updated_at) VALUES (?, 'OK', ?)", (ticker, NOW))
 
 
 def test_check_data_freshness_flags_a_stale_ticker():
@@ -95,8 +94,13 @@ def test_build_features_fails_the_job_when_more_than_5pct_stale():
         insert_symbol(portfolio, t)
         insert_ohlcv_history(ohlcv, t, "2026-10-15")
 
-    result = run(as_of_date=AS_OF, clock=FakeClock(datetime(2026, 10, 16, 20, 0, 0)),
-                 portfolio_conn=portfolio, ohlcv_conn=ohlcv, macro_conn=macro)
+    result = run(
+        as_of_date=AS_OF,
+        clock=FakeClock(datetime(2026, 10, 16, 20, 0, 0)),
+        portfolio_conn=portfolio,
+        ohlcv_conn=ohlcv,
+        macro_conn=macro,
+    )
 
     assert result["status"] == "FAILED"
     assert "data-date integrity" in result["detail"]
@@ -123,8 +127,13 @@ def test_build_features_skips_only_the_stale_ticker_within_tolerance():
     insert_symbol(portfolio, "ONESTALE")
     insert_ohlcv_history(ohlcv, "ONESTALE", "2026-10-15")
 
-    result = run(as_of_date=AS_OF, clock=FakeClock(datetime(2026, 10, 16, 20, 0, 0)),
-                 portfolio_conn=portfolio, ohlcv_conn=ohlcv, macro_conn=macro)
+    result = run(
+        as_of_date=AS_OF,
+        clock=FakeClock(datetime(2026, 10, 16, 20, 0, 0)),
+        portfolio_conn=portfolio,
+        ohlcv_conn=ohlcv,
+        macro_conn=macro,
+    )
 
     assert result["status"] == "SUCCESS"
     assert result["written"] == 100

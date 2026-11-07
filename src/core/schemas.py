@@ -3,10 +3,11 @@ Pydantic models for the Plan_v3 §3.3 decision schema: BUY, SELL, HOLD, ADJUST, 
 the "action" field. Used by agents/parsers.py to validate the LLM's JSON output.
 See Plan_v3 §3.3.
 """
+
 import json
 import math
 import re
-from typing import Annotated, Any, Dict, List, Literal, Optional, Union
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -21,14 +22,12 @@ class BuyDecision(BaseModel):
     target_price: float = Field(gt=0)
     pre_mortem_risk: str
     reasoning: str
-    cited_metrics: Dict[str, Any] = Field(default_factory=dict)
+    cited_metrics: dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def _check_price_logic(self) -> "BuyDecision":
         if not (0 < self.stop_loss_price < self.entry_low <= self.entry_high < self.target_price):
-            raise ValueError(
-                "price logic must satisfy 0 < stop_loss_price < entry_low <= entry_high < target_price"
-            )
+            raise ValueError("price logic must satisfy 0 < stop_loss_price < entry_low <= entry_high < target_price")
         return self
 
 
@@ -47,9 +46,9 @@ class HoldDecision(BaseModel):
 class AdjustDecision(BaseModel):
     ticker: str
     action: Literal["ADJUST"]
-    stop_loss_price: Optional[float] = None
-    target_price: Optional[float] = None
-    reasoning: Optional[str] = None
+    stop_loss_price: float | None = None
+    target_price: float | None = None
+    reasoning: str | None = None
 
     @model_validator(mode="after")
     def _require_a_new_value(self) -> "AdjustDecision":
@@ -58,13 +57,11 @@ class AdjustDecision(BaseModel):
         return self
 
 
-DecisionUnion = Annotated[
-    Union[BuyDecision, SellDecision, HoldDecision, AdjustDecision], Field(discriminator="action")
-]
+DecisionUnion = Annotated[BuyDecision | SellDecision | HoldDecision | AdjustDecision, Field(discriminator="action")]
 
 
 class DecisionBatch(BaseModel):
-    decisions: List[DecisionUnion]
+    decisions: list[DecisionUnion]
 
 
 class FeatureMetrics(BaseModel):
@@ -74,67 +71,71 @@ class FeatureMetrics(BaseModel):
     """
 
     # Price
-    close: Optional[float] = Field(default=None, gt=0)
+    close: float | None = Field(default=None, gt=0)
 
     # Trend
-    ema_20: Optional[float] = None
-    ema_50: Optional[float] = None
-    ema_200: Optional[float] = None
-    ema_20_above_50: Optional[bool] = None
+    ema_20: float | None = None
+    ema_50: float | None = None
+    ema_200: float | None = None
+    ema_20_above_50: bool | None = None
+    ema_20_cross_above_50: bool | None = None
 
     # Momentum
-    rsi_14: Optional[float] = Field(default=None, ge=0.0, le=100.0)
-    macd_hist: Optional[float] = None
-    adx_14: Optional[float] = Field(default=None, ge=0.0)
+    rsi_14: float | None = Field(default=None, ge=0.0, le=100.0)
+    macd_hist: float | None = None
+    adx_14: float | None = Field(default=None, ge=0.0)
 
     # Volatility
-    atr_14: Optional[float] = Field(default=None, ge=0.0)
+    atr_14: float | None = Field(default=None, ge=0.0)
 
     # Volume
-    volume_surge: Optional[float] = Field(default=None, ge=0.0)
-    obv_slope_sign: Optional[int] = Field(default=None)
+    volume_surge: float | None = Field(default=None, ge=0.0)
+    obv_slope_sign: int | None = Field(default=None)
 
     # Structure
-    dist_52w_high_pct: Optional[float] = None
-    dist_52w_low_pct: Optional[float] = None
-    kaufman_er_20: Optional[float] = Field(default=None, ge=0.0, le=1.0)
-    zscore_close_20: Optional[float] = None
-    parkinson_vol_ratio: Optional[float] = Field(default=None, ge=0.0)
-    skew_60: Optional[float] = None
+    dist_52w_high_pct: float | None = None
+    dist_52w_low_pct: float | None = None
+    kaufman_er_20: float | None = Field(default=None, ge=0.0, le=1.0)
+    zscore_close_20: float | None = None
+    parkinson_vol_ratio: float | None = Field(default=None, ge=0.0)
+    skew_60: float | None = None
 
     # Quality
-    roce_pct: Optional[float] = None
-    roe_pct: Optional[float] = None
+    roce_pct: float | None = None
+    roe_pct: float | None = None
 
     # Valuation
-    pe: Optional[float] = None
-    pb: Optional[float] = None
-    peg: Optional[float] = None
-    dcf_discount_pct: Optional[float] = None
+    pe: float | None = None
+    pb: float | None = None
+    peg: float | None = None
+    dcf_discount_pct: float | None = None
 
     # Solvency
-    debt_to_equity: Optional[float] = None
-    interest_coverage: Optional[float] = None
+    debt_to_equity: float | None = None
+    interest_coverage: float | None = None
 
     # Cash flow
-    cfo_to_pat: Optional[float] = None
+    cfo_to_pat: float | None = None
 
     # Growth
-    pat_growth_yoy_pct: Optional[float] = None
-    revenue_growth_yoy_pct: Optional[float] = None
+    pat_growth_yoy_pct: float | None = None
+    revenue_growth_yoy_pct: float | None = None
 
     # Ownership
-    promoter_holding_pct: Optional[float] = Field(default=None, ge=0.0, le=100.0)
-    promoter_pledge_pct: Optional[float] = Field(default=None, ge=0.0, le=100.0)
-    fii_dii_qoq_delta_pct: Optional[float] = None
+    promoter_holding_pct: float | None = Field(default=None, ge=0.0, le=100.0)
+    promoter_pledge_pct: float | None = Field(default=None, ge=0.0, le=100.0)
+    fii_dii_qoq_delta_pct: float | None = None
 
     # News
-    news_sentiment: Optional[float] = Field(default=None, ge=-1.0, le=1.0)
-    news_article_count: Optional[int] = Field(default=None, ge=0)
+    news_sentiment: float | None = Field(default=None, ge=-1.0, le=1.0)
+    news_article_count: int | None = Field(default=None, ge=0)
 
     # Macro
-    india_vix: Optional[float] = Field(default=None, ge=0.0)
-    regime: Optional[str] = None
+    india_vix: float | None = Field(default=None, ge=0.0)
+    regime: str | None = None
+
+    # Provenance
+    fundamentals_source: str | None = None
 
     model_config = {
         "extra": "forbid",
@@ -143,11 +144,10 @@ class FeatureMetrics(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _sanitize_nans_and_types(cls, data: Any) -> Any:
-        import math
 
         if not isinstance(data, dict):
             return data
-        sanitized = {}
+        sanitized: dict[str, Any] = {}
         for k, v in data.items():
             if v is None:
                 sanitized[k] = None
@@ -170,6 +170,7 @@ class FeatureSnapshotModel(BaseModel):
     """
     Pydantic contract for one versioned FeatureSnapshot entity.
     """
+
     ticker: str
     as_of_date: str
     schema_version: int = 1
@@ -212,20 +213,21 @@ class SanitizedNewsArticle(BaseModel):
     Pydantic contract for news articles ingested from external sources.
     Guarantees clean, non-poisonous text, valid ISO timestamps, and bounded FinBERT scores.
     """
+
     model_config = ConfigDict(extra="ignore")
 
     ticker: str
     instrument_key: str
     heading: str
-    summary: Optional[str] = None
-    article_link: Optional[str] = None
-    thumbnail: Optional[str] = None
+    summary: str | None = None
+    article_link: str | None = None
+    thumbnail: str | None = None
     published_time: str
-    positive_prob: Optional[float] = Field(default=None, ge=0.0, le=1.0)
-    negative_prob: Optional[float] = Field(default=None, ge=0.0, le=1.0)
-    neutral_prob: Optional[float] = Field(default=None, ge=0.0, le=1.0)
-    sentiment_score: Optional[float] = Field(default=None, ge=-1.0, le=1.0)
-    confidence: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    positive_prob: float | None = Field(default=None, ge=0.0, le=1.0)
+    negative_prob: float | None = Field(default=None, ge=0.0, le=1.0)
+    neutral_prob: float | None = Field(default=None, ge=0.0, le=1.0)
+    sentiment_score: float | None = Field(default=None, ge=-1.0, le=1.0)
+    confidence: float | None = Field(default=None, ge=0.0, le=1.0)
 
     @field_validator("heading")
     @classmethod
@@ -237,7 +239,7 @@ class SanitizedNewsArticle(BaseModel):
 
     @field_validator("summary")
     @classmethod
-    def _sanitize_summary(cls, v: Optional[str]) -> Optional[str]:
+    def _sanitize_summary(cls, v: str | None) -> str | None:
         if not v:
             return None
         return sanitize_text_for_prompt(v, max_len=300)
@@ -247,18 +249,20 @@ class SanitizedNewsArticle(BaseModel):
 # Reflection & Heuristic Machine-Checkable Trigger Contract
 # =============================================================================
 
+
 class TriggerPredicate(BaseModel):
     """
     Recursive Pydantic validator for machine-checkable triggers over FeatureSnapshot metrics.
     Ensures that only valid registry features and supported operators can ever be saved.
     """
+
     model_config = ConfigDict(extra="forbid")
 
-    all: Optional[List["TriggerPredicate"]] = None
-    any: Optional[List["TriggerPredicate"]] = None
-    feature: Optional[str] = None
-    op: Optional[Literal[">", ">=", "<", "<=", "==", "!="]] = None
-    value: Optional[Union[float, int, bool, str]] = None
+    all: list["TriggerPredicate"] | None = None
+    any: list["TriggerPredicate"] | None = None
+    feature: str | None = None
+    op: Literal[">", ">=", "<", "<=", "==", "!="] | None = None
+    value: float | int | bool | str | None = None
 
     @model_validator(mode="after")
     def _check_structure(self) -> "TriggerPredicate":
@@ -284,10 +288,12 @@ class HeuristicRuleDefinition(BaseModel):
     """
     Pydantic contract for LLM-generated reflection heuristics before insertion into agent_memory.
     """
+
     model_config = ConfigDict(extra="forbid")
 
     agent_id: str
     kind: Literal["SEEK", "AVOID"]
+    context: Literal["ENTRY", "EXIT", "ANY"] = "ENTRY"
     heuristic_text: str = Field(min_length=5, max_length=300)
     trigger: TriggerPredicate
     prescribed_action: Literal["BUY", "SELL", "HOLD", "ADJUST"]
@@ -296,5 +302,3 @@ class HeuristicRuleDefinition(BaseModel):
 
     def to_trigger_json(self) -> str:
         return json.dumps(self.trigger.model_dump(exclude_none=True))
-
-

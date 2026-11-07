@@ -3,23 +3,16 @@ Unit tests for ingestion/sync_ohlcv.py: corporate-action detection + freeze, ide
 STALE_DATA and LOCKED_CIRCUIT, using fake clients and in-memory databases (no live network).
 See Plan_v3 §1.5.
 """
+
 import sqlite3
 from datetime import datetime
-from pathlib import Path
 
 from core.clock import FakeClock
 from ingestion.sync_ohlcv import ensure_schema, sync_ohlcv, sync_ticker
 from ingestion.upstox_client import UpstoxAPIError
+from tests.conftest import make_portfolio_db
 
-PORTFOLIO_SCHEMA_PATH = Path(__file__).resolve().parents[2] / "db" / "schema.sql"
 NOW = "2026-10-16T09:00:00+05:30"
-
-
-def make_portfolio_db() -> sqlite3.Connection:
-    conn = sqlite3.connect(":memory:")
-    conn.row_factory = sqlite3.Row
-    conn.executescript(PORTFOLIO_SCHEMA_PATH.read_text(encoding="utf-8"))
-    return conn
 
 
 def make_ohlcv_db() -> sqlite3.Connection:
@@ -40,7 +33,7 @@ def insert_symbol(conn, ticker, instrument_key):
 def insert_agent(conn, agent_id="simons"):
     conn.execute(
         "INSERT INTO agents (id, name, philosophy, kind, starting_cash_paise, cash_paise, created_at, updated_at) "
-        "VALUES (?, 'Test', 'Test', 'LLM', 10000000, 10000000, ?, ?)",
+        "VALUES (?, 'Test', 'Test', 'LLM', 50000000, 50000000, ?, ?)",
         (agent_id, NOW, NOW),
     )
 

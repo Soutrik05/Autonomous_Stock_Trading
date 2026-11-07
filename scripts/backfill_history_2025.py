@@ -3,6 +3,7 @@ Backfills historical daily OHLCV candles from 2025-01-01 to 2025-09-11
 so that all lookback periods (including 52-week high/low, EMA200, 252 bars)
 are fully satisfied for any date in early 2026 (such as 2026-02-02).
 """
+
 import logging
 import sys
 import time
@@ -12,10 +13,10 @@ WORKSPACE_ROOT = Path(__file__).resolve().parent.parent
 if str(WORKSPACE_ROOT) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_ROOT))
 
+from core.config import settings
 from core.database import get_connection
 from ingestion.sync_ohlcv import _upsert_candles, get_active_tickers
 from ingestion.upstox_client import UpstoxClient
-from settings import settings
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("backfill_history_2025")
@@ -45,7 +46,11 @@ def main() -> None:
                 elapsed = time.time() - t0
                 logger.info(
                     "Progress: %d/%d tickers (%.1f%%) | Saved: %d candles | Elapsed: %.1fs",
-                    i, len(tickers), (i / len(tickers)) * 100, total_candles, elapsed
+                    i,
+                    len(tickers),
+                    (i / len(tickers)) * 100,
+                    total_candles,
+                    elapsed,
                 )
         except Exception as exc:
             logger.warning("Failed to fetch %s (%s): %s", ticker, key, exc)
@@ -55,7 +60,9 @@ def main() -> None:
     ohlcv_conn.close()
     logger.info(
         "Historical backfill complete! Updated %d tickers with %d daily candles in %.1fs",
-        success_count, total_candles, time.time() - t0
+        success_count,
+        total_candles,
+        time.time() - t0,
     )
 
 

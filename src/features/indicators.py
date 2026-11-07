@@ -4,6 +4,7 @@ Vectorized pandas/numpy indicator functions for the FeatureSnapshot technical gr
 dist_52w_high_pct/low_pct, ema_20_above_50, kaufman_er_20, parkinson_vol_ratio, skew_60).
 No network, no database.
 """
+
 import numpy as np
 import pandas as pd
 
@@ -41,9 +42,7 @@ def macd_histogram(close: pd.Series, fast: int = 12, slow: int = 26, signal: int
 def true_range(df: pd.DataFrame) -> pd.Series:
     high, low, close = df["high"], df["low"], df["close"]
     prev_close = close.shift(1)
-    return pd.concat(
-        [high - low, (high - prev_close).abs(), (low - prev_close).abs()], axis=1
-    ).max(axis=1)
+    return pd.concat([high - low, (high - prev_close).abs(), (low - prev_close).abs()], axis=1).max(axis=1)
 
 
 def atr_wilder(df: pd.DataFrame, period: int = 14) -> pd.Series:
@@ -89,7 +88,7 @@ def _rolling_slope(series: pd.Series, window: int) -> pd.Series:
     """Closed-form OLS slope of `series` against 0..window-1, per rolling window."""
     x = np.arange(window, dtype=float)
     x_demeaned = x - x.mean()
-    denom = (x_demeaned ** 2).sum()
+    denom = (x_demeaned**2).sum()
 
     def _slope(y: np.ndarray) -> float:
         return float((x_demeaned * (y - y.mean())).sum() / denom)
@@ -167,6 +166,8 @@ def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
     out["ema_50"] = ema(close, 50)
     out["ema_200"] = ema(close, 200)
     out["ema_20_above_50"] = out["ema_20"] > out["ema_50"]
+    diff_20_50 = out["ema_20"] - out["ema_50"]
+    out["ema_20_cross_above_50"] = ((diff_20_50 > 0) & (diff_20_50.shift(1) <= 0)).fillna(False).astype(bool)
 
     out["rsi_14"] = rsi_wilder(close, 14)
     out["macd_hist"] = macd_histogram(close, 12, 26, 9)
@@ -193,4 +194,3 @@ def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
     out.loc[flat, "volume_surge"] = 1.0
 
     return out
-

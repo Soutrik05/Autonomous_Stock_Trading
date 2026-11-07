@@ -3,6 +3,7 @@ Integration tests covering the full trading day order and position lifecycle:
 placement -> monitor poll fill -> crash cancel -> stop loss -> target notification -> expiry -> settlement.
 See Plan_v3 §4.3, §4.4.
 """
+
 import json
 import sqlite3
 from datetime import datetime
@@ -101,8 +102,7 @@ def test_crash_cancellation_when_price_gaps_below_stop(seeded_portfolio):
 
     # Pending BUY with entry [995, 1005], stop at 960
     _insert_decision(
-        conn, "simons", "TATAMOTORS", "BUY", shares=10,
-        entry_low_rs=995.0, entry_high_rs=1005.0, stop_rs=960.0
+        conn, "simons", "TATAMOTORS", "BUY", shares=10, entry_low_rs=995.0, entry_high_rs=1005.0, stop_rs=960.0
     )
     broker = Broker(conn, clock_night)
     broker.place_orders_for_run("simons", RUN_DATE)
@@ -227,10 +227,12 @@ def test_settlement_and_daily_nav(seeded_portfolio):
         """
     )
 
-    quotes = ReplayQuoteProvider({
-        "TATAMOTORS": rupees_to_paise(1050.0),
-        "NIFTY_500": rupees_to_paise(22500.0),
-    })
+    quotes = ReplayQuoteProvider(
+        {
+            "TATAMOTORS": rupees_to_paise(1050.0),
+            "NIFTY_500": rupees_to_paise(22500.0),
+        }
+    )
 
     settle_res = run_settlement(conn, clock_1535, quote_provider=quotes, run_date_str=NEXT_TRADING_DAY)
     assert settle_res["status"] == "SUCCESS"
@@ -264,9 +266,9 @@ def test_sell_fill_triggers_forensics_classification(seeded_portfolio, monkeypat
     5. Forensics classifies trade into specific type with regime and diagnosis.
     """
     import learning.forensics as forensics
+    from core.config import settings
     from ingestion.sync_macro import ensure_schema as ensure_macro_schema
     from ingestion.sync_ohlcv import ensure_schema as ensure_ohlcv_schema
-    from settings import settings
 
     conn = seeded_portfolio
 
@@ -295,8 +297,10 @@ def test_sell_fill_triggers_forensics_classification(seeded_portfolio, monkeypat
     class _NoCloseConn:
         def __init__(self, c):
             self._c = c
+
         def close(self):
             pass
+
         def __getattr__(self, name):
             return getattr(self._c, name)
 
@@ -309,6 +313,7 @@ def test_sell_fill_triggers_forensics_classification(seeded_portfolio, monkeypat
         if path == settings.MACRO_DB_PATH:
             return _wrapped_macro
         from core.database import get_connection as _real
+
         return _real(path)
 
     monkeypatch.setattr(forensics, "get_connection", fake_get_conn)
@@ -326,8 +331,15 @@ def test_sell_fill_triggers_forensics_classification(seeded_portfolio, monkeypat
     # 2. 22:00 IST Night: Place SELL decision & create pending order
     clock_night = FakeClock(datetime(2026, 10, 19, 22, 0, 0))
     _insert_decision(
-        conn, "simons", "TATAMOTORS", "SELL", shares=10,
-        entry_low_rs=None, entry_high_rs=None, stop_rs=None, target_rs=None,
+        conn,
+        "simons",
+        "TATAMOTORS",
+        "SELL",
+        shares=10,
+        entry_low_rs=None,
+        entry_high_rs=None,
+        stop_rs=None,
+        target_rs=None,
     )
     broker = Broker(conn, clock_night)
     summary = broker.place_orders_for_run("simons", RUN_DATE)

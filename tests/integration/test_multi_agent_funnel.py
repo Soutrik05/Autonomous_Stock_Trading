@@ -6,19 +6,16 @@ Integration tests for Week 2:
 4. End-to-end execution of execute_nightly_pipeline_pass for all personas.
 See Plan_v3 §3.1, §6, §Week 2 Objectives.
 """
-from datetime import date, datetime, timedelta
+
 import json
 import sqlite3
-from typing import Dict
-
-import pytest
+from datetime import date, datetime, timedelta
 
 from agents.personas import all_personas
 from agents.runner import run as run_agents
 from core.clock import FakeClock
+from core.config import settings
 from ingestion.sync_ohlcv import ensure_schema as ensure_ohlcv_schema
-from llm.client import FakeLLMClient
-from watchlist.watchlist_refresh import get_review_pool, run as run_watchlist_refresh
 from scheduler import execute_nightly_pipeline_pass, is_nightly_pipeline_complete
 from scripts.init_db import init_db
 from tests.conftest import (
@@ -29,6 +26,8 @@ from tests.conftest import (
     make_passing_varsity_features,
     make_portfolio_db,
 )
+from watchlist.watchlist_refresh import get_review_pool
+from watchlist.watchlist_refresh import run as run_watchlist_refresh
 
 RUN_DATE = "2026-10-19"
 NOW_ISO = "2026-10-19T20:00:00+05:30"
@@ -82,7 +81,9 @@ def insert_snapshot(portfolio_conn: sqlite3.Connection, ticker: str, features: d
     )
 
 
-def mark_pipeline_job(portfolio_conn: sqlite3.Connection, job: str, status: str = "SUCCESS", as_of: str = RUN_DATE) -> None:
+def mark_pipeline_job(
+    portfolio_conn: sqlite3.Connection, job: str, status: str = "SUCCESS", as_of: str = RUN_DATE
+) -> None:
     portfolio_conn.execute(
         """
         INSERT INTO pipeline_runs (job, run_date, status, started_at, finished_at, detail)
@@ -174,9 +175,10 @@ def test_multi_agent_funnel_audit_and_persona_differentiation():
             macd_hist=-1.2,
             # Fundamental: Low debt, decent promoter holding, near 52w low
             peg=1.5,
-            roce_pct=8.0,
+            pe=18.0,
+            roce_pct=14.0,
             debt_to_equity=0.4,
-            cfo_to_pat=0.5,
+            cfo_to_pat=0.85,
             pat_growth_yoy_pct=-4.0,
             promoter_holding_pct=48.0,
             dist_52w_low_pct=12.0,  # <= 20%
@@ -376,10 +378,8 @@ def test_bear_market_starvation_behavior():
     assert total_orders == 0
 
     for agent_id in agent_ids:
-        cash = portfolio_conn.execute(
-            "SELECT cash_paise FROM agents WHERE id = ?", (agent_id,)
-        ).fetchone()[0]
-        assert cash == 10_000_000, f"Cash altered for {agent_id}: {cash}"
+        cash = portfolio_conn.execute("SELECT cash_paise FROM agents WHERE id = ?", (agent_id,)).fetchone()[0]
+        assert cash == settings.INITIAL_CASH_PER_AGENT_PAISE, f"Cash altered for {agent_id}: {cash}"
 
 
 def test_scheduler_execute_nightly_pipeline_pass(mock_upstox_client):
@@ -404,6 +404,7 @@ def test_scheduler_execute_nightly_pipeline_pass(mock_upstox_client):
 
     # Mock upstox client in ingestion.cli.run
     from unittest.mock import patch
+
     with patch("ingestion.cli.UpstoxClient", return_value=mock_upstox_client):
         status = execute_nightly_pipeline_pass(clock, portfolio_conn, RUN_DATE)
 

@@ -23,13 +23,16 @@ rejects our DecisionBatch schema's `additionalProperties: true` in Developer API
 budget); `usage_metadata.thoughts_token_count` reports it separately from candidates_token_count.
 See Plan_v3 §3.2.
 """
+
+import logging
 import os
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import List, Optional
 
-from settings import settings
+from core.config import settings
+
+logger = logging.getLogger(__name__)
 
 RETRYABLE_HTTP_CODES = {429, 500, 502, 503, 504}
 
@@ -54,10 +57,10 @@ class LLMResult:
     tokens_out: int
     latency_ms: int
     model: str
-    finish_reason: Optional[str] = None
-    reasoning_tokens: Optional[int] = None
-    provider: Optional[str] = None
-    thinking_tokens: Optional[int] = None
+    finish_reason: str | None = None
+    reasoning_tokens: int | None = None
+    provider: str | None = None
+    thinking_tokens: int | None = None
 
 
 class LLMClient(ABC):
@@ -65,8 +68,12 @@ class LLMClient(ABC):
 
     @abstractmethod
     def complete(
-        self, system: str, user: str, reasoning_effort: Optional[str] = None,
-        max_output_tokens: Optional[int] = None, response_schema: Optional[dict] = None,
+        self,
+        system: str,
+        user: str,
+        reasoning_effort: str | None = None,
+        max_output_tokens: int | None = None,
+        response_schema: dict | None = None,
     ) -> LLMResult:
         raise NotImplementedError
 
@@ -76,18 +83,28 @@ class FakeLLMClient(LLMClient):
     Each scripted response is either a plain string (finish_reason='stop') or a dict
     {"text", "finish_reason", "reasoning_tokens"} for simulating truncation etc."""
 
-    def __init__(self, responses: Optional[List] = None, model: str = "fake-model", provider: str = "fake"):
+    def __init__(self, responses: list | None = None, model: str = "fake-model", provider: str = "fake"):
         self._responses = list(responses) if responses else []
         self.calls = []
         self._model = model
         self._provider = provider
 
-    def complete(self, system: str, user: str, reasoning_effort: Optional[str] = None,
-                 max_output_tokens: Optional[int] = None, response_schema: Optional[dict] = None) -> LLMResult:
-        self.calls.append({
-            "system": system, "user": user, "reasoning_effort": reasoning_effort,
-            "max_output_tokens": max_output_tokens,
-        })
+    def complete(
+        self,
+        system: str,
+        user: str,
+        reasoning_effort: str | None = None,
+        max_output_tokens: int | None = None,
+        response_schema: dict | None = None,
+    ) -> LLMResult:
+        self.calls.append(
+            {
+                "system": system,
+                "user": user,
+                "reasoning_effort": reasoning_effort,
+                "max_output_tokens": max_output_tokens,
+            }
+        )
         item = self._responses.pop(0) if self._responses else '{"decisions": []}'
         if isinstance(item, dict):
             text = item.get("text", "")
@@ -97,9 +114,15 @@ class FakeLLMClient(LLMClient):
         else:
             text, finish_reason, reasoning_tokens, thinking_tokens = item, "stop", None, None
         return LLMResult(
-            text=text, tokens_in=len(system) + len(user), tokens_out=len(text), latency_ms=0,
-            model=self._model, finish_reason=finish_reason, reasoning_tokens=reasoning_tokens,
-            provider=self._provider, thinking_tokens=thinking_tokens,
+            text=text,
+            tokens_in=len(system) + len(user),
+            tokens_out=len(text),
+            latency_ms=0,
+            model=self._model,
+            finish_reason=finish_reason,
+            reasoning_tokens=reasoning_tokens,
+            provider=self._provider,
+            thinking_tokens=thinking_tokens,
         )
 
 
@@ -133,10 +156,15 @@ def _retry_with_backoff(call_fn, max_retries: int, backoff_base_sec: float, slee
     while True:
         try:
             return call_fn()
-        except _RetryableError:
+        except _RetryableError as exc:
             if attempt >= max_retries:
+                logger.warning("Max retries (%d) exhausted for retryable error: %s", max_retries, exc)
                 raise
-            sleep_func(backoff_base_sec * (2 ** attempt))
+            sleep_duration = backoff_base_sec * (2**attempt)
+            logger.info(
+                "Retryable error (attempt %d/%d): %s. Sleeping %.1fs...", attempt + 1, max_retries, exc, sleep_duration
+            )
+            sleep_func(sleep_duration)
             attempt += 1
 
 
@@ -144,8 +172,14 @@ class GroqProvider(LLMClient):
     """Groq's chat completions API via the official `groq` SDK. `reasoning_effort` is passed
     through `extra_body` (confirmed necessary against the installed SDK version)."""
 
-    def __init__(self, model: str = None, api_key: str = None, max_retries: int = 3,
-                 backoff_base_sec: float = 1.0, sleep_func=time.sleep):
+    def __init__(
+        self,
+        model: str = None,
+        api_key: str = None,
+        max_retries: int = 8,
+        backoff_base_sec: float = 2.0,
+        sleep_func=time.sleep,
+    ):
         import groq
 
         self._model = model or _require_env("LLM_MODEL")
@@ -155,8 +189,14 @@ class GroqProvider(LLMClient):
         self._backoff_base_sec = backoff_base_sec
         self._sleep = sleep_func
 
-    def complete(self, system: str, user: str, reasoning_effort: Optional[str] = None,
-                 max_output_tokens: Optional[int] = None, response_schema: Optional[dict] = None) -> LLMResult:
+    def complete(
+        self,
+        system: str,
+        user: str,
+        reasoning_effort: str | None = None,
+        max_output_tokens: int | None = None,
+        response_schema: dict | None = None,
+    ) -> LLMResult:
         effort = reasoning_effort or settings.LLM_REASONING_EFFORT
         max_tokens = max_output_tokens or settings.LLM_MAX_OUTPUT_TOKENS
 
@@ -180,6 +220,13 @@ class GroqProvider(LLMClient):
             except self._groq.APIStatusError as exc:
                 if getattr(exc, "status_code", None) in RETRYABLE_HTTP_CODES:
                     raise _RetryableError(str(exc)) from exc
+                raise
+            except (ConnectionError, TimeoutError, OSError) as exc:
+                raise _RetryableError(f"Network transport error: {exc}") from exc
+            except Exception as exc:
+                exc_type = type(exc).__name__
+                if any(k in exc_type for k in ("ConnectError", "Timeout", "NetworkError", "RemoteProtocolError")):
+                    raise _RetryableError(f"HTTP transport error ({exc_type}): {exc}") from exc
                 raise
             latency_ms = int((time.monotonic() - start) * 1000)
             usage = resp.usage
@@ -209,26 +256,81 @@ class GeminiProvider(LLMClient):
     `response_schema` (an OpenAPI-3.0 subset that rejects `additionalProperties` in Developer API
     mode) -- confirmed empirically against the real API with our actual DecisionBatch schema."""
 
-    def __init__(self, model: str = None, api_key: str = None, max_retries: int = 3,
-                 backoff_base_sec: float = 1.0, sleep_func=time.sleep,
-                 thinking_budget: Optional[int] = None):
+    def __init__(
+        self,
+        model: str = None,
+        api_key: str = None,
+        max_retries: int = 8,
+        backoff_base_sec: float = 2.0,
+        sleep_func=time.sleep,
+        thinking_budget: int | None = None,
+    ):
         from google import genai
         from google.genai import errors as gerrors
         from google.genai import types as gtypes
 
         self._model_name = model or _require_env("LLM_MODEL")
-        self._client = genai.Client(api_key=api_key or _require_env("GEMINI_API_KEY"))
         self._types = gtypes
         self._gerrors = gerrors
-        self._thinking_budget = (
-            thinking_budget if thinking_budget is not None else settings.LLM_GEMINI_THINKING_BUDGET
-        )
+        self._thinking_budget = thinking_budget if thinking_budget is not None else settings.LLM_GEMINI_THINKING_BUDGET
         self._max_retries = max_retries
         self._backoff_base_sec = backoff_base_sec
         self._sleep = sleep_func
 
-    def complete(self, system: str, user: str, reasoning_effort: Optional[str] = None,
-                 max_output_tokens: Optional[int] = None, response_schema: Optional[dict] = None) -> LLMResult:
+        # Multi-key pool discovery
+        self._key_pool: list[tuple[str, str]] = []
+        if api_key:
+            self._key_pool.append(("custom_api_key", api_key))
+        else:
+            self._key_pool = self._discover_key_pool()
+
+        if not self._key_pool:
+            raise LLMConfigError(
+                "No GEMINI_API_KEY found in environment or key pool. Checked GEMINI_API_KEY* variables."
+            )
+
+        self._active_key_idx = 0
+        self._clients = [genai.Client(api_key=k) for _, k in self._key_pool]
+        logger.info(
+            "GeminiProvider initialized with %d keys in pool. Active key: '%s' (%s...)",
+            len(self._key_pool),
+            self._key_pool[0][0],
+            self._key_pool[0][1][:10],
+        )
+
+    @staticmethod
+    def _discover_key_pool() -> list[tuple[str, str]]:
+        """Discovers Gemini API keys from environment"""
+        preferred_order = [
+            "GEMINI_API_KEY_RH",
+            "GEMINI_API_KEY_AS",
+            "GEMINI_API_KEY_77",
+            "GEMINI_API_KEY_SAYA",
+            "GEMINI_API_KEY_AH",
+        ]
+        seen_keys = set()
+        pool = []
+        for name in preferred_order:
+            val = os.environ.get(name) or os.environ.get(name.lower())
+            if val and val.strip() and val.strip() not in seen_keys:
+                seen_keys.add(val.strip())
+                pool.append((name.lower(), val.strip()))
+
+        for k, v in os.environ.items():
+            if k.upper().startswith("GEMINI_API_KEY") and v.strip() and v.strip() not in seen_keys:
+                seen_keys.add(v.strip())
+                pool.append((k.lower(), v.strip()))
+
+        return pool
+
+    def complete(
+        self,
+        system: str,
+        user: str,
+        reasoning_effort: str | None = None,
+        max_output_tokens: int | None = None,
+        response_schema: dict | None = None,
+    ) -> LLMResult:
         types = self._types
         max_tokens = max_output_tokens or settings.LLM_MAX_OUTPUT_TOKENS
         config_kwargs = dict(
@@ -244,14 +346,50 @@ class GeminiProvider(LLMClient):
 
         def _call():
             start = time.monotonic()
-            try:
-                resp = self._client.models.generate_content(model=self._model_name, contents=user, config=config)
-            except self._gerrors.ServerError as exc:
-                raise _RetryableError(str(exc)) from exc
-            except self._gerrors.ClientError as exc:
-                if getattr(exc, "code", None) == 429:
-                    raise _RetryableError(str(exc)) from exc
-                raise
+            resp = None
+            pool_len = max(1, len(self._key_pool))
+            for attempt in range(pool_len):
+                client = self._clients[self._active_key_idx]
+                try:
+                    resp = client.models.generate_content(model=self._model_name, contents=user, config=config)
+                    break
+                except (self._gerrors.ClientError, self._gerrors.ServerError) as exc:
+                    err_msg = str(exc)
+                    is_rate_limit = (
+                        getattr(exc, "code", None) == 429 or "429" in err_msg or "RESOURCE_EXHAUSTED" in err_msg
+                    )
+                    is_service_error = (
+                        isinstance(exc, self._gerrors.ServerError)
+                        or getattr(exc, "code", None) in (500, 503)
+                        or "503" in err_msg
+                        or "UNAVAILABLE" in err_msg
+                    )
+                    if (is_rate_limit or is_service_error) and len(self._key_pool) > 1:
+                        old_name = self._key_pool[self._active_key_idx][0]
+                        self._active_key_idx = (self._active_key_idx + 1) % len(self._key_pool)
+                        new_name, new_key = self._key_pool[self._active_key_idx]
+                        reason_lbl = "Rate limit (429)" if is_rate_limit else "Service error (503/Server)"
+                        logger.warning(
+                            "%s hit on Gemini key '%s'. Auto-switching to fallback key '%s' (%d/%d)...",
+                            reason_lbl,
+                            old_name,
+                            new_name,
+                            self._active_key_idx + 1,
+                            len(self._key_pool),
+                        )
+                        continue
+                    elif is_rate_limit or is_service_error:
+                        raise _RetryableError(str(exc)) from exc
+                    raise
+                except (ConnectionError, TimeoutError, OSError) as exc:
+                    raise _RetryableError(f"Network transport error: {exc}") from exc
+                except Exception as exc:
+                    exc_type = type(exc).__name__
+                    if any(k in exc_type for k in ("ConnectError", "Timeout", "NetworkError", "RemoteProtocolError")):
+                        raise _RetryableError(f"HTTP transport error ({exc_type}): {exc}") from exc
+                    raise
+            else:
+                raise _RetryableError("All Gemini API keys in pool encountered rate limits (429).")
             latency_ms = int((time.monotonic() - start) * 1000)
             usage = resp.usage_metadata
             finish_reason = None

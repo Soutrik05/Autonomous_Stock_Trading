@@ -2,14 +2,14 @@
 Syncs daily OHLCV candles into ohlcv.db, with the corporate-action overlap-comparison guard.
 See Plan_v3 §1.5.
 """
+
 import sqlite3
 from datetime import date, timedelta
-from typing import List, Optional, Tuple
 
 from core.clock import Clock
+from core.config import settings
 from core.database import get_connection
 from ingestion.upstox_client import UpstoxAPIError
-from settings import settings
 
 # Prices are REAL rupees here (this is a raw market-data cache, not the paise money ledger).
 OHLCV_SCHEMA = """
@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS ohlcv (
     volume      INTEGER NOT NULL,
     PRIMARY KEY (ticker, trade_date)
 );
+
+CREATE INDEX IF NOT EXISTS idx_ohlcv_trade_date ON ohlcv(trade_date);
 
 CREATE TABLE IF NOT EXISTS ticker_status (
     ticker      TEXT PRIMARY KEY,
@@ -40,7 +42,7 @@ def _col(row, key, idx):
     return row[key] if isinstance(row, sqlite3.Row) else row[idx]
 
 
-def get_active_tickers(portfolio_conn: sqlite3.Connection, limit: int = None) -> List[Tuple[str, str]]:
+def get_active_tickers(portfolio_conn: sqlite3.Connection, limit: int = None) -> list[tuple[str, str]]:
     query = "SELECT ticker, instrument_key FROM symbols WHERE is_active = 1 ORDER BY ticker"
     if limit is not None:
         query += " LIMIT ?"
@@ -50,7 +52,7 @@ def get_active_tickers(portfolio_conn: sqlite3.Connection, limit: int = None) ->
     return [(_col(r, "ticker", 0), _col(r, "instrument_key", 1)) for r in rows]
 
 
-def get_last_stored_date(ohlcv_conn: sqlite3.Connection, ticker: str) -> Optional[date]:
+def get_last_stored_date(ohlcv_conn: sqlite3.Connection, ticker: str) -> date | None:
     row = ohlcv_conn.execute("SELECT MAX(trade_date) AS d FROM ohlcv WHERE ticker = ?", (ticker,)).fetchone()
     value = _col(row, "d", 0) if row else None
     return date.fromisoformat(value) if value else None
@@ -67,19 +69,19 @@ def set_ticker_status(ohlcv_conn: sqlite3.Connection, ticker: str, status: str, 
 
 
 def _upsert_candles(ohlcv_conn: sqlite3.Connection, ticker: str, candles: list) -> None:
-    for row in candles:
-        timestamp, open_, high, low, close, volume, _oi = row
-        trade_date = timestamp[:10]
-        ohlcv_conn.execute(
-            """
-            INSERT INTO ohlcv (ticker, trade_date, open, high, low, close, volume)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(ticker, trade_date) DO UPDATE SET
-                open = excluded.open, high = excluded.high, low = excluded.low,
-                close = excluded.close, volume = excluded.volume
-            """,
-            (ticker, trade_date, open_, high, low, close, volume),
-        )
+    if not candles:
+        return
+    params = [(ticker, row[0][:10], row[1], row[2], row[3], row[4], row[5]) for row in candles]
+    ohlcv_conn.executemany(
+        """
+        INSERT INTO ohlcv (ticker, trade_date, open, high, low, close, volume)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(ticker, trade_date) DO UPDATE SET
+            open = excluded.open, high = excluded.high, low = excluded.low,
+            close = excluded.close, volume = excluded.volume
+        """,
+        params,
+    )
 
 
 def _freeze_open_position(portfolio_conn: sqlite3.Connection, ticker: str, clock: Clock) -> None:
@@ -88,9 +90,7 @@ def _freeze_open_position(portfolio_conn: sqlite3.Connection, ticker: str, clock
     ).fetchall()
     for row in rows:
         position_id, agent_id = _col(row, "id", 0), _col(row, "agent_id", 1)
-        portfolio_conn.execute(
-            "UPDATE positions SET frozen_reason = 'CORP_ACTION' WHERE id = ?", (position_id,)
-        )
+        portfolio_conn.execute("UPDATE positions SET frozen_reason = 'CORP_ACTION' WHERE id = ?", (position_id,))
         portfolio_conn.execute(
             """
             INSERT INTO activity_log (agent_id, event_type, ticker, description, metadata_json, created_at)
@@ -135,8 +135,12 @@ def _merge_today_candle_if_missing(client, instrument_key: str, candles: list, t
 
 
 def sync_ticker(
-    client, ohlcv_conn: sqlite3.Connection, portfolio_conn: sqlite3.Connection, ticker: str,
-    instrument_key: str, clock: Clock,
+    client,
+    ohlcv_conn: sqlite3.Connection,
+    portfolio_conn: sqlite3.Connection,
+    ticker: str,
+    instrument_key: str,
+    clock: Clock,
 ) -> str:
     """Syncs one ticker end to end. Returns the final ticker_status: OK, STALE_DATA or LOCKED_CIRCUIT."""
     today = clock.today()
@@ -181,8 +185,13 @@ def sync_ticker(
     return status
 
 
-def sync_ohlcv(client, clock: Clock, ohlcv_conn: sqlite3.Connection = None,
-               portfolio_conn: sqlite3.Connection = None, limit: int = None) -> dict:
+def sync_ohlcv(
+    client,
+    clock: Clock,
+    ohlcv_conn: sqlite3.Connection = None,
+    portfolio_conn: sqlite3.Connection = None,
+    limit: int = None,
+) -> dict:
     """Syncs every active ticker in the symbols table (or the first `limit`). Returns
     {"OK": [...], "STALE_DATA": [...], "LOCKED_CIRCUIT": [...]} of ticker lists."""
     owns_ohlcv = ohlcv_conn is None

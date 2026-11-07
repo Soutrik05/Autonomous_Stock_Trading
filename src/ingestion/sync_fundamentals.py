@@ -3,17 +3,17 @@ Syncs financial statements, key ratios, and shareholding into fundamental.db on 
 Calculates derived metrics (PEG, debt-to-equity proxy, CFO/PAT, YoY growth) for fundamental personas.
 See Plan_v3 §1.1, §2.1, and docs/upstox_findings.md.
 """
+
 import argparse
 import json
 import logging
 import sqlite3
-from datetime import date, datetime, timedelta
-from typing import Dict, List, Optional
+from datetime import date
 
 from core.clock import Clock, SystemClock
+from core.config import settings
 from core.database import get_connection
-from ingestion.upstox_client import UpstoxAPIError, UpstoxClient
-from settings import settings
+from ingestion.upstox_client import UpstoxClient
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +69,7 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE fundamental_ratios ADD COLUMN dcf_iv_share REAL")
 
 
-def _safe_float(val) -> Optional[float]:
+def _safe_float(val) -> float | None:
     if val is None:
         return None
     if isinstance(val, (int, float)):
@@ -83,7 +83,7 @@ def _safe_float(val) -> Optional[float]:
     return None
 
 
-def _find_full_statement_latest(full_statement: List[dict], particular_name: str) -> Optional[float]:
+def _find_full_statement_latest(full_statement: list[dict], particular_name: str) -> float | None:
     """Finds the most recent historical period value for a given particular/category line item."""
     target = particular_name.strip().lower()
     for item in full_statement:
@@ -123,7 +123,7 @@ SECTOR_DISCOUNT_RATES = {
 }
 
 
-def get_sector_discount_rate(sector: Optional[str]) -> Optional[float]:
+def get_sector_discount_rate(sector: str | None) -> float | None:
     """Returns the discount rate r based on sector, or None for Financial Services."""
     if not sector:
         return 0.12
@@ -134,15 +134,15 @@ def get_sector_discount_rate(sector: Optional[str]) -> Optional[float]:
 
 
 def compute_dcf_intrinsic_value(
-    cfo: Optional[float],
-    cfi: Optional[float],
-    cash_end: Optional[float],
-    curr_liab: Optional[float],
-    non_curr_liab: Optional[float],
-    growth_rate: Optional[float],
-    discount_rate: Optional[float],
-    shares_outstanding: Optional[float],
-) -> Optional[float]:
+    cfo: float | None,
+    cfi: float | None,
+    cash_end: float | None,
+    curr_liab: float | None,
+    non_curr_liab: float | None,
+    growth_rate: float | None,
+    discount_rate: float | None,
+    shares_outstanding: float | None,
+) -> float | None:
     """
     Computes per-share intrinsic value following Zerodha Varsity Module 3 (Ch 14-15):
     - Returns None if company is in Financial Services (discount_rate is None)
@@ -184,7 +184,7 @@ def compute_dcf_intrinsic_value(
     pv_explicit = 0.0
     fcff_t = fcff_0
     for t in range(1, 6):
-        fcff_t *= (1.0 + g)
+        fcff_t *= 1.0 + g
         pv_explicit += fcff_t / ((1.0 + r) ** t)
 
     # Terminal Value
@@ -206,13 +206,13 @@ def compute_dcf_intrinsic_value(
 def parse_fundamental_metrics(
     ticker: str,
     as_of_date: str,
-    key_ratios: List[dict],
+    key_ratios: list[dict],
     income_stmt: dict,
     balance_sheet: dict,
     cash_flow: dict,
-    share_holdings: List[dict],
-    sector: Optional[str] = None,
-    current_price: Optional[float] = None,
+    share_holdings: list[dict],
+    sector: str | None = None,
+    current_price: float | None = None,
 ) -> dict:
     """
     Extracts and derives key fundamental metrics matching the FEATURE_REGISTRY contracts:
@@ -312,9 +312,8 @@ def parse_fundamental_metrics(
             shares_outstanding = (pat_val * 1e7) / eps_val
 
     cfi = _find_full_statement_latest(cf_full, "Cash flow from Investing")
-    cash_end = (
-        _find_full_statement_latest(cf_full, "Cash (End of the year)")
-        or _find_full_statement_latest(cf_full, "Cash (End of year)")
+    cash_end = _find_full_statement_latest(cf_full, "Cash (End of the year)") or _find_full_statement_latest(
+        cf_full, "Cash (End of year)"
     )
 
     discount_rate = get_sector_discount_rate(sector)
@@ -394,8 +393,8 @@ def sync_ticker(
     isin: str,
     as_of_date: str,
     clock: Clock,
-    sector: Optional[str] = None,
-    current_price: Optional[float] = None,
+    sector: str | None = None,
+    current_price: float | None = None,
 ) -> bool:
     """Fetches fundamental data for a single ISIN and updates fundamental_ratios."""
     now_iso = clock.now_iso()
@@ -444,12 +443,23 @@ def sync_ticker(
                 updated_at = excluded.updated_at
             """,
             (
-                ticker, as_of_date, metrics["pe"], metrics["pb"], metrics["roce_pct"],
-                metrics["roe_pct"], metrics["peg"], metrics["debt_to_equity"],
-                metrics["cfo_to_pat"], metrics["pat_growth_yoy_pct"],
-                metrics["revenue_growth_yoy_pct"], metrics["promoter_holding_pct"],
-                metrics["fii_holding_pct"], metrics["dii_holding_pct"],
-                metrics["raw_json"], metrics.get("dcf_iv_share"), now_iso,
+                ticker,
+                as_of_date,
+                metrics["pe"],
+                metrics["pb"],
+                metrics["roce_pct"],
+                metrics["roe_pct"],
+                metrics["peg"],
+                metrics["debt_to_equity"],
+                metrics["cfo_to_pat"],
+                metrics["pat_growth_yoy_pct"],
+                metrics["revenue_growth_yoy_pct"],
+                metrics["promoter_holding_pct"],
+                metrics["fii_holding_pct"],
+                metrics["dii_holding_pct"],
+                metrics["raw_json"],
+                metrics.get("dcf_iv_share"),
+                now_iso,
             ),
         )
 
@@ -534,12 +544,12 @@ def _finish_run(conn: sqlite3.Connection, run_date: str, status: str, clock: Clo
 
 def run(
     as_of_date: str = None,
-    ticker: Optional[str] = None,
+    ticker: str | None = None,
     force: bool = False,
-    clock: Optional[Clock] = None,
-    portfolio_conn: Optional[sqlite3.Connection] = None,
-    fundamental_conn: Optional[sqlite3.Connection] = None,
-    client: Optional[UpstoxClient] = None,
+    clock: Clock | None = None,
+    portfolio_conn: sqlite3.Connection | None = None,
+    fundamental_conn: sqlite3.Connection | None = None,
+    client: UpstoxClient | None = None,
 ) -> dict:
     """
     Executes the fundamental sync pipeline across active symbols in symbols table.

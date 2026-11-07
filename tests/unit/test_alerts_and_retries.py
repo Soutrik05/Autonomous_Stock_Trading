@@ -3,10 +3,11 @@ Unit and integration tests for pipeline retries, alerts, and startup catch-up.
 Verifies consecutive failure counting, activity_log alert emissions, retry checkpoints,
 and scheduler recovery behavior.
 """
+
 import json
 import sqlite3
 from datetime import datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -142,9 +143,10 @@ class TestSchedulerRetriesAndCatchup:
         monkeypatch.setattr("scheduler.get_connection", lambda _: conn)
         monkeypatch.setattr("scheduler.SystemClock", lambda: FakeClock(datetime(2026, 10, 19, 21, 0, 0)))
 
-        with patch("scheduler.execute_nightly_pipeline_pass", return_value="FAILED"), \
-             patch("notifications.alerts.record_pipeline_failure") as mock_alert:
-
+        with (
+            patch("scheduler.execute_nightly_pipeline_pass", return_value="FAILED"),
+            patch("notifications.alerts.record_pipeline_failure") as mock_alert,
+        ):
             job_nightly_pipeline_retry("21:00_checkpoint", is_final=True)
 
             mock_alert.assert_called_once()

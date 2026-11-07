@@ -4,24 +4,26 @@ Updates positions.last_price, computes cash/invested/total paise for each agent,
 and writes daily_nav with the Nifty 500 close.
 See Plan_v3 §4.4.
 """
+
 import argparse
 import logging
 import sqlite3
-from typing import Optional
 
 from broker.quotes import LiveQuoteProvider
 from core.calendar import is_trading_day
 from core.clock import Clock, SystemClock
+from core.config import settings
 from core.database import get_connection
 from core.interfaces import QuoteProvider
 from core.money import paise_to_rupees
-from settings import settings
 
 logger = logging.getLogger(__name__)
 JOB_NAME = "settlement"
 
 
-def _upsert_terminal_run(conn: sqlite3.Connection, run_date_str: str, status: str, clock: Clock, detail: str = None) -> None:
+def _upsert_terminal_run(
+    conn: sqlite3.Connection, run_date_str: str, status: str, clock: Clock, detail: str | None = None
+) -> None:
     now = clock.now_iso()
     conn.execute(
         """
@@ -38,9 +40,9 @@ def _upsert_terminal_run(conn: sqlite3.Connection, run_date_str: str, status: st
 def run_settlement(
     portfolio_conn: sqlite3.Connection,
     clock: Clock,
-    quote_provider: Optional[QuoteProvider] = None,
-    run_date_str: Optional[str] = None,
-    nifty500_close: Optional[float] = None,
+    quote_provider: QuoteProvider | None = None,
+    run_date_str: str | None = None,
+    nifty500_close: float | None = None,
 ) -> dict:
     """Computes daily NAV for all active agents and writes one daily_nav row per agent."""
     today = clock.today()
@@ -59,16 +61,14 @@ def run_settlement(
         for p in open_positions:
             price = quotes.get(p["ticker"])
             if price is not None and price > 0:
-                portfolio_conn.execute(
-                    "UPDATE positions SET last_price_paise = ? WHERE id = ?", (price, p["id"])
-                )
+                portfolio_conn.execute("UPDATE positions SET last_price_paise = ? WHERE id = ?", (price, p["id"]))
 
     # 2. Determine Nifty 500 close
     nifty_close = nifty500_close
     if nifty_close is None and quote_provider is not None:
         index_quotes = quote_provider.get_quotes(["NIFTY_500"])
         if "NIFTY_500" in index_quotes:
-            nifty_close = paise_to_rupees(index_quotes["NIFTY_500"])
+            nifty_close = float(paise_to_rupees(index_quotes["NIFTY_500"]))
     if nifty_close is None:
         nifty_close = 0.0
     else:
@@ -118,7 +118,9 @@ def main() -> None:
     conn = get_connection(settings.PORTFOLIO_DB_PATH)
     try:
         quote_provider = LiveQuoteProvider(conn)
-        res = run_settlement(conn, clock, quote_provider=quote_provider, run_date_str=args.date_str, nifty500_close=args.nifty_close)
+        res = run_settlement(
+            conn, clock, quote_provider=quote_provider, run_date_str=args.date_str, nifty500_close=args.nifty_close
+        )
         print(f"settlement: {res}")
     finally:
         conn.close()

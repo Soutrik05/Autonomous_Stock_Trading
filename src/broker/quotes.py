@@ -2,8 +2,9 @@
 LiveQuoteProvider and ReplayQuoteProvider implementations of the QuoteProvider interface.
 See Plan_v3 §4.4 and Core Architectural Principles 5.
 """
+
 import sqlite3
-from typing import Dict, Iterable, Optional
+from collections.abc import Iterable
 
 from core.interfaces import QuoteProvider
 from core.money import rupees_to_paise
@@ -13,13 +14,13 @@ from ingestion.upstox_client import UpstoxClient
 class ReplayQuoteProvider(QuoteProvider):
     """Returns scripted or in-memory prices {ticker: price_paise} for tests and replays."""
 
-    def __init__(self, quotes: Optional[Dict[str, int]] = None):
-        self._quotes: Dict[str, int] = dict(quotes) if quotes else {}
+    def __init__(self, quotes: dict[str, int] | None = None):
+        self._quotes: dict[str, int] = dict(quotes) if quotes else {}
 
     def set_quote(self, ticker: str, price_paise: int) -> None:
         self._quotes[ticker] = price_paise
 
-    def get_quotes(self, tickers: Iterable[str]) -> Dict[str, int]:
+    def get_quotes(self, tickers: Iterable[str]) -> dict[str, int]:
         result = {}
         for ticker in tickers:
             if ticker in self._quotes:
@@ -30,11 +31,11 @@ class ReplayQuoteProvider(QuoteProvider):
 class LiveQuoteProvider(QuoteProvider):
     """Fetches real-time market quotes from Upstox API using instrument keys from the symbols table."""
 
-    def __init__(self, portfolio_conn: sqlite3.Connection, client: Optional[UpstoxClient] = None):
+    def __init__(self, portfolio_conn: sqlite3.Connection, client: UpstoxClient | None = None):
         self._conn = portfolio_conn
         self._client = client or UpstoxClient()
 
-    def get_quotes(self, tickers: Iterable[str]) -> Dict[str, int]:
+    def get_quotes(self, tickers: Iterable[str]) -> dict[str, int]:
         ticker_list = list(tickers)
         if not ticker_list:
             return {}
@@ -61,7 +62,7 @@ class LiveQuoteProvider(QuoteProvider):
 
         raw_quotes = self._client.get_quotes(instrument_keys_to_fetch)
 
-        results: Dict[str, int] = {}
+        results: dict[str, int] = {}
         for returned_key, quote_data in raw_quotes.items():
             last_price = quote_data.get("last_price")
             if last_price is not None:

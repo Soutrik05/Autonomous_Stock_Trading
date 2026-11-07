@@ -2,6 +2,7 @@
 Shared test fixtures: fake OHLCV data, FakeClock, FakeLLM and ReplayQuoteProvider.
 See Plan_v3 §5 (Core Architectural Principles 5-6 interfaces).
 """
+
 import sqlite3
 from datetime import datetime
 from pathlib import Path
@@ -9,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from core.clock import FakeClock
+from core.config import settings
 from ingestion.sync_macro import ensure_schema as ensure_macro_schema
 from ingestion.sync_ohlcv import ensure_schema as ensure_ohlcv_schema
 
@@ -17,7 +19,7 @@ _SCHEMA_PATH = _DB_DIR / "schema.sql"
 _MIGRATIONS_DIR = _DB_DIR / "migrations"
 
 
-def make_portfolio_db() -> sqlite3.Connection:
+def make_portfolio_db(foreign_keys: bool = True) -> sqlite3.Connection:
     """An in-memory portfolio.db with the baseline schema plus every migration after 0001
     (e.g. llm_calls.finish_reason/reasoning_tokens from migration 0002), for tests that need
     columns schema.sql alone does not have. isolation_level=None (autocommit) matches
@@ -25,7 +27,8 @@ def make_portfolio_db() -> sqlite3.Connection:
     transactions require it; the default (implicit-transaction) mode would raise 'cannot start a
     transaction within a transaction'."""
     conn = sqlite3.connect(":memory:", isolation_level=None)
-    conn.execute("PRAGMA foreign_keys=ON")
+    if foreign_keys:
+        conn.execute("PRAGMA foreign_keys=ON")
     conn.row_factory = sqlite3.Row
     conn.executescript(_SCHEMA_PATH.read_text(encoding="utf-8"))
     for path in sorted(_MIGRATIONS_DIR.glob("*.sql")):
@@ -76,13 +79,13 @@ def seeded_portfolio(portfolio_conn: sqlite3.Connection) -> sqlite3.Connection:
     now = "2026-10-19T20:00:00+05:30"
     portfolio_conn.execute(
         "INSERT INTO agents (id, name, philosophy, kind, starting_cash_paise, cash_paise, created_at, updated_at) "
-        "VALUES ('simons', 'Jim Simons', 'Quant Momentum', 'LLM', 10000000, 10000000, ?, ?)",
-        (now, now),
+        "VALUES ('simons', 'Jim Simons', 'Quant Momentum', 'LLM', ?, ?, ?, ?)",
+        (settings.INITIAL_CASH_PER_AGENT_PAISE, settings.INITIAL_CASH_PER_AGENT_PAISE, now, now),
     )
     portfolio_conn.execute(
         "INSERT INTO agents (id, name, philosophy, kind, starting_cash_paise, cash_paise, created_at, updated_at) "
-        "VALUES ('baseline-simons-rules', 'Baseline Simons Rules', 'Rules Momentum', 'BASELINE', 10000000, 10000000, ?, ?)",
-        (now, now),
+        "VALUES ('baseline-simons-rules', 'Baseline Simons Rules', 'Rules Momentum', 'BASELINE', ?, ?, ?, ?)",
+        (settings.INITIAL_CASH_PER_AGENT_PAISE, settings.INITIAL_CASH_PER_AGENT_PAISE, now, now),
     )
     portfolio_conn.execute(
         "INSERT INTO symbols (ticker, instrument_key, isin, company_name, sector, is_active) "
@@ -108,6 +111,7 @@ class MockUpstoxClient:
 
     def get_daily_candles(self, instrument_key: str, from_date: str, to_date: str):
         from datetime import date, timedelta
+
         end_date = date.fromisoformat("2026-10-19")
         candles = []
         # Trivial minimal OHLCV series: 210 sessions to satisfy MIN_SESSIONS_REQUIRED (200).
@@ -198,6 +202,7 @@ def mock_upstox_client() -> MockUpstoxClient:
 # Ensures all persona Stage 1 hurdles and Stage 2 ranker inputs are cleanly satisfied by default.
 # =================================================================================================
 
+
 def make_passing_simons_features(**overrides) -> dict:
     """Features satisfying Jim Simons quant-momentum hurdles and Stage 2 inputs."""
     feat = {
@@ -242,6 +247,7 @@ def make_passing_marks_features(**overrides) -> dict:
         "ema_200": 150.0,  # Trading below 200 EMA during distress
         "rsi_14": 26.0,
         "dist_52w_low_pct": 6.0,
+        "pe": 16.0,
         "roce_pct": 18.0,
         "debt_to_equity": 0.3,
         "cfo_to_pat": 1.1,
@@ -261,6 +267,8 @@ def make_passing_rj_features(**overrides) -> dict:
         "promoter_holding_pct": 54.0,
         "pat_growth_yoy_pct": 22.0,
         "roce_pct": 20.0,
+        "debt_to_equity": 0.4,
+        "pe": 28.0,
         "fii_dii_qoq_delta_pct": 1.5,
         "atr_14": 10.0,
     }
@@ -299,4 +307,3 @@ def make_canonical_features(agent_id: str, **overrides) -> dict:
     """Returns canonical passing features for the specified agent persona."""
     builder = CANONICAL_FEATURE_BUILDERS.get(agent_id, make_passing_simons_features)
     return builder(**overrides)
-

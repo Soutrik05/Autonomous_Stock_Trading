@@ -1,7 +1,6 @@
 """
 Shared prompt infrastructure and output schema contract for all trading agents.
 """
-from typing import List, Optional
 
 from features.contracts import persona_allowed_metric_names
 
@@ -41,8 +40,8 @@ def build_generic_system_prompt(
     technical_hurdles: dict,
     fundamental_hurdles: dict,
     atr_multiplier: float = 2.0,
-    news_guidance: Optional[str] = None,
-    extra_metrics: Optional[List[str]] = None,
+    news_guidance: str | None = None,
+    extra_metrics: list[str] | None = None,
 ) -> str:
     allowed_metrics = ", ".join(
         persona_allowed_metric_names(technical_hurdles, fundamental_hurdles, extra_metrics=extra_metrics)
@@ -63,4 +62,3 @@ at most 2% capital risk per trade, 5% max open-position drawdown, 25% max per se
 
 {OUTPUT_CONTRACT.format(allowed_metrics=allowed_metrics)}
 """
-

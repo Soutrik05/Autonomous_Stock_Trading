@@ -3,6 +3,7 @@ Unit tests for ingestion/cli.py pipeline_runs wiring, using an in-memory db and 
 (no live network, no real client calls on a holiday).
 See Plan_v3 §1.4.
 """
+
 import sqlite3
 from datetime import datetime
 from pathlib import Path
@@ -45,9 +46,7 @@ def test_cli_skips_a_weekend_holiday_without_calling_the_client():
 
     assert status == "SKIPPED_HOLIDAY"
     assert client.calls == 0
-    row = conn.execute(
-        "SELECT status FROM pipeline_runs WHERE job='ingestion' AND run_date='2026-10-17'"
-    ).fetchone()
+    row = conn.execute("SELECT status FROM pipeline_runs WHERE job='ingestion' AND run_date='2026-10-17'").fetchone()
     assert row["status"] == "SKIPPED_HOLIDAY"
 
 
@@ -110,8 +109,12 @@ def test_cli_runs_with_explicit_date_str_records_macro_for_that_date():
     ensure_macro_schema(macro_conn)
 
     status = run(
-        clock=clock, client=client, date_str="2026-10-16", portfolio_conn=conn,
-        ohlcv_conn=ohlcv_conn, macro_conn=macro_conn,
+        clock=clock,
+        client=client,
+        date_str="2026-10-16",
+        portfolio_conn=conn,
+        ohlcv_conn=ohlcv_conn,
+        macro_conn=macro_conn,
     )
     assert status == "SUCCESS"
     macro_row = macro_conn.execute(

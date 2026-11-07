@@ -2,10 +2,10 @@
 Pipeline failure alerting and health monitoring.
 Logs structured alerts to activity_log and computes consecutive failure metrics.
 """
+
 import json
 import logging
 import sqlite3
-from typing import Dict, Optional
 
 from core.clock import Clock, SystemClock
 
@@ -39,8 +39,8 @@ def record_pipeline_failure(
     job_name: str,
     run_date: str,
     error_detail: str,
-    clock: Optional[Clock] = None,
-) -> Dict[str, any]:
+    clock: Clock | None = None,
+) -> dict[str, any]:
     """
     Records a PIPELINE_FAILED event into activity_log and determines severity based on
     consecutive failures.

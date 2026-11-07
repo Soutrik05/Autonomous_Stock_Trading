@@ -4,6 +4,7 @@ Unit tests for agents/context_assembler.py: candidate rows keyed by exact Featur
 watchlist candidates) -- held positions are never trimmed.
 See Plan_v3 §3.2.
 """
+
 from agents.context_assembler import assemble_prompt, build_candidate_row, estimate_tokens
 from features.contracts import persona_allowed_metric_names
 
@@ -159,4 +160,3 @@ def test_headlines_block_rendering_and_trimming():
     )
     assert trimmed_tight.get("headlines") is True
     assert "RECENT HEADLINES:" not in text_tight
-

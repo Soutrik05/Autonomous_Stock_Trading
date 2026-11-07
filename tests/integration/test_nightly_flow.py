@@ -4,28 +4,27 @@ ingestion -> features -> watchlist -> backup -> agent runner (LLM Simons + basel
 Stops once decisions are generated and pending orders are placed and reserved in the broker.
 See Plan_v3 §1.4, §Day 5.
 """
-from datetime import datetime
+
 import json
-from pathlib import Path
 import sqlite3
+from datetime import datetime
+from pathlib import Path
 
 from agents.runner import run as run_agents
 from broker.engine import Broker
-from features.builder import run as run_build_features
 from core.clock import FakeClock
 from core.money import rupees_to_paise
+from features.builder import run as run_build_features
 from ingestion.cli import run as run_ingestion
 from llm.client import FakeLLMClient
-from watchlist.watchlist_refresh import run as run_watchlist_refresh
 from scripts.backup import backup_portfolio_db
 from tests.conftest import make_passing_simons_features
+from watchlist.watchlist_refresh import run as run_watchlist_refresh
 
 RUN_DATE = "2026-10-19"
 
 
-def test_nightly_pipeline_batch_flow(
-    tmp_path, seeded_portfolio, ohlcv_conn, macro_conn, clock, mock_upstox_client
-):
+def test_nightly_pipeline_batch_flow(tmp_path, seeded_portfolio, ohlcv_conn, macro_conn, clock, mock_upstox_client):
     portfolio_conn = seeded_portfolio
 
     # Step 1: 20:00 IST - Ingestion
@@ -143,23 +142,27 @@ def test_nightly_pipeline_batch_flow(
     simons_shares = 8
     simons_entry_low_paise = rupees_to_paise(995.0)
     simons_entry_high_paise = rupees_to_paise(1005.0)
-    simons_stop_paise = rupees_to_paise(960.0)
+    simons_stop_paise = rupees_to_paise(945.0)
     simons_target_paise = rupees_to_paise(1080.0)
 
-    simons_llm_response = json.dumps({
-        "decisions": [{
-            "ticker": "TATAMOTORS",
-            "action": "BUY",
-            "shares": simons_shares,
-            "entry_low": 995.0,
-            "entry_high": 1005.0,
-            "stop_loss_price": 960.0,
-            "target_price": 1080.0,
-            "pre_mortem_risk": "Margin pressure in CV segment.",
-            "reasoning": "Breakout above EMA20 with strong volume surge.",
-            "cited_metrics": {"rsi_14": 62.4, "volume_surge": 1.5, "macd_hist": 2.0},
-        }]
-    })
+    simons_llm_response = json.dumps(
+        {
+            "decisions": [
+                {
+                    "ticker": "TATAMOTORS",
+                    "action": "BUY",
+                    "shares": simons_shares,
+                    "entry_low": 995.0,
+                    "entry_high": 1005.0,
+                    "stop_loss_price": 945.0,
+                    "target_price": 1080.0,
+                    "pre_mortem_risk": "Margin pressure in CV segment.",
+                    "reasoning": "Breakout above EMA20 with strong volume surge.",
+                    "cited_metrics": {"rsi_14": 62.4, "volume_surge": 1.5, "macd_hist": 2.0},
+                }
+            ]
+        }
+    )
 
     clock_2200 = FakeClock(datetime(2026, 10, 19, 22, 0, 0))
     agent_results = run_agents(
@@ -208,9 +211,7 @@ def test_nightly_pipeline_batch_flow(
 
     # Exact equality check for reserved_amount_paise using the broker's worst-case outlay formula:
     # worst_price = entry_high x (1 + BUY_OVERSHOOT_PCT) with slippage; outlay = shares x worst_price + BUY charges
-    expected_simons_reserved = broker.worst_case_buy_outlay_paise(
-        simons_shares, simons_entry_high_paise
-    )
+    expected_simons_reserved = broker.worst_case_buy_outlay_paise(simons_shares, simons_entry_high_paise)
     assert simons_order["reserved_amount_paise"] == expected_simons_reserved
 
     # 2. Baseline Simons Rules decision and order

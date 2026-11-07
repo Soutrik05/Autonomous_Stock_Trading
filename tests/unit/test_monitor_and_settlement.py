@@ -2,14 +2,14 @@
 Unit tests for broker/quotes.py, broker/monitor.py, broker/expiry.py and broker/settlement.py.
 See Plan_v3 §4.3, §4.4.
 """
-from datetime import datetime
-import json
+
 import sqlite3
+from datetime import datetime
 
 from broker.engine import Broker
 from broker.expiry import expire_pending_orders
 from broker.monitor import poll_once
-from broker.quotes import LiveQuoteProvider, ReplayQuoteProvider
+from broker.quotes import ReplayQuoteProvider
 from broker.settlement import run_settlement
 from core.clock import FakeClock
 from core.money import rupees_to_paise
@@ -131,7 +131,9 @@ def test_monitor_triggers_stop_loss_on_open_position():
     assert res["status"] == "SUCCESS"
     assert res["stops_hit"] == 1
 
-    pos = conn.execute("SELECT status, exit_reason, exit_price_paise FROM positions WHERE ticker = 'TATAMOTORS'").fetchone()
+    pos = conn.execute(
+        "SELECT status, exit_reason, exit_price_paise FROM positions WHERE ticker = 'TATAMOTORS'"
+    ).fetchone()
     assert pos["status"] == "CLOSED"
     assert pos["exit_reason"] == "STOP_HIT"
 
@@ -203,7 +205,9 @@ def test_settlement_computes_daily_nav_correctly():
     assert res["agents_settled"] >= 1
     assert res["nifty500_close"] == 22500.50
 
-    nav_row = conn.execute("SELECT * FROM daily_nav WHERE agent_id = 'simons' AND nav_date = ?", (TRADE_DATE,)).fetchone()
+    nav_row = conn.execute(
+        "SELECT * FROM daily_nav WHERE agent_id = 'simons' AND nav_date = ?", (TRADE_DATE,)
+    ).fetchone()
     assert nav_row is not None
     assert nav_row["cash_paise"] == 10000000
     # Invested paise = 10 * 96000 = 960,000 paise

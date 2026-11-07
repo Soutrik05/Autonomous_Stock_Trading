@@ -3,28 +3,28 @@ Unit tests for ingestion/sync_fundamentals.py and its integration with core/buil
 Tests ratio parsing, derived metric formulas, 14-day cadence check, API error resilience,
 and feature snapshot ingestion.
 """
+
 import json
 import sqlite3
-from datetime import date, datetime
-from typing import Any, Dict, List
+from datetime import datetime
 from unittest.mock import MagicMock
 
 import pandas as pd
 import pytest
 
 from core.clock import FakeClock
-from core.database import get_connection
-from features.builder import compute_snapshot_features, run as run_build_features
-from features.contracts import FEATURE_SCHEMA_VERSION, FeatureSnapshot
+from features.builder import compute_snapshot_features
+from features.builder import run as run_build_features
 from ingestion.sync_fundamentals import (
     ensure_schema,
     is_sync_due,
     parse_fundamental_metrics,
-    run as run_sync_fundamentals,
     sync_ticker,
 )
+from ingestion.sync_fundamentals import (
+    run as run_sync_fundamentals,
+)
 from ingestion.upstox_client import UpstoxAPIError
-
 
 # -----------------------------------------------------------------------------
 # Fixtures & Sample Payloads
@@ -200,6 +200,7 @@ def macro_conn():
 # 1. Parsing & Derived Metrics Tests
 # -----------------------------------------------------------------------------
 
+
 class TestParseFundamentalMetrics:
     def test_full_payload_all_metrics_extracted(self):
         res = parse_fundamental_metrics(
@@ -280,9 +281,7 @@ class TestParseFundamentalMetrics:
     def test_cfo_to_pat_zero_or_negative_pat(self):
         inc_zero_pat = {
             "income_statement": [],
-            "full_statement": [
-                {"particular": "Profit After Tax", "history": [{"period": "2025", "value": 0.0}]}
-            ],
+            "full_statement": [{"particular": "Profit After Tax", "history": [{"period": "2025", "value": 0.0}]}],
         }
         res = parse_fundamental_metrics(
             ticker="LOSSMAKER",
@@ -299,6 +298,7 @@ class TestParseFundamentalMetrics:
 # -----------------------------------------------------------------------------
 # 2. 14-Day Cadence Tests
 # -----------------------------------------------------------------------------
+
 
 class TestSyncDueCadence:
     def test_unseen_ticker_is_due(self, fundamental_conn):
@@ -348,6 +348,7 @@ class TestSyncDueCadence:
 # 3. sync_ticker Unit Tests
 # -----------------------------------------------------------------------------
 
+
 class TestSyncTicker:
     def test_sync_ticker_success(self, fundamental_conn):
         mock_client = MagicMock()
@@ -369,17 +370,13 @@ class TestSyncTicker:
         assert success is True
 
         # Check fundamental_sync_status
-        status_row = fundamental_conn.execute(
-            "SELECT * FROM fundamental_sync_status WHERE ticker = 'INFY'"
-        ).fetchone()
+        status_row = fundamental_conn.execute("SELECT * FROM fundamental_sync_status WHERE ticker = 'INFY'").fetchone()
         assert status_row is not None
         assert status_row["status"] == "SUCCESS"
         assert status_row["isin"] == "INE009A01021"
 
         # Check fundamental_ratios
-        ratio_row = fundamental_conn.execute(
-            "SELECT * FROM fundamental_ratios WHERE ticker = 'INFY'"
-        ).fetchone()
+        ratio_row = fundamental_conn.execute("SELECT * FROM fundamental_ratios WHERE ticker = 'INFY'").fetchone()
         assert ratio_row is not None
         assert ratio_row["pe"] == 24.50
         assert ratio_row["roce_pct"] == 18.25
@@ -400,16 +397,12 @@ class TestSyncTicker:
         )
         assert success is False
 
-        status_row = fundamental_conn.execute(
-            "SELECT * FROM fundamental_sync_status WHERE ticker = 'BADCO'"
-        ).fetchone()
+        status_row = fundamental_conn.execute("SELECT * FROM fundamental_sync_status WHERE ticker = 'BADCO'").fetchone()
         assert status_row is not None
         assert status_row["status"] == "FAILED"
 
         # No ratios written on failure
-        ratio_row = fundamental_conn.execute(
-            "SELECT * FROM fundamental_ratios WHERE ticker = 'BADCO'"
-        ).fetchone()
+        ratio_row = fundamental_conn.execute("SELECT * FROM fundamental_ratios WHERE ticker = 'BADCO'").fetchone()
         assert ratio_row is None
 
     def test_sync_ticker_persists_corporate_actions(self, fundamental_conn):
@@ -463,6 +456,7 @@ class TestSyncTicker:
 # -----------------------------------------------------------------------------
 # 4. run() Pipeline Tests
 # -----------------------------------------------------------------------------
+
 
 class TestRunPipeline:
     def test_run_syncs_active_and_skips_fresh(self, portfolio_conn, fundamental_conn):
@@ -519,12 +513,13 @@ class TestRunPipeline:
 # 5. Integration with core/build_features.py
 # -----------------------------------------------------------------------------
 
+
 class TestBuildFeaturesFundamentalIntegration:
     def test_compute_snapshot_features_with_fundamental_row(self):
         # 200 sessions of dummy OHLCV
         df = pd.DataFrame(
             {
-                "trade_date": [f"2025-01-{i+1:02d}" for i in range(200)],
+                "trade_date": [f"2025-01-{i + 1:02d}" for i in range(200)],
                 "open": [100.0] * 200,
                 "high": [105.0] * 200,
                 "low": [95.0] * 200,

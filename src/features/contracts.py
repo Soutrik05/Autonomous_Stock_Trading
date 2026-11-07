@@ -1,11 +1,12 @@
 """
 FeatureSnapshot definition: the single list of allowed metric names, units and faithfulness match rules.
 """
+
 import json
 import operator
 import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 FEATURE_SCHEMA_VERSION = 1
 
@@ -21,12 +22,13 @@ class FeatureDef:
 
 
 # The only place a metric name is defined. Order matches Plan_v3 §2.1.
-FEATURE_REGISTRY: List[FeatureDef] = [
+FEATURE_REGISTRY: list[FeatureDef] = [
     FeatureDef("close", "Price", "₹", "REL(0.5)"),
     FeatureDef("ema_20", "Trend", "₹", "REL(0.5)"),
     FeatureDef("ema_50", "Trend", "₹", "REL(0.5)"),
     FeatureDef("ema_200", "Trend", "₹", "REL(0.5)"),
     FeatureDef("ema_20_above_50", "Trend", "flag", "EXACT"),
+    FeatureDef("ema_20_cross_above_50", "Trend", "flag", "EXACT"),
     FeatureDef("rsi_14", "Momentum", "0-100", "ABS(2.0)"),
     FeatureDef("macd_hist", "Momentum", "₹", "ABS_PCT_CLOSE(0.1)"),
     FeatureDef("adx_14", "Momentum", "0-100", "ABS(2.0)"),
@@ -57,27 +59,43 @@ FEATURE_REGISTRY: List[FeatureDef] = [
     FeatureDef("news_article_count", "News", "count", "EXACT"),
     FeatureDef("india_vix", "Macro", "value", "ABS(0.5)"),
     FeatureDef("regime", "Macro", "label", "EXACT"),
+    FeatureDef("fundamentals_source", "Provenance", "label", "EXACT"),
 ]
 
-_BY_NAME: Dict[str, FeatureDef] = {f.name: f for f in FEATURE_REGISTRY}
+_BY_NAME: dict[str, FeatureDef] = {f.name: f for f in FEATURE_REGISTRY}
 _RULE_RE = re.compile(r"^(REL|ABS|ABS_PCT_CLOSE)\(([0-9.]+)\)$")
 
 
-def allowed_metric_names() -> List[str]:
+def allowed_metric_names() -> list[str]:
     """Returns every allowed FeatureSnapshot/cited_metrics name, in registry order."""
     return [f.name for f in FEATURE_REGISTRY]
 
 
 CORE_TECHNICAL_FIELDS = [
-    "close", "ema_20", "ema_50", "ema_200", "rsi_14", "macd_hist", "volume_surge",
-    "adx_14", "atr_14", "dist_52w_high_pct", "dist_52w_low_pct",
+    "close",
+    "ema_20",
+    "ema_50",
+    "ema_200",
+    "rsi_14",
+    "macd_hist",
+    "volume_surge",
+    "adx_14",
+    "atr_14",
+    "dist_52w_high_pct",
+    "dist_52w_low_pct",
 ]
 CONDITIONAL_TECHNICAL_FIELDS = [
-    "obv_slope_sign", "ema_20_above_50", "kaufman_er_20", "zscore_close_20", "parkinson_vol_ratio", "skew_60",
+    "obv_slope_sign",
+    "ema_20_above_50",
+    "ema_20_cross_above_50",
+    "kaufman_er_20",
+    "zscore_close_20",
+    "parkinson_vol_ratio",
+    "skew_60",
 ]
 
 
-def predicate_feature_names(predicate: Optional[dict]) -> set:
+def predicate_feature_names(predicate: dict | None) -> set:
     """Recursively collects every 'feature' name referenced anywhere in an evaluate_predicate-style
     JSON predicate (including nested all/any groups)."""
     names = set()
@@ -95,8 +113,8 @@ def predicate_feature_names(predicate: Optional[dict]) -> set:
 
 
 def persona_allowed_metric_names(
-    technical_hurdles: dict, fundamental_hurdles: dict, extra_metrics: Optional[List[str]] = None
-) -> List[str]:
+    technical_hurdles: dict, fundamental_hurdles: dict, extra_metrics: list[str] | None = None
+) -> list[str]:
     """The exact FeatureSnapshot names a persona's candidate rows and cited_metrics list may
     use: the core technical set, conditional fields only if the persona's hurdles reference them,
     any other registry name its hurdles or extra_metrics reference, and always india_vix/regime."""
@@ -121,7 +139,7 @@ def _is_number(value: Any) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 
-def matches(name: str, cited: Any, actual: Any, context: Optional[dict] = None) -> bool:
+def matches(name: str, cited: Any, actual: Any, context: dict | None = None) -> bool:
     """Compares a cited value against the FeatureSnapshot's actual value using that feature's
     match rule. A name outside the registry, or a None cited/actual value, never matches."""
     feature = _BY_NAME.get(name)
@@ -167,8 +185,8 @@ _OPS = {
 }
 
 
-def evaluate_predicate(features: Dict[str, Any], predicate: Dict[str, Any]) -> bool:
-    """Evaluates a JSON predicate against a features dict."""
+def evaluate_predicate(features: dict[str, Any], predicate: dict[str, Any]) -> bool:
+    """Evaluates a JSON predicate against a features dict with robust type coercion."""
     if not predicate:
         return True
     if "all" in predicate:
@@ -176,11 +194,28 @@ def evaluate_predicate(features: Dict[str, Any], predicate: Dict[str, Any]) -> b
     if "any" in predicate:
         return any(evaluate_predicate(features, child) for child in predicate["any"])
 
-    actual = features.get(predicate["feature"])
+    actual = features.get(predicate.get("feature"))
     if actual is None:
         return False
-    op_func = _OPS[predicate["op"]]
-    return bool(op_func(actual, predicate["value"]))
+    op_func = _OPS.get(predicate.get("op"))
+    if not op_func:
+        return False
+
+    target_val = predicate.get("value")
+
+    # Attempt numeric coercion if one side is numeric and the other is a numeric string
+    try:
+        if isinstance(actual, (int, float)) and not isinstance(actual, bool) and not isinstance(target_val, bool):
+            target_val = float(target_val)
+        elif isinstance(target_val, (int, float)) and not isinstance(target_val, bool) and not isinstance(actual, bool):
+            actual = float(actual)
+    except (ValueError, TypeError):
+        pass
+
+    try:
+        return bool(op_func(actual, target_val))
+    except TypeError:
+        return False
 
 
 @dataclass
@@ -188,7 +223,7 @@ class FeatureSnapshot:
     ticker: str
     as_of_date: str
     schema_version: int
-    features: Dict[str, Any] = field(default_factory=dict)
+    features: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         if isinstance(self.features, dict):
@@ -211,4 +246,3 @@ class FeatureSnapshot:
     def from_json(cls, raw: str) -> "FeatureSnapshot":
         data = json.loads(raw)
         return cls(data["ticker"], data["as_of_date"], data["schema_version"], data["features"])
-

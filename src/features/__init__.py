@@ -2,6 +2,7 @@
 StockMinds Features Package:
 Unified quantitative indicators, FinBERT sentiment scoring, and feature contracts.
 """
+
 from features.contracts import (
     FEATURE_REGISTRY,
     FEATURE_SCHEMA_VERSION,

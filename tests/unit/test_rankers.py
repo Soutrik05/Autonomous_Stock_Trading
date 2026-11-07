@@ -2,7 +2,7 @@
 Unit tests for precompute/rankers.py:
 Verifies single-stock heuristic scorers and cross-sectional factor rankers for all 5 personas.
 """
-import pytest
+
 from watchlist.rankers import (
     SORT_KEYS,
     get_strategy_ranker,
@@ -11,11 +11,6 @@ from watchlist.rankers import (
     rank_rj_intensity,
     rank_simons_intensity,
     rank_varsity_intensity,
-    score_lynch,
-    score_marks,
-    score_rj,
-    score_simons,
-    score_varsity,
 )
 
 
@@ -72,8 +67,22 @@ def test_lynch_ranker_ordering_and_growth_bonus():
 def test_marks_ranker_panic_regime_multiplier():
     candidates = ["PANIC_STOCK", "NORMAL_STOCK"]
     features = {
-        "PANIC_STOCK": {"rsi_14": 25.0, "dist_52w_low_pct": 5.0, "roce_pct": 18.0, "cfo_to_pat": 1.0, "debt_to_equity": 0.3, "regime": "PANIC"},
-        "NORMAL_STOCK": {"rsi_14": 25.0, "dist_52w_low_pct": 5.0, "roce_pct": 18.0, "cfo_to_pat": 1.0, "debt_to_equity": 0.3, "regime": "NORMAL"},
+        "PANIC_STOCK": {
+            "rsi_14": 25.0,
+            "dist_52w_low_pct": 5.0,
+            "roce_pct": 18.0,
+            "cfo_to_pat": 1.0,
+            "debt_to_equity": 0.3,
+            "regime": "PANIC",
+        },
+        "NORMAL_STOCK": {
+            "rsi_14": 25.0,
+            "dist_52w_low_pct": 5.0,
+            "roce_pct": 18.0,
+            "cfo_to_pat": 1.0,
+            "debt_to_equity": 0.3,
+            "regime": "NORMAL",
+        },
     }
     sectors = {t: "Metals" for t in candidates}
     ranked = rank_marks_intensity(candidates, features, sectors)
@@ -84,8 +93,20 @@ def test_marks_ranker_panic_regime_multiplier():
 def test_rj_ranker_promoter_bonus():
     candidates = ["HIGH_PROM", "LOW_PROM"]
     features = {
-        "HIGH_PROM": {"pat_growth_yoy_pct": 25.0, "fii_dii_qoq_delta_pct": 1.0, "volume_surge": 1.5, "roce_pct": 20.0, "promoter_holding_pct": 55.0},
-        "LOW_PROM": {"pat_growth_yoy_pct": 25.0, "fii_dii_qoq_delta_pct": 1.0, "volume_surge": 1.5, "roce_pct": 20.0, "promoter_holding_pct": 40.0},
+        "HIGH_PROM": {
+            "pat_growth_yoy_pct": 25.0,
+            "fii_dii_qoq_delta_pct": 1.0,
+            "volume_surge": 1.5,
+            "roce_pct": 20.0,
+            "promoter_holding_pct": 55.0,
+        },
+        "LOW_PROM": {
+            "pat_growth_yoy_pct": 25.0,
+            "fii_dii_qoq_delta_pct": 1.0,
+            "volume_surge": 1.5,
+            "roce_pct": 20.0,
+            "promoter_holding_pct": 40.0,
+        },
     }
     sectors = {t: "Auto" for t in candidates}
     ranked = rank_rj_intensity(candidates, features, sectors)
@@ -96,8 +117,22 @@ def test_rj_ranker_promoter_bonus():
 def test_varsity_ranker_dcf_and_news_sentiment():
     candidates = ["STRONG_VARSITY", "NEUTRAL_VARSITY"]
     features = {
-        "STRONG_VARSITY": {"volume_surge": 1.8, "rsi_14": 58.0, "roce_pct": 20.0, "debt_to_equity": 0.4, "dcf_discount_pct": 20.0, "news_sentiment": 0.25},
-        "NEUTRAL_VARSITY": {"volume_surge": 1.2, "rsi_14": 50.0, "roce_pct": 14.0, "debt_to_equity": 0.7, "dcf_discount_pct": None, "news_sentiment": 0.0},
+        "STRONG_VARSITY": {
+            "volume_surge": 1.8,
+            "rsi_14": 58.0,
+            "roce_pct": 20.0,
+            "debt_to_equity": 0.4,
+            "dcf_discount_pct": 20.0,
+            "news_sentiment": 0.25,
+        },
+        "NEUTRAL_VARSITY": {
+            "volume_surge": 1.2,
+            "rsi_14": 50.0,
+            "roce_pct": 14.0,
+            "debt_to_equity": 0.7,
+            "dcf_discount_pct": None,
+            "news_sentiment": 0.0,
+        },
     }
     sectors = {t: "Diversified" for t in candidates}
     ranked = rank_varsity_intensity(candidates, features, sectors)
@@ -113,4 +148,3 @@ def test_get_strategy_ranker_fallback():
     ranked = custom_ranker(candidates, features, sectors)
     assert len(ranked) == 1
     assert ranked[0]["ticker"] == "T1"
-

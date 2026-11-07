@@ -2,29 +2,29 @@
 Nightly backup of portfolio.db to backups/ using the SQLite backup API; keeps the last 14 copies.
 See Plan_v3 §1.4, §1.5.
 """
+
 import argparse
 import logging
 import sqlite3
 import sys
 from pathlib import Path
-from typing import Optional
 
 WORKSPACE_ROOT = Path(__file__).resolve().parent.parent
 if str(WORKSPACE_ROOT) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_ROOT))
 
-from settings import settings
 from core.clock import Clock, SystemClock
+from core.config import settings
 
 logger = logging.getLogger(__name__)
 
 
 def backup_portfolio_db(
-    source_path: Optional[str] = None,
-    backup_dir: Optional[str] = None,
-    clock: Optional[Clock] = None,
+    source_path: str | None = None,
+    backup_dir: str | None = None,
+    clock: Clock | None = None,
     max_copies: int = 14,
-) -> Optional[str]:
+) -> str | None:
     """Uses SQLite backup API to create an atomic snapshot of portfolio.db, then prunes older backups."""
     clock = clock or SystemClock()
     src = Path(source_path or settings.PORTFOLIO_DB_PATH)

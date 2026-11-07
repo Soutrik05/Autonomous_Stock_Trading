@@ -3,6 +3,7 @@ Applies db/schema.sql to an in-memory database and proves the partial unique ind
 init_db seeding/idempotency contract.
 See Plan_v3 §7.
 """
+
 import sqlite3
 from datetime import datetime
 from pathlib import Path
@@ -61,6 +62,7 @@ def insert_position(conn: sqlite3.Connection, agent_id: str, ticker: str, status
 
 # (a) pending_orders: one pending per (agent, ticker); pending + filled is allowed.
 
+
 def test_two_pending_orders_same_agent_ticker_rejected():
     conn = make_db()
     insert_agent(conn)
@@ -81,6 +83,7 @@ def test_pending_plus_filled_order_allowed():
 
 
 # (b) positions: one OPEN per (agent, ticker); one OPEN + one CLOSED is allowed.
+
 
 def test_two_open_positions_same_agent_ticker_rejected():
     conn = make_db()
@@ -103,7 +106,8 @@ def test_one_open_plus_one_closed_position_allowed():
 
 # (c) init_db seeds exactly 6 agents and is idempotent.
 
-def test_init_db_seeds_six_agents_and_is_idempotent():
+
+def test_init_db_seeds_agents_and_is_idempotent():
     conn = sqlite3.connect(":memory:")
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys=ON")
@@ -111,11 +115,11 @@ def test_init_db_seeds_six_agents_and_is_idempotent():
 
     init_db(conn, clock)
     rows = conn.execute("SELECT id FROM agents ORDER BY id").fetchall()
-    assert len(rows) == 6
+    assert len(rows) == len(AGENTS)
     assert {row["id"] for row in rows} == {agent_id for agent_id, _, _, _ in AGENTS}
 
     init_db(conn, clock)  # run again: must not duplicate or raise
     rows_after = conn.execute("SELECT id FROM agents ORDER BY id").fetchall()
-    assert len(rows_after) == 6
+    assert len(rows_after) == len(AGENTS)
     version_rows = conn.execute("SELECT version FROM schema_version").fetchall()
     assert len(version_rows) == len({row["version"] for row in version_rows})

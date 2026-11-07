@@ -2,24 +2,18 @@
 Unit tests for evaluation/forward_returns.py:
 Backfilling forward returns (T+1, T+5, etc.) and Nifty 500 benchmark proxy returns.
 """
+
 import sqlite3
 from datetime import datetime
-from pathlib import Path
+
 import pytest
 
 from core.clock import FakeClock
-from evaluation.forward_returns import compute_forward_returns, get_forward_trading_dates, get_universe_mean_return
+from evaluation.forward_returns import compute_forward_returns
 from ingestion.sync_ohlcv import ensure_schema as ensure_ohlcv_schema
+from tests.conftest import make_portfolio_db
 
-PORTFOLIO_SCHEMA_PATH = Path(__file__).resolve().parents[2] / "db" / "schema.sql"
 NOW = "2026-03-10T22:00:00+05:30"
-
-
-def make_portfolio_db() -> sqlite3.Connection:
-    conn = sqlite3.connect(":memory:")
-    conn.row_factory = sqlite3.Row
-    conn.executescript(PORTFOLIO_SCHEMA_PATH.read_text(encoding="utf-8"))
-    return conn
 
 
 def make_ohlcv_db() -> sqlite3.Connection:
@@ -37,7 +31,7 @@ def insert_ohlcv_bar(conn, ticker, trade_date, close, volume=100000):
 
 
 def test_forward_returns_backfill_and_benchmark():
-    portfolio = make_portfolio_db()
+    portfolio = make_portfolio_db(foreign_keys=False)
     ohlcv = make_ohlcv_db()
 
     # Seed decisions on 2026-03-02
@@ -85,3 +79,41 @@ def test_forward_returns_backfill_and_benchmark():
     # Re-running is idempotent and writes 0 new rows
     res2 = compute_forward_returns(portfolio, ohlcv, clock=clock, horizons=[1, 2], min_date_coverage=1)
     assert res2["rows_written"] == 0
+
+
+def test_forward_returns_negative_and_missing_future_bars():
+    portfolio = make_portfolio_db(foreign_keys=False)
+    ohlcv = make_ohlcv_db()
+
+    # Decision on 2026-03-02 for INFY
+    portfolio.execute(
+        """
+        INSERT INTO decisions (id, run_date, agent_id, ticker, source, action, shares, created_at)
+        VALUES (2, '2026-03-02', 'simons', 'INFY', 'LLM', 'BUY', 5, ?)
+        """,
+        (NOW,),
+    )
+
+    # T0 prices
+    insert_ohlcv_bar(ohlcv, "INFY", "2026-03-02", 200.0)
+    insert_ohlcv_bar(ohlcv, "TCS", "2026-03-02", 400.0)
+
+    # T+1 price drops -8% for INFY (184.0), TCS flat (400.0)
+    insert_ohlcv_bar(ohlcv, "INFY", "2026-03-03", 184.0)
+    insert_ohlcv_bar(ohlcv, "TCS", "2026-03-03", 400.0)
+
+    # No T+5 data in ohlcv DB
+    clock = FakeClock(datetime(2026, 3, 5, 20, 0))
+
+    # Horizon [1, 5] with min_date_coverage=1: T+1 succeeds, T+5 is skipped without crashing
+    res = compute_forward_returns(portfolio, ohlcv, clock=clock, horizons=[1, 5], min_date_coverage=1)
+    assert res["status"] == "SUCCESS"
+    assert res["rows_written"] == 1
+
+    t1_row = portfolio.execute("SELECT * FROM forward_returns WHERE decision_id = 2 AND horizon_days = 1").fetchone()
+    assert t1_row is not None
+    assert t1_row["ret_pct"] == pytest.approx(-8.0)
+
+    # T+5 row was not computed due to missing future bar
+    t5_row = portfolio.execute("SELECT * FROM forward_returns WHERE decision_id = 2 AND horizon_days = 5").fetchone()
+    assert t5_row is None

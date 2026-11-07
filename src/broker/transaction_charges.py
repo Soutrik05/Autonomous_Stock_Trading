@@ -4,9 +4,10 @@ and applies slippage to a fill price. All inputs/outputs are integer paise; each
 exactly once.
 See Plan_v3 §4.1.
 """
+
 from decimal import ROUND_HALF_UP, Decimal
 
-from settings import settings
+from core.config import settings
 
 
 def compute_transaction_charges_paise(price_paise: int, shares: int, side: str) -> int:

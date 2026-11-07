@@ -2,19 +2,19 @@
 Stateless monitor: one poll per run against pending-order and open-position tickers, applies fill rules.
 See Plan_v3 §4.3, §4.4.
 """
+
 import argparse
-import json
 import logging
-from decimal import Decimal, ROUND_HALF_UP
-from typing import Optional
+from decimal import ROUND_HALF_UP, Decimal
 
 from broker.engine import Broker
 from broker.quotes import LiveQuoteProvider
+from broker.trailing import compute_graduated_stop
 from core.calendar import is_trading_day
 from core.clock import Clock, SystemClock
+from core.config import settings
 from core.database import get_connection
 from core.interfaces import QuoteProvider
-from settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ def poll_once(
     portfolio_conn,
     clock: Clock,
     quote_provider: QuoteProvider,
-    run_date_str: Optional[str] = None,
+    run_date_str: str | None = None,
 ) -> dict:
     """Executes a single stateless monitor poll over pending orders and open positions."""
     today = clock.today()
@@ -122,6 +122,33 @@ def poll_once(
                         },
                     )
                     summary["targets_reached"] += 1
+
+            # (a.3) Broker-Level Graduated Trailing Stop Protection
+            pos_keys = pos.keys()
+            initial_stop = pos["initial_stop_paise"] if "initial_stop_paise" in pos_keys else None
+            stored_peak = (
+                pos["peak_price_paise"]
+                if ("peak_price_paise" in pos_keys and pos["peak_price_paise"])
+                else pos["avg_entry_price_paise"]
+            )
+            new_peak = max(stored_peak, price)
+            candidate_stop = compute_graduated_stop(
+                avg_entry_price_paise=pos["avg_entry_price_paise"],
+                current_stop_paise=pos["stop_paise"],
+                initial_stop_paise=initial_stop,
+                peak_price_paise=new_peak,
+            )
+            if candidate_stop > pos["stop_paise"]:
+                if "peak_price_paise" in pos_keys:
+                    portfolio_conn.execute(
+                        "UPDATE positions SET stop_paise = ?, peak_price_paise = ? WHERE id = ?",
+                        (candidate_stop, new_peak, pos["id"]),
+                    )
+                else:
+                    portfolio_conn.execute(
+                        "UPDATE positions SET stop_paise = ? WHERE id = ?",
+                        (candidate_stop, pos["id"]),
+                    )
 
         # (b) Check pending orders for this ticker
         orders_for_ticker = portfolio_conn.execute(

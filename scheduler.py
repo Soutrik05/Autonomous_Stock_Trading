@@ -3,23 +3,26 @@ APScheduler process that calls the one-shot job entry points on their nightly/in
 All schedule timings are in IST (Asia/Kolkata).
 See Plan_v3 §1.4.
 """
+
 import logging
 import sqlite3
 import sys
 from zoneinfo import ZoneInfo
+
 from apscheduler.schedulers.blocking import BlockingScheduler
 
 from broker.expiry import expire_pending_orders
 from broker.monitor import poll_once
 from broker.quotes import LiveQuoteProvider
 from broker.settlement import run_settlement
-from features.builder import run as run_build_features
 from core.clock import Clock, SystemClock
+from core.config import settings
 from core.database import get_connection
+from features.builder import run as run_build_features
 from ingestion.cli import run as run_ingestion
-from watchlist.watchlist_refresh import run as run_watchlist_refresh
+from llm.client import LLMConfigError, build_provider, require_setting
 from scripts.backup import backup_portfolio_db
-from settings import settings
+from watchlist.watchlist_refresh import run as run_watchlist_refresh
 
 logging.basicConfig(
     level=logging.INFO,
@@ -99,6 +102,7 @@ def execute_nightly_pipeline_pass(clock: Clock, conn: sqlite3.Connection, run_da
     Returns SUCCESS, SKIPPED_HOLIDAY, or FAILED.
     """
     from scripts.init_db import init_db
+
     init_db(conn, clock)
 
     logger.info("Executing nightly ingestion for %s...", run_date)
@@ -132,6 +136,7 @@ def execute_nightly_pipeline_pass(clock: Clock, conn: sqlite3.Connection, run_da
     logger.info("Computing forward returns for past decisions as of %s...", run_date)
     try:
         from evaluation.forward_returns import compute_forward_returns
+
         ohlcv_conn = get_connection(settings.OHLCV_DB_PATH)
         try:
             fwd_res = compute_forward_returns(portfolio_conn=conn, ohlcv_conn=ohlcv_conn, clock=clock)
@@ -150,6 +155,7 @@ def job_nightly_ingestion_and_features() -> None:
     conn = get_connection(settings.PORTFOLIO_DB_PATH)
     try:
         from scripts.init_db import init_db
+
         init_db(conn, clock)
 
         run_date = clock.today().isoformat()
@@ -248,6 +254,105 @@ def job_agent_runner() -> None:
         logger.info("Agent decisions result: %s", res)
     except Exception as exc:
         logger.exception("Agent runner failed: %s", exc)
+    finally:
+        conn.close()
+
+
+def _is_agent_runner_complete(conn: sqlite3.Connection, run_date: str) -> bool:
+    """Mirrors is_nightly_pipeline_complete's pattern, for the 22:00 agent-runner step: the
+    'agents' pipeline_runs row is upserted by agents.runner.run_one_agent for every agent it
+    processes that date, so a SUCCESS status there means the last agent in that run finished
+    cleanly."""
+    try:
+        row = conn.execute(
+            "SELECT status FROM pipeline_runs WHERE job = 'agents' AND run_date = ?",
+            (run_date,),
+        ).fetchone()
+        return bool(row and row["status"] == "SUCCESS")
+    except sqlite3.OperationalError:
+        return False
+
+
+def job_heuristic_nightly() -> None:
+    """22:30 IST: nightly heuristic trigger evaluation and lifecycle update, after
+    job_agent_runner, followed by forensics post-exit enrichment as a second, independently
+    isolated step (one failing must never stop the other). Skipped entirely (not failed) if
+    that day's agent-runner step hasn't finished."""
+    from notifications.alerts import record_pipeline_failure
+
+    clock = SystemClock()
+    conn = get_connection(settings.PORTFOLIO_DB_PATH)
+    run_date = clock.today().isoformat()
+    try:
+        if not _is_agent_runner_complete(conn, run_date):
+            logger.info("Agent runner not yet complete for %s; skipping heuristic nightly pass.", run_date)
+            return
+
+        try:
+            from learning.memory_manager import run_nightly as run_heuristic_nightly
+
+            res = run_heuristic_nightly(conn, clock, run_date)
+            logger.info("Heuristic nightly pass: %s", res)
+            if res.get("errors"):
+                record_pipeline_failure(conn, "heuristic_nightly", run_date, str(res["errors"]), clock)
+        except Exception as exc:
+            logger.exception("Heuristic nightly pass failed: %s", exc)
+            record_pipeline_failure(conn, "heuristic_nightly", run_date, str(exc), clock)
+
+        try:
+            from learning.forensics import enrich_post_exit
+
+            updated = enrich_post_exit(conn, clock, run_date)
+            logger.info("Post-exit enrichment: %s position(s) updated.", updated)
+        except Exception as exc:
+            logger.exception("Post-exit enrichment failed: %s", exc)
+            record_pipeline_failure(conn, "post_exit_enrichment", run_date, str(exc), clock)
+    except Exception as exc:
+        logger.exception("Heuristic nightly job failed before its steps could run: %s", exc)
+        record_pipeline_failure(conn, "heuristic_nightly", run_date, str(exc), clock)
+    finally:
+        conn.close()
+
+
+def job_weekly_reflection() -> None:
+    """Sunday 10:00 IST: weekly heuristic-generation reflection for every LLM persona (the
+    baseline agent has no LLM and is skipped by learning.engine.run itself). Builds its
+    primary/fallback LLM client pair the same way job_agent_runner does, from the dedicated
+    REFLECTION_LLM_* settings."""
+    from notifications.alerts import record_pipeline_failure
+
+    clock = SystemClock()
+    conn = get_connection(settings.PORTFOLIO_DB_PATH)
+    run_date = clock.today().isoformat()
+    try:
+        primary = build_provider(
+            settings.REFLECTION_LLM_PROVIDER,
+            model=require_setting(settings.REFLECTION_LLM_MODEL, "REFLECTION_LLM_MODEL"),
+        )
+        fallback = None
+        try:
+            fallback = build_provider(
+                settings.REFLECTION_LLM_FALLBACK_PROVIDER,
+                model=require_setting(settings.REFLECTION_LLM_FALLBACK_MODEL, "REFLECTION_LLM_FALLBACK_MODEL"),
+            )
+        except LLMConfigError as exc:
+            logger.warning(
+                "Weekly reflection fallback provider %r unavailable (%s); continuing with %r only, no fallback.",
+                settings.REFLECTION_LLM_FALLBACK_PROVIDER,
+                exc,
+                settings.REFLECTION_LLM_PROVIDER,
+            )
+
+        from learning.engine import run as run_reflection
+
+        res = run_reflection(conn, clock, llm_client=primary, fallback_client=fallback)
+        logger.info("Weekly reflection result: %s", res)
+        failed_agents = {aid: r for aid, r in res.get("agents", {}).items() if r.get("status") == "ERROR"}
+        if failed_agents:
+            record_pipeline_failure(conn, "weekly_reflection", run_date, str(failed_agents), clock)
+    except Exception as exc:
+        logger.exception("Weekly reflection failed: %s", exc)
+        record_pipeline_failure(conn, "weekly_reflection", run_date, str(exc), clock)
     finally:
         conn.close()
 
@@ -352,6 +457,26 @@ def build_scheduler() -> BlockingScheduler:
         id="agent_runner",
     )
 
+    # 7. Nightly heuristic trigger evaluation at 22:30 IST Mon-Fri, after the agent runner
+    scheduler.add_job(
+        job_heuristic_nightly,
+        "cron",
+        day_of_week="mon-fri",
+        hour=22,
+        minute=30,
+        id="heuristic_nightly",
+    )
+
+    # 8. Weekly reflection (heuristic generation) at 10:00 IST on Sunday
+    scheduler.add_job(
+        job_weekly_reflection,
+        "cron",
+        day_of_week="sun",
+        hour=10,
+        minute=0,
+        id="weekly_reflection",
+    )
+
     return scheduler
 
 
@@ -363,6 +488,7 @@ def main() -> None:
     conn = get_connection(settings.PORTFOLIO_DB_PATH)
     try:
         from scripts.init_db import init_db
+
         init_db(conn, clock)
         logger.info("Portfolio database verified/initialized at %s", settings.PORTFOLIO_DB_PATH)
         check_and_run_startup_catchup(clock, conn)

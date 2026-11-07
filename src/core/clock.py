@@ -2,11 +2,12 @@
 SystemClock (real IST time) and FakeClock (fixed/advanceable time for tests and replay).
 See Plan_v3 Core Architectural Principles 6.
 """
+
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
+from core.config import settings
 from core.interfaces import Clock
-from settings import settings
 
 IST = ZoneInfo(settings.TIMEZONE)
 

@@ -3,28 +3,26 @@ pandas
 numpy
 python-dotenv
 apscheduler
-pydantic
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
 requests
 httpx
-rapidfuzz
-openpyxl
+scipy
+
+# API & Dashboard
+fastapi
+uvicorn
 
 # LLM Providers
 groq
 google-genai
 
-# # LangChain / LangGraph
-# langchain
-# langchain-core
-# langchain-groq
-# langgraph
-
 # NLP & Sentiment
 torch
 transformers
-# faiss-cpu
-# sentence-transformers
-# feedparser
 
-# Testing
+# Tooling & Testing
 pytest
+pytest-asyncio
+ruff>=0.4.0
+mypy>=1.10.0

@@ -2,11 +2,12 @@
 Builds compact numeric candidate rows and enforces the prompt token budget and trim order.
 See Plan_v3 §3.2.
 """
-import sqlite3
-from typing import Dict, List, Optional, Tuple
 
+import sqlite3
+from typing import Any
+
+from core.config import settings
 from features.contracts import persona_allowed_metric_names
-from settings import settings
 
 # Recalibrated against a real measured Groq call (day 3c): real chars/token was ~2.64 on this
 # prompt style; 3.5 (generic prose) undershot real tokens_in by ~25%. PROMPT_TOKEN_TARGET and
@@ -22,7 +23,7 @@ def estimate_tokens(text: str) -> int:
     return int(len(text) / CHARS_PER_TOKEN)
 
 
-def _abbrev_sector(sector: Optional[str]) -> str:
+def _abbrev_sector(sector: str | None) -> str:
     return (sector or "UNK")[:3].upper()
 
 
@@ -38,7 +39,7 @@ def _fmt_value(name: str, value) -> str:
     return f"{value:.2f}"
 
 
-def build_candidate_row(ticker: str, sector: str, features: dict, is_held: bool, allowed_names: List[str]) -> str:
+def build_candidate_row(ticker: str, sector: str, features: dict, is_held: bool, allowed_names: list[str]) -> str:
     """One compact row per candidate, keyed by the EXACT FeatureSnapshot names in
     `allowed_names` (see features.contracts.persona_allowed_metric_names) -- e.g. close=, ema_20=,
     rsi_14=, macd_hist=. A field whose value is None is omitted entirely, not shown as NA."""
@@ -54,23 +55,24 @@ def build_candidate_row(ticker: str, sector: str, features: dict, is_held: bool,
     return "|".join(parts)
 
 
-def build_regime_line(india_vix: Optional[float], regime: Optional[str]) -> str:
+def build_regime_line(india_vix: float | None, regime: str | None) -> str:
     if regime is None:
         return "REGIME: unknown (macro data not yet available for this date)."
     vix_part = "NA" if india_vix is None else f"{india_vix:.2f}"
     return f"REGIME: {regime} (India VIX: {vix_part})."
 
 
-def build_heuristics_block(heuristics: List[dict]) -> str:
+def build_heuristics_block(heuristics: list[dict]) -> str:
     if not heuristics:
         return "ACTIVE HEURISTICS: none yet."
     lines = ["ACTIVE HEURISTICS:"]
     for h in heuristics:
-        lines.append(f"- [{h['kind']}] {h['heuristic_text']} (confidence {h['confidence']:.2f})")
+        ctx = h.get("context") or "ENTRY"
+        lines.append(f"- [{ctx} {h['kind']}] {h['heuristic_text']} (confidence {h['confidence']:.2f})")
     return "\n".join(lines)
 
 
-def build_episodic_memory_block(closed_positions: List[dict]) -> str:
+def build_episodic_memory_block(closed_positions: list[dict]) -> str:
     if not closed_positions:
         return "RECENT CLOSED TRADES: none yet."
     lines = ["RECENT CLOSED TRADES (most recent first):"]
@@ -79,13 +81,13 @@ def build_episodic_memory_block(closed_positions: List[dict]) -> str:
         pnl = p.get("realized_pnl_pct")
         pnl_text = "NA" if pnl is None else f"{pnl:.1f}%"
         lines.append(
-            f"- {p['ticker']}: entered because \"{excerpt}\", exited {p.get('exit_reason')} "
+            f'- {p["ticker"]}: entered because "{excerpt}", exited {p.get("exit_reason")} '
             f"after {p.get('hold_days')}d, pnl={pnl_text}"
         )
     return "\n".join(lines)
 
 
-def compute_kelly_recommendation(conn: sqlite3.Connection, agent_id: str) -> Optional[dict]:
+def compute_kelly_recommendation(conn: sqlite3.Connection, agent_id: str) -> dict | None:
     """Computes empirical Half-Kelly fraction from closed positions if at least 10 trades exist."""
     rows = conn.execute(
         "SELECT realized_pnl_pct FROM positions WHERE agent_id = ? AND status = 'CLOSED'",
@@ -116,15 +118,13 @@ def compute_kelly_recommendation(conn: sqlite3.Connection, agent_id: str) -> Opt
     }
 
 
-def build_portfolio_state_block(
-    cash_paise: int, holdings: List[dict], kelly_context: Optional[dict] = None
-) -> str:
+def build_portfolio_state_block(cash_paise: int, holdings: list[dict], kelly_context: dict | None = None) -> str:
     cash_rupees = cash_paise / 100
     account_value_paise = cash_paise + sum(h["value_paise"] for h in holdings)
     lines = [f"PORTFOLIO: cash=Rs{cash_rupees:,.0f}"]
     if holdings:
         holdings_text = ", ".join(f"{h['ticker']}x{h['shares']}" for h in holdings)
-        sector_value: Dict[str, int] = {}
+        sector_value: dict[str, int] = {}
         for h in holdings:
             sector_value[h["sector"]] = sector_value.get(h["sector"], 0) + h["value_paise"]
         sector_text = ", ".join(
@@ -132,6 +132,16 @@ def build_portfolio_state_block(
         )
         lines.append(f"Holdings: {holdings_text}")
         lines.append(f"Sector exposure: {sector_text}")
+
+        # Check for TARGET_REACHED alerts today
+        target_alerts = [h for h in holdings if h.get("target_reached")]
+        for ta in target_alerts:
+            t_rupees = (ta.get("target_paise") or 0) / 100.0
+            lines.append(
+                f"TARGET ALERT: {ta['ticker']} reached profit target (Rs{t_rupees:.2f}) today! "
+                f"Action required: deliberate whether to SELL (take profit tomorrow morning), "
+                f"ADJUST (ratchet stop up and raise target), or HOLD."
+            )
     else:
         lines[0] += ", no open positions."
 
@@ -150,7 +160,7 @@ def build_portfolio_state_block(
     return "\n".join(lines)
 
 
-def build_headlines_block(candidates: List[dict]) -> str:
+def build_headlines_block(candidates: list[dict]) -> str:
     """Builds a compact summary of top recent headlines with relative age and FinBERT score."""
     from core.schemas import sanitize_text_for_prompt
 
@@ -173,17 +183,16 @@ def build_headlines_block(candidates: List[dict]) -> str:
     return "RECENT HEADLINES:\n" + "\n".join(lines)
 
 
-
 def assemble_prompt(
     system_prompt: str,
     regime_line: str,
     heuristics_block: str,
     episodic_block: str,
     portfolio_block: str,
-    candidates: List[dict],
-    allowed_names: List[str],
-    ceiling: Optional[int] = None,
-) -> Tuple[str, dict]:
+    candidates: list[dict],
+    allowed_names: list[str],
+    ceiling: int | None = None,
+) -> tuple[str, dict]:
     """Assembles the user-prompt body from the blocks above plus one row per candidate
     ({"ticker", "sector", "features", "is_held", "intensity_score", "headlines"}), trimming to `ceiling`
     (default settings.PROMPT_TOKEN_CEILING) if needed, in order: drop episodic memory,
@@ -194,7 +203,7 @@ def assemble_prompt(
     held = [c for c in candidates if c["is_held"]]
     not_held = sorted((c for c in candidates if not c["is_held"]), key=lambda c: c.get("intensity_score") or 0)
 
-    trimmed = {"episodic": False, "headlines": False, "dropped_candidates": []}
+    trimmed: dict[str, Any] = {"episodic": False, "headlines": False, "dropped_candidates": []}
 
     def render(include_headlines: bool = True) -> str:
         rows = [
@@ -235,29 +244,47 @@ def assemble_prompt(
 
 # --- DB-backed helpers that pull the blocks' raw data (used by agents/runner.py) ----------------
 
-def load_portfolio_state(conn: sqlite3.Connection, agent_id: str) -> Tuple[int, List[dict]]:
+
+def load_portfolio_state(conn: sqlite3.Connection, agent_id: str) -> tuple[int, list[dict]]:
     agent_row = conn.execute("SELECT cash_paise FROM agents WHERE id = ?", (agent_id,)).fetchone()
     cash_paise = agent_row["cash_paise"] if agent_row else 0
     rows = conn.execute(
-        "SELECT ticker, sector, shares, avg_entry_price_paise, last_price_paise FROM positions "
+        "SELECT ticker, sector, shares, avg_entry_price_paise, last_price_paise, stop_paise, target_paise FROM positions "
         "WHERE agent_id = ? AND status = 'OPEN'",
         (agent_id,),
     ).fetchall()
+
+    target_alerts = set()
+    try:
+        latest_act = conn.execute("SELECT MAX(created_at) FROM activity_log").fetchone()
+        if latest_act and latest_act[0]:
+            today_prefix = str(latest_act[0])[:10]
+            t_rows = conn.execute(
+                "SELECT ticker FROM activity_log WHERE agent_id = ? AND event_type = 'TARGET_REACHED' AND created_at LIKE ?",
+                (agent_id, f"{today_prefix}%"),
+            ).fetchall()
+            target_alerts = {r["ticker"] if isinstance(r, sqlite3.Row) else r[0] for r in t_rows}
+    except Exception:
+        pass
+
     holdings = [
         {
             "ticker": r["ticker"],
             "sector": r["sector"],
             "shares": r["shares"],
             "value_paise": r["shares"] * r["last_price_paise"],
+            "target_reached": r["ticker"] in target_alerts,
+            "target_paise": r["target_paise"],
+            "stop_paise": r["stop_paise"],
         }
         for r in rows
     ]
     return cash_paise, holdings
 
 
-def load_active_heuristics(conn: sqlite3.Connection, agent_id: str) -> List[dict]:
+def load_active_heuristics(conn: sqlite3.Connection, agent_id: str) -> list[dict]:
     rows = conn.execute(
-        "SELECT kind, heuristic_text, confidence FROM agent_memory "
+        "SELECT kind, context, heuristic_text, confidence FROM agent_memory "
         "WHERE agent_id = ? AND status IN ('active', 'reinforced') "
         "ORDER BY confidence DESC LIMIT ?",
         (agent_id, settings.MAX_ACTIVE_HEURISTICS_IN_PROMPT),
@@ -265,7 +292,7 @@ def load_active_heuristics(conn: sqlite3.Connection, agent_id: str) -> List[dict
     return [dict(r) for r in rows]
 
 
-def load_episodic_memory(conn: sqlite3.Connection, agent_id: str) -> List[dict]:
+def load_episodic_memory(conn: sqlite3.Connection, agent_id: str) -> list[dict]:
     rows = conn.execute(
         "SELECT ticker, entry_reasoning, exit_reason, hold_days, realized_pnl_pct FROM positions "
         "WHERE agent_id = ? AND status = 'CLOSED' ORDER BY exit_date DESC LIMIT ?",
@@ -274,7 +301,7 @@ def load_episodic_memory(conn: sqlite3.Connection, agent_id: str) -> List[dict]:
     return [dict(r) for r in rows]
 
 
-def extract_regime(features_by_ticker: Dict[str, dict]) -> Tuple[Optional[float], Optional[str]]:
+def extract_regime(features_by_ticker: dict[str, dict]) -> tuple[float | None, str | None]:
     for features in features_by_ticker.values():
         if features.get("regime") is not None:
             return features.get("india_vix"), features.get("regime")
@@ -282,14 +309,20 @@ def extract_regime(features_by_ticker: Dict[str, dict]) -> Tuple[Optional[float]
 
 
 def build_user_prompt(
-    portfolio_conn: sqlite3.Connection, agent_id: str, review_pool: List[dict],
-    features_by_ticker: Dict[str, dict], sector_by_ticker: Dict[str, str],
-    intensity_by_ticker: Dict[str, float], system_prompt: str, technical_hurdles: dict,
+    portfolio_conn: sqlite3.Connection,
+    agent_id: str,
+    review_pool: list[dict],
+    features_by_ticker: dict[str, dict],
+    sector_by_ticker: dict[str, str],
+    intensity_by_ticker: dict[str, float],
+    system_prompt: str,
+    technical_hurdles: dict,
     fundamental_hurdles: dict,
-    news_conn: Optional[sqlite3.Connection] = None, news_lookback_days: int = 7,
-    run_date: Optional[str] = None,
-    extra_metrics: Optional[List[str]] = None,
-) -> Tuple[str, dict]:
+    news_conn: sqlite3.Connection | None = None,
+    news_lookback_days: int = 7,
+    run_date: str | None = None,
+    extra_metrics: list[str] | None = None,
+) -> tuple[str, dict]:
     """End-to-end: pulls portfolio/heuristics/episodic-memory data and assembles the full user
     prompt for one agent's nightly run. `technical_hurdles`/`fundamental_hurdles` (the
     persona's) decide the candidate rows' field set via persona_allowed_metric_names().
@@ -309,6 +342,7 @@ def build_user_prompt(
     if news_conn is None and run_date:
         try:
             from core.database import get_connection
+
             news_conn = get_connection(settings.NEWS_DB_PATH)
             owns_news = True
         except Exception:
@@ -318,6 +352,7 @@ def build_user_prompt(
     if news_conn is not None and run_date:
         try:
             from ingestion.sync_news import get_ticker_news_sentiment
+
             for entry in review_pool:
                 _, _, arts = get_ticker_news_sentiment(
                     news_conn, entry["ticker"], run_date, lookback_days=news_lookback_days

@@ -2,6 +2,7 @@
 Unit tests for the technical/ indicator functions used by FeatureSnapshot.
 See Plan_v3 §2.2.
 """
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -74,12 +75,42 @@ def test_add_indicators_produces_every_expected_column():
     df = make_df([100.0 + i * 0.1 for i in range(260)])
     enriched = add_indicators(df)
     for col in [
-        "ema_20", "ema_50", "ema_200", "ema_20_above_50", "rsi_14", "macd_hist",
-        "atr_14", "adx_14", "volume_surge", "obv", "obv_slope_sign",
-        "dist_52w_high_pct", "dist_52w_low_pct",
-        "kaufman_er_20", "zscore_close_20", "parkinson_vol_ratio", "skew_60",
+        "ema_20",
+        "ema_50",
+        "ema_200",
+        "ema_20_above_50",
+        "ema_20_cross_above_50",
+        "rsi_14",
+        "macd_hist",
+        "atr_14",
+        "adx_14",
+        "volume_surge",
+        "obv",
+        "obv_slope_sign",
+        "dist_52w_high_pct",
+        "dist_52w_low_pct",
+        "kaufman_er_20",
+        "zscore_close_20",
+        "parkinson_vol_ratio",
+        "skew_60",
     ]:
         assert col in enriched.columns
+
+
+def test_ema_20_cross_above_50_fires_only_on_crossover_session():
+    # 70 sessions of flat/declining price so 20 EMA is strictly below 50 EMA,
+    # followed by a sharp surge so 20 EMA crosses above 50 EMA,
+    # followed by continued high prices so 20 EMA stays above 50 EMA.
+    closes = [100.0 - i * 0.2 for i in range(70)] + [130.0 + i * 0.1 for i in range(40)]
+    df = make_df(closes)
+    enriched = add_indicators(df)
+    cross = enriched["ema_20_cross_above_50"]
+    above = enriched["ema_20_above_50"]
+
+    # At least one crossover occurred
+    assert cross.any()
+    # The crossover flag is True at the transition, but not on all sessions where above is True
+    assert cross.sum() < above.sum()
 
 
 def test_quant_indicators_values():

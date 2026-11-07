@@ -4,14 +4,14 @@ Syncs India VIX, computes rule-based daily regime from VIX_BANDS, calculates mar
 (Nifty 50 and Nifty 500), and writes one macro_daily row to macro.db.
 See Plan_v3 §2.5.
 """
+
 import sqlite3
-from datetime import date, datetime, timezone, timedelta
-from typing import Optional, Tuple
+from datetime import date, datetime, timedelta, timezone
 
 from core.calendar import is_trading_day
 from core.clock import Clock
+from core.config import settings
 from core.database import get_connection
-from settings import settings
 
 MACRO_SCHEMA = """
 CREATE TABLE IF NOT EXISTS macro_daily (
@@ -44,7 +44,7 @@ def compute_regime(india_vix: float) -> str:
     return "PANIC"
 
 
-def _extract_net_cr(records: list, target_iso: str) -> Optional[float]:
+def _extract_net_cr(records: list, target_iso: str) -> float | None:
     """Finds record matching target_iso date and returns net buy-sell amount in Crores."""
     ist = timezone(timedelta(hours=5, minutes=30))
     for rec in records:
@@ -59,7 +59,7 @@ def _extract_net_cr(records: list, target_iso: str) -> Optional[float]:
     return None
 
 
-def compute_advance_decline(ohlcv_conn: Optional[sqlite3.Connection], target_iso: str) -> Optional[float]:
+def compute_advance_decline(ohlcv_conn: sqlite3.Connection | None, target_iso: str) -> float | None:
     """Computes advance/decline ratio across active constituents on target_iso from ohlcv.db.
     Compares close(target_iso) vs close(prev_trade_date).
     If no prior session exists, compares close vs open.
@@ -71,12 +71,12 @@ def compute_advance_decline(ohlcv_conn: Optional[sqlite3.Connection], target_iso
         # Find preceding trade date with constituent coverage
         row = ohlcv_conn.execute(
             """
-            SELECT trade_date 
-            FROM ohlcv 
-            WHERE trade_date < ? 
-            GROUP BY trade_date 
-            HAVING COUNT(*) >= 50 
-            ORDER BY trade_date DESC 
+            SELECT trade_date
+            FROM ohlcv
+            WHERE trade_date < ?
+            GROUP BY trade_date
+            HAVING COUNT(*) >= 50
+            ORDER BY trade_date DESC
             LIMIT 1
             """,
             (target_iso,),
@@ -86,7 +86,7 @@ def compute_advance_decline(ohlcv_conn: Optional[sqlite3.Connection], target_iso
             prev_d = row[0]
             counts = ohlcv_conn.execute(
                 """
-                SELECT 
+                SELECT
                     SUM(CASE WHEN curr.close > prev.close THEN 1 ELSE 0 END) AS advances,
                     SUM(CASE WHEN curr.close < prev.close THEN 1 ELSE 0 END) AS declines
                 FROM ohlcv curr
@@ -99,7 +99,7 @@ def compute_advance_decline(ohlcv_conn: Optional[sqlite3.Connection], target_iso
             # Fallback to intraday close vs open
             counts = ohlcv_conn.execute(
                 """
-                SELECT 
+                SELECT
                     SUM(CASE WHEN close > open THEN 1 ELSE 0 END) AS advances,
                     SUM(CASE WHEN close < open THEN 1 ELSE 0 END) AS declines
                 FROM ohlcv
@@ -122,7 +122,7 @@ def compute_advance_decline(ohlcv_conn: Optional[sqlite3.Connection], target_iso
         return None
 
 
-def _trend_from_candles(candles: list, target_iso: str, window_size: int = 20) -> Optional[str]:
+def _trend_from_candles(candles: list, target_iso: str, window_size: int = 20) -> str | None:
     """Computes trend (BULLISH/BEARISH/SIDEWAYS) from daily candles [ts, o, h, l, c, v, ...].
     Calculates 20-day SMA up to target_iso and compares close vs SMA."""
     if not candles:
@@ -146,7 +146,7 @@ def _trend_from_candles(candles: list, target_iso: str, window_size: int = 20) -
         return "SIDEWAYS"
 
 
-def _trend_from_quote(quote: dict) -> Optional[str]:
+def _trend_from_quote(quote: dict) -> str | None:
     """Computes trend from quote dict with last_price and ohlc/net_change."""
     if not quote:
         return None
@@ -169,8 +169,8 @@ def _trend_from_quote(quote: dict) -> Optional[str]:
 
 
 def compute_index_trends(
-    client, target_iso: str, advance_decline: Optional[float] = None
-) -> Tuple[Optional[str], Optional[str]]:
+    client, target_iso: str, advance_decline: float | None = None
+) -> tuple[str | None, str | None]:
     """Determines nifty50_trend and nifty500_trend.
     Order of resolution:
     1. Historical daily candles from client.get_daily_candles (SMA-20 trend)
@@ -307,9 +307,15 @@ def sync_macro(
                 market_closed = excluded.market_closed
             """,
             (
-                row["trade_date"], row["regime"], row["india_vix"], row["fii_net_cr"],
-                row["dii_net_cr"], row["nifty50_trend"], row["nifty500_trend"],
-                row["advance_decline"], row["market_closed"],
+                row["trade_date"],
+                row["regime"],
+                row["india_vix"],
+                row["fii_net_cr"],
+                row["dii_net_cr"],
+                row["nifty50_trend"],
+                row["nifty500_trend"],
+                row["advance_decline"],
+                row["market_closed"],
             ),
         )
         return row

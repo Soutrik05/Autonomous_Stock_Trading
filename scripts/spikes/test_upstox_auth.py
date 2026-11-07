@@ -6,11 +6,11 @@ docs/upstox_findings.md. The access token is read from the environment and is ne
 logged or included in any recorded field.
 See Plan_v3 §1.1.
 """
+
 import json
 import os
 import time
 from datetime import date, timedelta
-from pathlib import Path
 from urllib.parse import quote
 
 import requests
