@@ -2,20 +2,17 @@ import { useState, useEffect } from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import {
   TrendingUp,
-  Activity,
-  GitCompare,
-  History,
-  ShieldCheck,
   Menu,
   X,
   Server,
   Clock,
-  Users,
 } from 'lucide-react';
 import { getIsMockMode, setMockMode, apiService } from '../services/api';
+import SystemHealthDrawer from './SystemHealthDrawer';
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isHealthOpen, setIsHealthOpen] = useState(false);
   const [isMock, setIsMock] = useState(getIsMockMode());
   const [istTime, setIstTime] = useState('');
   const [isBackendHealthy, setIsBackendHealthy] = useState<boolean | null>(null);
@@ -57,135 +54,157 @@ export default function Header() {
   };
 
   const navItems = [
-    { to: '/', label: 'Leaderboard', icon: TrendingUp },
-    { to: '/agents/simons', label: 'Agent Cockpit', icon: Users },
-    { to: '/comparison', label: 'Baseline Compare', icon: GitCompare },
-    { to: '/activity', label: 'Transparency Feed', icon: Activity },
-    { to: '/backtest', label: 'Backtest Lab', icon: History, badge: 'WEEK 4' },
-    { to: '/health', label: 'System Health', icon: ShieldCheck },
+    { to: '/', label: 'Home', end: true },
+    { to: '/leaderboard', label: 'Leaderboard' },
+    { to: '/portfolio/simons', label: 'Portfolio' },
+    { to: '/comparison', label: 'Comparison' },
+    { to: '/backtest', label: 'Backtest', badge: 'WEEK 4' },
+    { to: '/pulse', label: 'Pulse' },
   ];
 
   return (
-    <header className="sticky top-0 z-50 bg-white/95 dark:bg-stone-900/95 backdrop-blur-md border-b border-stone-200 dark:border-stone-800 shadow-xs">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          {/* Brand Identity */}
-          <Link to="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-600 via-amber-500 to-amber-400 flex items-center justify-center shadow-sm">
-              <TrendingUp className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xl font-bold tracking-tight text-stone-900 dark:text-stone-100 font-mono">
-                  StockMinds<span className="text-amber-500">.ai</span>
-                </span>
-                <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
-                  Paper Trading
-                </span>
+    <>
+      <header className="sticky top-0 z-40 bg-[#FAF9F6]/95 backdrop-blur-md border-b border-[#E5E2D9] shadow-xs">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            {/* Brand Mark */}
+            <Link to="/" className="flex items-center gap-3 group">
+              <div className="w-8 h-8 rounded-lg bg-[#D97706] flex items-center justify-center text-white shadow-xs">
+                <TrendingUp className="h-4 w-4" />
               </div>
-              <div className="text-[10px] text-stone-400 dark:text-stone-500 flex items-center gap-1 font-mono">
-                <span>Autonomous LLM Multi-Agent System</span>
-              </div>
-            </div>
-          </Link>
-
-          {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center gap-1">
-            {navItems.map(({ to, label, icon: Icon, badge }) => (
-              <NavLink
-                key={to}
-                to={to}
-                className={({ isActive }) =>
-                  `px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all ${
-                    isActive
-                      ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 font-semibold'
-                      : 'text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800'
-                  }`
-                }
-              >
-                <Icon className="w-3.5 h-3.5" />
-                <span>{label}</span>
-                {badge && (
-                  <span className="text-[9px] px-1 rounded bg-stone-100 dark:bg-stone-800 text-stone-500">
-                    {badge}
+              <div className="flex flex-col">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-lg font-serif font-bold tracking-tight text-[#111827]">
+                    StockMinds<span className="text-[#D97706]">.ai</span>
                   </span>
-                )}
-              </NavLink>
-            ))}
-          </nav>
+                  <span className="text-[9px] font-mono font-semibold uppercase px-1.5 py-0.2 rounded bg-amber-100/70 text-amber-800 border border-amber-200/60">
+                    Paper Trading
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono text-[#9CA3AF] -mt-0.5">
+                  Autonomous Multi-Agent Evaluation
+                </span>
+              </div>
+            </Link>
 
-          {/* System Telemetry & Mode Pill */}
-          <div className="hidden sm:flex items-center gap-3 text-xs font-mono">
-            {/* IST Clock */}
-            <div className="flex items-center gap-1 text-stone-500 dark:text-stone-400 px-2 py-1 bg-stone-100 dark:bg-stone-800/80 rounded-md">
-              <Clock className="w-3 h-3 text-stone-400" />
-              <span>{istTime || '15:30:00 IST'}</span>
-            </div>
+            {/* Desktop Navigation */}
+            <nav className="hidden md:flex items-center gap-1 font-sans">
+              {navItems.map(({ to, label, badge, end }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  end={end}
+                  className={({ isActive }) =>
+                    `px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
+                      isActive
+                        ? 'bg-amber-500/10 text-amber-800 font-semibold border border-amber-200/60'
+                        : 'text-[#4B5563] hover:text-[#111827] hover:bg-[#F4F2EC]'
+                    }`
+                  }
+                >
+                  <span>{label}</span>
+                  {badge && (
+                    <span className="text-[9px] font-mono px-1 rounded bg-purple-100 text-purple-700">
+                      {badge}
+                    </span>
+                  )}
+                </NavLink>
+              ))}
+            </nav>
 
-            {/* Mock / Live Backend Switch */}
-            <button
-              onClick={handleToggleMock}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs cursor-pointer transition-all ${
-                isMock
-                  ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800'
-                  : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
-              }`}
-              title="Click to toggle between frontend mock data fixtures and live FastAPI backend."
-            >
-              <Server className="w-3 h-3" />
-              <span>{isMock ? 'Mock API Fixture' : 'Live REST API'}</span>
-              <span
-                className={`w-1.5 h-1.5 rounded-full ${
-                  isMock ? 'bg-blue-500' : isBackendHealthy ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
-                }`}
-              />
-            </button>
-          </div>
-
-          {/* Mobile Menu Button */}
-          <div className="lg:hidden flex items-center gap-2">
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="p-2 rounded-lg text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800"
-            >
-              {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-            </button>
-          </div>
-        </div>
-
-        {/* Mobile Dropdown */}
-        {isMenuOpen && (
-          <div className="lg:hidden py-3 border-t border-stone-200 dark:border-stone-800 space-y-1">
-            {navItems.map(({ to, label, icon: Icon }) => (
-              <NavLink
-                key={to}
-                to={to}
-                onClick={() => setIsMenuOpen(false)}
-                className={({ isActive }) =>
-                  `block px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2 ${
-                    isActive
-                      ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 font-semibold'
-                      : 'text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800'
-                  }`
-                }
+            {/* Telemetry Status Controls */}
+            <div className="hidden sm:flex items-center gap-3 text-xs font-mono">
+              {/* System Health Drawer Trigger */}
+              <button
+                onClick={() => setIsHealthOpen(true)}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-[#E5E2D9] bg-white hover:bg-[#F4F2EC] text-[#4B5563] transition-colors cursor-pointer"
+                title="Click to view scheduled pipeline health"
               >
-                <Icon className="w-4 h-4" />
-                <span>{label}</span>
-              </NavLink>
-            ))}
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span>10 Jobs Nominal</span>
+              </button>
 
-            <div className="pt-2 border-t border-stone-200 dark:border-stone-800 flex justify-between items-center text-xs px-2">
-              <span className="text-stone-400 font-mono">{istTime}</span>
+              {/* IST Clock */}
+              <div className="flex items-center gap-1.5 text-[#4B5563] px-2.5 py-1 bg-[#F4F2EC] rounded-md border border-[#EDEAE2]">
+                <Clock className="w-3 h-3 text-[#9CA3AF]" />
+                <span>{istTime || '15:30:00 IST'}</span>
+              </div>
+
+              {/* Mock / Live Backend Pill */}
               <button
                 onClick={handleToggleMock}
-                className="px-2 py-1 rounded bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 font-mono text-[11px]"
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs cursor-pointer transition-all ${
+                  isMock
+                    ? 'bg-blue-50 text-blue-700 border-blue-200'
+                    : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                }`}
+                title="Click to toggle between mock fixtures and live FastAPI backend"
               >
-                Toggle {isMock ? 'Mock' : 'Live'}
+                <Server className="w-3 h-3" />
+                <span>{isMock ? 'Mock API' : 'Live API'}</span>
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    isMock ? 'bg-blue-500' : isBackendHealthy ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Mobile Menu Button */}
+            <div className="md:hidden flex items-center gap-2">
+              <button
+                onClick={() => setIsHealthOpen(true)}
+                className="p-1.5 text-[#4B5563]"
+                title="System Health"
+              >
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 block" />
+              </button>
+              <button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="p-2 rounded-lg text-[#4B5563] hover:bg-[#F4F2EC]"
+              >
+                {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               </button>
             </div>
           </div>
-        )}
-      </div>
-    </header>
+
+          {/* Mobile Nav Dropdown */}
+          {isMenuOpen && (
+            <div className="md:hidden py-3 border-t border-[#E5E2D9] space-y-1">
+              {navItems.map(({ to, label, end }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  end={end}
+                  onClick={() => setIsMenuOpen(false)}
+                  className={({ isActive }) =>
+                    `block px-3 py-2 rounded-lg text-sm font-medium ${
+                      isActive
+                        ? 'bg-amber-500/10 text-amber-800 font-semibold'
+                        : 'text-[#4B5563] hover:bg-[#F4F2EC]'
+                    }`
+                  }
+                >
+                  {label}
+                </NavLink>
+              ))}
+
+              <div className="pt-2 border-t border-[#E5E2D9] flex justify-between items-center text-xs px-2 font-mono">
+                <span className="text-[#9CA3AF]">{istTime}</span>
+                <button
+                  onClick={handleToggleMock}
+                  className="px-2 py-1 rounded bg-[#F4F2EC] text-[#4B5563] border border-[#E5E2D9]"
+                >
+                  Mode: {isMock ? 'Mock' : 'Live'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </header>
+
+      {/* Slide-Over System Health Drawer */}
+      <SystemHealthDrawer isOpen={isHealthOpen} onClose={() => setIsHealthOpen(false)} />
+    </>
   );
 }

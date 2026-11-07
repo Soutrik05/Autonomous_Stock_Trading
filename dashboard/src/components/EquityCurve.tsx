@@ -11,6 +11,7 @@ import {
 } from 'recharts';
 import type { NavHistoryPoint } from '../types';
 import { formatPaiseCompact, formatPaiseToRupees } from '../utils/formatters';
+import { STRATEGY_THEME } from '../theme/tokens';
 
 interface EquityCurveProps {
   data: NavHistoryPoint[];
@@ -18,17 +19,12 @@ interface EquityCurveProps {
   isBacktest?: boolean;
 }
 
-const AGENT_COLORS: Record<string, { label: string; color: string; strokeDasharray?: string }> = {
-  simons: { label: 'Simons (LLM)', color: '#2563eb' }, // Blue
-  lynch: { label: 'Peter Lynch', color: '#059669' }, // Green
-  marks: { label: 'Howard Marks', color: '#d97706' }, // Amber
-  jhunjhunwala: { label: 'Jhunjhunwala', color: '#7c3aed' }, // Purple
-  stockmindsCore: { label: 'Varsity Core', color: '#0891b2' }, // Cyan
-  baselineSimons: { label: 'Baseline (Rules)', color: '#dc2626', strokeDasharray: '4 4' }, // Dashed Red
-  nifty500: { label: 'Nifty 500 Index', color: '#64748b', strokeDasharray: '2 2' }, // Dashed Slate
-};
-
-export default function EquityCurve({ data, title = 'Multi-Agent Portfolio Equity Curves', isBacktest = false }: EquityCurveProps) {
+export default function EquityCurve({
+  data,
+  title = 'Multi-Agent Portfolio Equity Curves',
+  isBacktest = false,
+}: EquityCurveProps) {
+  // Active series visibility
   const [activeSeries, setActiveSeries] = useState<Record<string, boolean>>({
     simons: true,
     lynch: true,
@@ -39,44 +35,67 @@ export default function EquityCurve({ data, title = 'Multi-Agent Portfolio Equit
     nifty500: true,
   });
 
+  // Focused series on hover (Intelligent Focus & Dimming UX)
+  const [hoveredSeries, setHoveredSeries] = useState<string | null>(null);
+
   const toggleSeries = (key: string) => {
     setActiveSeries((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  // Map NavHistoryPoint keys to StrategyTheme keys
+  const seriesMap: Record<string, string> = {
+    simons: 'simons',
+    lynch: 'lynch',
+    marks: 'marks',
+    jhunjhunwala: 'jhunjhunwala',
+    stockmindsCore: 'stockminds-core',
+    baselineSimons: 'baseline-simons-rules',
+    nifty500: 'nifty500',
+  };
+
   return (
-    <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200 dark:border-stone-800 p-5 shadow-sm">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+    <div className="porcelain-card p-5 space-y-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
-          <h3 className="text-lg font-semibold text-stone-900 dark:text-stone-100 flex items-center gap-2">
-            {title}
+          <h3 className="text-base font-serif font-bold text-[#111827] flex items-center gap-2">
+            <span>{title}</span>
             {isBacktest && (
-              <span className="text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 font-mono">
+              <span className="text-[10px] px-2 py-0.5 rounded bg-purple-100 text-purple-800 font-mono font-semibold border border-purple-200">
                 BACKTEST_DERIVED
               </span>
             )}
           </h3>
-          <p className="text-xs text-stone-500 dark:text-stone-400">
-            Portfolio Net Asset Value (NAV) starting at ₹1,00,000.00 base.
+          <p className="text-xs text-[#4B5563]">
+            Net Asset Value starting at ₹1,00,000.00 base. Hover any curve or chip to focus.
           </p>
         </div>
 
-        {/* Series Filter Toggles */}
-        <div className="flex flex-wrap gap-1.5 text-xs">
-          {Object.entries(AGENT_COLORS).map(([key, config]) => {
-            const isEnabled = activeSeries[key];
+        {/* Series Filter Chips with Hover Focus */}
+        <div className="flex flex-wrap gap-1 text-[11px] font-mono">
+          {Object.entries(seriesMap).map(([pointKey, themeKey]) => {
+            const config = STRATEGY_THEME[themeKey] || STRATEGY_THEME.nifty500;
+            const isEnabled = activeSeries[pointKey];
+            const isHovered = hoveredSeries === pointKey;
+
             return (
               <button
-                key={key}
-                onClick={() => toggleSeries(key)}
-                className={`px-2.5 py-1 rounded-full border transition-all flex items-center gap-1.5 ${
+                key={pointKey}
+                onClick={() => toggleSeries(pointKey)}
+                onMouseEnter={() => setHoveredSeries(pointKey)}
+                onMouseLeave={() => setHoveredSeries(null)}
+                className={`px-2 py-0.5 rounded-full border transition-all cursor-pointer flex items-center gap-1.5 ${
                   isEnabled
-                    ? 'border-transparent text-white shadow-xs'
-                    : 'bg-stone-100 dark:bg-stone-800 text-stone-400 border-stone-200 dark:border-stone-700 opacity-60'
+                    ? isHovered
+                      ? 'ring-2 ring-offset-1 ring-amber-500 font-bold'
+                      : 'border-transparent text-white'
+                    : 'bg-[#F4F2EC] text-[#9CA3AF] border-[#E5E2D9] opacity-50'
                 }`}
-                style={{ backgroundColor: isEnabled ? config.color : undefined }}
+                style={{
+                  backgroundColor: isEnabled ? config.color : undefined,
+                }}
               >
-                <span className="w-2 h-2 rounded-full bg-white/80" />
-                <span>{config.label}</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-white/90" />
+                <span>{config.shortName}</span>
               </button>
             );
           })}
@@ -86,10 +105,10 @@ export default function EquityCurve({ data, title = 'Multi-Agent Portfolio Equit
       <div className="w-full h-80 sm:h-96">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" strokeOpacity={0.6} />
-            <XAxis dataKey="date" stroke="#64748b" fontSize={11} tickMargin={8} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#E5E2D9" strokeOpacity={0.7} />
+            <XAxis dataKey="date" stroke="#9CA3AF" fontSize={11} tickMargin={8} />
             <YAxis
-              stroke="#64748b"
+              stroke="#9CA3AF"
               fontSize={11}
               domain={['dataMin - 1000', 'dataMax + 1000']}
               tickFormatter={(v) => formatPaiseCompact(v * 100)}
@@ -98,44 +117,67 @@ export default function EquityCurve({ data, title = 'Multi-Agent Portfolio Equit
               content={({ active, payload, label }) => {
                 if (active && payload && payload.length) {
                   return (
-                    <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 p-3 rounded-lg shadow-lg text-xs space-y-1">
-                      <p className="font-semibold text-stone-900 dark:text-stone-100 border-b pb-1 mb-1 border-stone-200 dark:border-stone-800">
-                        Date: {label}
+                    <div className="porcelain-card p-3 shadow-lg text-xs space-y-1 bg-white border border-[#E5E2D9]">
+                      <p className="font-serif font-bold text-[#111827] border-b pb-1 mb-1 border-[#EDEAE2]">
+                        Trading Date: {label}
                       </p>
-                      {payload.map((item) => (
-                        <div key={item.dataKey as string} className="flex justify-between items-center gap-4">
-                          <span className="flex items-center gap-1.5" style={{ color: item.color }}>
-                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
-                            <span>{AGENT_COLORS[item.dataKey as string]?.label || String(item.dataKey)}:</span>
-                          </span>
-                          <span className="font-mono font-medium text-stone-900 dark:text-stone-100">
-                            {formatPaiseToRupees(Number(item.value) * 100)}
-                          </span>
-                        </div>
-                      ))}
+                      {payload.map((item) => {
+                        const themeKey = seriesMap[item.dataKey as string] || 'nifty500';
+                        const config = STRATEGY_THEME[themeKey] || STRATEGY_THEME.nifty500;
+                        return (
+                          <div
+                            key={item.dataKey as string}
+                            className="flex justify-between items-center gap-4 font-mono"
+                          >
+                            <span className="flex items-center gap-1.5" style={{ color: config.color }}>
+                              <span
+                                className="w-2 h-2 rounded-full"
+                                style={{ backgroundColor: config.color }}
+                              />
+                              <span>{config.shortName}:</span>
+                            </span>
+                            <span className="font-semibold text-[#111827]">
+                              {formatPaiseToRupees(Number(item.value) * 100)}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                   );
                 }
                 return null;
               }}
             />
-            <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+            <Legend
+              wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }}
+              onMouseEnter={(o) => setHoveredSeries(o.dataKey as string)}
+              onMouseLeave={() => setHoveredSeries(null)}
+            />
 
-            {Object.entries(AGENT_COLORS).map(([key, config]) =>
-              activeSeries[key] ? (
+            {Object.entries(seriesMap).map(([pointKey, themeKey]) => {
+              const config = STRATEGY_THEME[themeKey] || STRATEGY_THEME.nifty500;
+              if (!activeSeries[pointKey]) return null;
+
+              // Intelligent Focus & Dimming UX
+              const isHovered = hoveredSeries === pointKey;
+              const opacity = hoveredSeries ? (isHovered ? 1.0 : 0.15) : 0.85;
+              const strokeWidth = isHovered ? 3.5 : pointKey === 'simons' || pointKey === 'baselineSimons' ? 2.5 : 2;
+
+              return (
                 <Line
-                  key={key}
+                  key={pointKey}
                   type="monotone"
-                  dataKey={key}
-                  name={config.label}
+                  dataKey={pointKey}
+                  name={config.shortName}
                   stroke={config.color}
-                  strokeWidth={key === 'simons' || key === 'baselineSimons' ? 2.5 : 2}
+                  strokeWidth={strokeWidth}
+                  strokeOpacity={opacity}
                   strokeDasharray={config.strokeDasharray}
-                  dot={{ r: 3 }}
+                  dot={{ r: isHovered ? 4 : 2, fill: config.color }}
                   activeDot={{ r: 6 }}
                 />
-              ) : null
-            )}
+              );
+            })}
           </LineChart>
         </ResponsiveContainer>
       </div>
