@@ -168,10 +168,11 @@ def compare_rj_vs_baseline(
 def compare_selection_alpha(
     conn: sqlite3.Connection,
     horizon_days: int = 5,
+    agent_id: str | None = None,
 ) -> dict[str, Any]:
     """
-    Calculates selection alpha across all decisions:
-    Average forward return of BUY decisions vs HOLD / rejected decisions.
+    Calculates selection alpha: average forward return of BUY decisions vs HOLD / rejected
+    decisions. Across all decisions by default, or restricted to one agent_id.
     Requires populated forward_returns table.
     """
     # forward_returns has no `id` column (its primary key is decision_id, horizon_days) and no
@@ -186,12 +187,16 @@ def compare_selection_alpha(
     FROM decisions d
     JOIN forward_returns f ON d.id = f.decision_id
     WHERE f.horizon_days = ?
-    GROUP BY d.action
     """
-    rows = conn.execute(query, (horizon_days,)).fetchall()
+    params: list = [horizon_days]
+    if agent_id is not None:
+        query += " AND d.agent_id = ?"
+        params.append(agent_id)
+    query += " GROUP BY d.action"
+    rows = conn.execute(query, params).fetchall()
 
-    buy_stats: dict[str, Any] = {"count": 0, "avg_return_pct": 0.0, "avg_excess_pct": 0.0}
-    hold_stats: dict[str, Any] = {"count": 0, "avg_return_pct": 0.0, "avg_excess_pct": 0.0}
+    buy_stats: dict[str, Any] = {"count": 0, "avg_return_pct": 0.0, "avg_benchmark_pct": 0.0, "avg_excess_pct": 0.0}
+    hold_stats: dict[str, Any] = {"count": 0, "avg_return_pct": 0.0, "avg_benchmark_pct": 0.0, "avg_excess_pct": 0.0}
 
     for r in rows:
         act = r["action"]
@@ -200,6 +205,7 @@ def compare_selection_alpha(
         data = {
             "count": r["sample_count"],
             "avg_return_pct": avg_return_pct,
+            "avg_benchmark_pct": avg_benchmark_pct,
             "avg_excess_pct": round(avg_return_pct - avg_benchmark_pct, 2),
         }
         if act == "BUY":
