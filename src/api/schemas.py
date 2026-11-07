@@ -134,4 +134,61 @@ class Decision(BaseModel):
     candidate_rank: Optional[int] = None
     stage_reached: Optional[str] = None
     allocated_paise: Optional[int] = None
-    cited_metrics: list[CitedMetric] = []
+    cited_metrics: Optional[list[CitedMetric]] = None
+
+
+class Heuristic(BaseModel):
+    id: int
+    agent_id: str
+    kind: str
+    rule_text: str
+    context: str
+    status: str
+    confidence: float
+    applications: int
+    successes: int
+    recent_success_rate: Optional[float] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+    lifecycle_reason: Optional[str] = None
+
+
+class BaselineAgentStats(BaseModel):
+    return_pct: float
+    sharpe_ratio: float
+    win_rate_pct: float
+    max_drawdown_pct: float
+    trades: int
+
+
+class HorizonReturn(BaseModel):
+    horizon_days: int
+    llm_buy_avg_pct: Optional[float] = None
+    llm_hold_avg_pct: Optional[float] = None
+    rules_buy_avg_pct: Optional[float] = None
+    nifty500_avg_pct: Optional[float] = None
+    selection_alpha_pct: Optional[float] = None
+    llm_buy_count: Optional[int] = None
+    rules_buy_count: Optional[int] = None
+
+
+class BaselineComparison(BaseModel):
+    persona_id: str
+    llm_agent: BaselineAgentStats
+    rules_agent: BaselineAgentStats
+    deltas: dict[str, float]
+    is_provisional: bool
+    sample_notice: str
+    evidence_label: str
+    horizon_returns: list[HorizonReturn]
+
+
+class FunnelStage(BaseModel):
+    key: str
+    count: int
+
+
+class FunnelEntry(BaseModel):
+    agent_id: str
+    run_date: str
+    stages: list[FunnelStage]

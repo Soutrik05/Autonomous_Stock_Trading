@@ -1,7 +1,5 @@
 """
-FastAPI entry point mounting the leaderboard, portfolio, activity, health and backtest routes.
-/memory and /baseline/comparison are phase 2 -- their route files are still docstring-only
-stubs with no router object, so they are not imported here yet.
+FastAPI entry point mounting every phase-1 and phase-2 route.
 See Plan_v3 Part IV.
 """
 
@@ -9,7 +7,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from api.routes import activity, backtest, health, leaderboard, portfolio
+from api.routes import activity, backtest, baseline, funnel, health, leaderboard, memory, portfolio
 from core.config import settings
 
 app = FastAPI(
@@ -30,6 +28,9 @@ app.include_router(health.router)
 app.include_router(activity.router)
 app.include_router(leaderboard.router)
 app.include_router(portfolio.router)
+app.include_router(memory.router)
+app.include_router(baseline.router)
+app.include_router(funnel.router)
 app.include_router(backtest.router)
 
 

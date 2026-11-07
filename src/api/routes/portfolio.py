@@ -8,18 +8,12 @@ import json
 import sqlite3
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 
-from api.deps import portfolio_conn, to_ist_iso
+from api.deps import portfolio_conn, require_agent, to_ist_iso
 from api.schemas import CitedMetric, Decision, Order, Position
 
 router = APIRouter(prefix="/api/agents", tags=["portfolio"])
-
-
-def _require_agent(conn: sqlite3.Connection, agent_id: str) -> None:
-    row = conn.execute("SELECT 1 FROM agents WHERE id = ?", (agent_id,)).fetchone()
-    if row is None:
-        raise HTTPException(status_code=404, detail=f"Unknown agent '{agent_id}'.")
 
 
 @router.get("/{agent_id}/positions", response_model=list[Position])
@@ -28,7 +22,7 @@ def get_agent_positions(
     status: Optional[str] = Query(None, pattern="^(OPEN|CLOSED)$"),
     conn: sqlite3.Connection = Depends(portfolio_conn),
 ) -> list[Position]:
-    _require_agent(conn, agent_id)
+    require_agent(conn, agent_id)
 
     query = """
         SELECT p.id, p.agent_id, p.ticker, p.sector, p.shares, p.avg_entry_price_paise,
@@ -88,7 +82,7 @@ def get_agent_positions(
 
 @router.get("/{agent_id}/orders", response_model=list[Order])
 def get_agent_orders(agent_id: str, conn: sqlite3.Connection = Depends(portfolio_conn)) -> list[Order]:
-    _require_agent(conn, agent_id)
+    require_agent(conn, agent_id)
 
     rows = conn.execute(
         """
@@ -128,7 +122,7 @@ def get_agent_orders(agent_id: str, conn: sqlite3.Connection = Depends(portfolio
 
 @router.get("/{agent_id}/decisions", response_model=list[Decision])
 def get_agent_decisions(agent_id: str, conn: sqlite3.Connection = Depends(portfolio_conn)) -> list[Decision]:
-    _require_agent(conn, agent_id)
+    require_agent(conn, agent_id)
 
     rows = conn.execute(
         """
@@ -143,11 +137,13 @@ def get_agent_decisions(agent_id: str, conn: sqlite3.Connection = Depends(portfo
 
     decisions = []
     for r in rows:
-        cited_metrics = []
+        # cited_metrics is null only when the column is really empty (NULL, '', or '{}') --
+        # anything else is parsed into the list, never silently dropped to [].
+        cited_metrics = None
         if r["cited_metrics_json"]:
             try:
                 raw = json.loads(r["cited_metrics_json"])
-                if isinstance(raw, dict):
+                if isinstance(raw, dict) and raw:
                     cited_metrics = [CitedMetric(name=k, cited_value=v) for k, v in raw.items()]
             except (json.JSONDecodeError, TypeError):
                 pass

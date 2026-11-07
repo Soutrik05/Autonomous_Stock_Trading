@@ -13,6 +13,8 @@ from pathlib import Path
 from typing import Any, Optional
 from zoneinfo import ZoneInfo
 
+from fastapi import HTTPException
+
 from core.config import settings
 
 IST = ZoneInfo(settings.TIMEZONE)
@@ -40,6 +42,14 @@ def portfolio_conn():
         yield conn
     finally:
         conn.close()
+
+
+def require_agent(conn: sqlite3.Connection, agent_id: str) -> None:
+    """Raises 404 for an agent_id not present in `agents`. Shared by every /api/agents/{id}/...
+    route so "unknown agent" behaves identically everywhere."""
+    row = conn.execute("SELECT 1 FROM agents WHERE id = ?", (agent_id,)).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"Unknown agent '{agent_id}'.")
 
 
 def to_ist_iso(value: Optional[str]) -> Optional[str]:

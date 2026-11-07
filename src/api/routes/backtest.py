@@ -52,42 +52,61 @@ def list_windows() -> dict[str, Any]:
         ohlcv_conn.close()
 
 
+def _pair_base_id(window_id: str) -> tuple[str, str | None]:
+    """Splits a window_id like 'rolling_w2_heuristics_on' into ('rolling_w2', 'on'). A window_id
+    with neither suffix pairs with nothing (its own base, heuristics_variant=None)."""
+    for suffix, variant in (("_heuristics_on", "on"), ("_heuristics_off", "off")):
+        if window_id.endswith(suffix):
+            return window_id[: -len(suffix)], variant
+    return window_id, None
+
+
 @router.get("/runs")
 def list_completed_runs() -> dict[str, Any]:
-    """Lists all completed backtest run databases present in storage/backtest/."""
+    """Lists all completed backtest run databases present in storage/backtest/, paired by
+    window so the dashboard can show a heuristics-ON run next to its heuristics-OFF counterpart.
+    A run with no counterpart on disk still appears, with the other side set to null."""
     BACKTEST_DIR.mkdir(parents=True, exist_ok=True)
     dbs = list(BACKTEST_DIR.glob("*.db"))
-    runs = []
+    pairs: dict[str, dict[str, Any]] = {}
     for db in dbs:
         win_id = db.stem
         conn = get_ro_conn(db)
         try:
-            # Query min/max nav dates and count
             row = conn.execute(
                 "SELECT MIN(nav_date) as start_d, MAX(nav_date) as end_d, COUNT(DISTINCT nav_date) as days FROM daily_nav"
             ).fetchone()
             trade_count = conn.execute("SELECT count(*) FROM positions WHERE status = 'CLOSED'").fetchone()[0]
-            runs.append(
-                {
-                    "window_id": win_id,
-                    "database_name": db.name,
-                    "start_date": row["start_d"] if row else None,
-                    "end_date": row["end_d"] if row else None,
-                    "sessions_completed": row["days"] if row else 0,
-                    "closed_trades": trade_count,
-                    "evidence_label": "BACKTEST_DERIVED",
-                    "is_backtest": True,
-                }
-            )
+            run_entry = {
+                "window_id": win_id,
+                "database_name": db.name,
+                "start_date": row["start_d"] if row else None,
+                "end_date": row["end_d"] if row else None,
+                "sessions_completed": row["days"] if row else 0,
+                "closed_trades": trade_count,
+                "evidence_label": "BACKTEST_DERIVED",
+                "is_backtest": True,
+            }
         except Exception:
             continue
         finally:
             conn.close()
 
+        base_id, variant = _pair_base_id(win_id)
+        pair = pairs.setdefault(base_id, {"pair_id": base_id, "heuristics_on": None, "heuristics_off": None})
+        if variant == "on":
+            pair["heuristics_on"] = run_entry
+        elif variant == "off":
+            pair["heuristics_off"] = run_entry
+        else:
+            # Neither suffix -- not an on/off pair; surface it under heuristics_on by
+            # convention so it's never silently dropped from the listing.
+            pair["heuristics_on"] = run_entry
+
     return {
         "evidence_label": "BACKTEST_DERIVED",
         "is_backtest": True,
-        "runs": runs,
+        "runs": sorted(pairs.values(), key=lambda p: p["pair_id"]),
     }
 
 
@@ -188,6 +207,47 @@ def get_run_positions(window_id: str, agent_id: str | None = None) -> dict[str, 
             "evidence_label": "BACKTEST_DERIVED",
             "is_backtest": True,
             "positions": positions,
+        }
+    finally:
+        conn.close()
+
+
+@router.get("/runs/{window_id}/holding-duration")
+def get_run_holding_duration(window_id: str) -> dict[str, Any]:
+    """Question B evidence: per-persona average and median hold_days, and the closed-trade
+    count they're computed from, for this backtest run."""
+    db_path = _get_window_db(window_id)
+    conn = get_ro_conn(db_path)
+    try:
+        rows = conn.execute(
+            "SELECT agent_id, hold_days FROM positions "
+            "WHERE status = 'CLOSED' AND hold_days IS NOT NULL ORDER BY agent_id"
+        ).fetchall()
+
+        by_agent: dict[str, list[int]] = {}
+        for r in rows:
+            by_agent.setdefault(r["agent_id"], []).append(r["hold_days"])
+
+        personas = []
+        for agent_id, durations in sorted(by_agent.items()):
+            durations.sort()
+            n = len(durations)
+            mid = n // 2
+            median = durations[mid] if n % 2 else (durations[mid - 1] + durations[mid]) / 2.0
+            personas.append(
+                {
+                    "agent_id": agent_id,
+                    "closed_trades": n,
+                    "avg_hold_days": round(sum(durations) / n, 1),
+                    "median_hold_days": median,
+                }
+            )
+
+        return {
+            "window_id": window_id,
+            "evidence_label": "BACKTEST_DERIVED",
+            "is_backtest": True,
+            "personas": personas,
         }
     finally:
         conn.close()
