@@ -71,9 +71,9 @@ class Settings(BaseSettings):
     MAX_SECTOR_PCT_OF_ACCOUNT: float = 25.0
 
     # --- LLM providers (§3.2) ---
-    EXECUTION_MODE: str = "backtest"
+    EXECUTION_MODE: str = "live"
     LLM_PROVIDER: str = "gemini"
-    LLM_MODEL: str = "gemini-3.1-flash-lite"
+    LLM_MODEL: str = "gemini-3.8-flash"
     LLM_FALLBACK_PROVIDER: str = "groq"
     LLM_FALLBACK_MODEL: str = "openai/gpt-oss-120b"
     LLM_REASONING_EFFORT: str = "medium"
@@ -84,7 +84,7 @@ class Settings(BaseSettings):
 
     # --- Reflection LLM providers ---
     REFLECTION_LLM_PROVIDER: str = "gemini"
-    REFLECTION_LLM_MODEL: str = "gemini-3.1-flash-lite"
+    REFLECTION_LLM_MODEL: str = "gemini-3.8-flash"
     REFLECTION_LLM_FALLBACK_PROVIDER: str = "groq"
     REFLECTION_LLM_FALLBACK_MODEL: str = "openai/gpt-oss-120b"
 
@@ -151,7 +151,7 @@ class Settings(BaseSettings):
                 "ttl_days": 20,
                 "lookback_days": 120,
                 "eval_horizon_days": 60,
-                "atr_stop_multiplier": 2.5,
+                "atr_stop_multiplier": 3.5,
                 "max_candidates": 15,
                 "max_open_positions": 8,
                 "max_position_pct": 15.0,
@@ -171,7 +171,7 @@ class Settings(BaseSettings):
                 "ttl_days": 30,
                 "lookback_days": 150,
                 "eval_horizon_days": 60,
-                "atr_stop_multiplier": 2.5,
+                "atr_stop_multiplier": 3.5,
                 "max_candidates": 10,
                 "max_open_positions": 5,
                 "max_position_pct": 20.0,

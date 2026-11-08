@@ -112,9 +112,9 @@ def test_baseline_marks_buys_when_all_contrarian_rules_pass():
     # Verify stop loss: close - 2.5 * ATR = 500 - 2.5*15 = 462.5 (46250 paise)
     # Entry High: close + 0.25 * ATR = 500 + 3.75 = 503.75 (50375 paise)
     # Target: close + max(2.0 * (503.75 - 462.5), 5.0 * 15) = 500 + max(82.5, 75) = 582.5 (58250 paise)
-    assert tata_dec["stop_paise"] == 46250
+    assert tata_dec["stop_paise"] == 44750
     assert tata_dec["entry_high_paise"] == 50375
-    assert tata_dec["target_paise"] == 58250
+    assert tata_dec["target_paise"] == 61250
 
     # Verify 1:2.0 minimum Risk-to-Reward Ratio
     risk_paise = tata_dec["entry_high_paise"] - tata_dec["stop_paise"]

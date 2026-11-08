@@ -1,11 +1,12 @@
 """
-Graduated trailing stop mechanics.
+Graduated trailing stop mechanics with Tiered MFE Profit Protection.
 Enforces broker-level profit locking to eliminate GAVE_BACK_PROFIT alpha leak:
-- Peak gain < 1.0x initial risk and < 10% gain: keep initial stop
+
 - Peak gain >= 1.0x initial risk: breakeven ratchet (raise stop to avg entry price)
-- Peak gain >= 1.5x initial risk OR >= 10% gain: lock in at least 35% of peak gain
+- Peak gain >= 1.5x initial risk OR >= 10% gain: lock in at least 35% of peak gain (stop = entry + 0.35 * peak_gain)
 - Peak gain >= 2.0x initial risk OR >= 20% gain: lock in 50% of peak gain (stop = entry + 0.50 * peak_gain)
 - Peak gain >= 3.0x initial risk OR >= 30% gain: lock in 70% of peak gain (stop = entry + 0.70 * peak_gain)
+- Peak gain >= 4.0x initial risk OR >= 40% gain: lock in 85% of peak gain (stop = entry + 0.85 * peak_gain)
 
 All stops ratchet monotonically upwards (never decrease).
 """
@@ -40,8 +41,11 @@ def compute_graduated_stop(
     ten_pct_gain = int(avg_entry_price_paise * 0.10)
     twenty_pct_gain = int(avg_entry_price_paise * 0.20)
     thirty_pct_gain = int(avg_entry_price_paise * 0.30)
+    forty_pct_gain = int(avg_entry_price_paise * 0.40)
 
-    if peak_gain >= 3.0 * initial_risk or peak_gain >= thirty_pct_gain:
+    if peak_gain >= 4.0 * initial_risk or peak_gain >= forty_pct_gain:
+        candidate_stop = avg_entry_price_paise + int(round(peak_gain * 0.85))
+    elif peak_gain >= 3.0 * initial_risk or peak_gain >= thirty_pct_gain:
         candidate_stop = avg_entry_price_paise + int(round(peak_gain * 0.70))
     elif peak_gain >= 2.0 * initial_risk or peak_gain >= twenty_pct_gain:
         candidate_stop = avg_entry_price_paise + int(round(peak_gain * 0.50))

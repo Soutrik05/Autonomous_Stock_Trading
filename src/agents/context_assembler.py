@@ -307,19 +307,27 @@ def load_active_heuristics(
 ) -> list[dict]:
     try:
         rows = conn.execute(
-            "SELECT kind, context, heuristic_text, prescribed_action, confidence, trigger_json, status FROM agent_memory "
+            "SELECT kind, context, regime_tag, heuristic_text, prescribed_action, confidence, trigger_json, status FROM agent_memory "
             "WHERE agent_id = ? AND status IN ('active', 'reinforced') "
             "ORDER BY confidence DESC LIMIT 20",
             (agent_id,),
         ).fetchall()
     except sqlite3.OperationalError:
-        rows = conn.execute(
-            "SELECT kind, context, heuristic_text, prescribed_action, confidence FROM agent_memory "
-            "WHERE agent_id = ? AND status IN ('active', 'reinforced') "
-            "ORDER BY confidence DESC LIMIT ?",
-            (agent_id, settings.MAX_ACTIVE_HEURISTICS_IN_PROMPT),
-        ).fetchall()
-        return [dict(r) for r in rows]
+        try:
+            rows = conn.execute(
+                "SELECT kind, context, heuristic_text, prescribed_action, confidence, trigger_json, status FROM agent_memory "
+                "WHERE agent_id = ? AND status IN ('active', 'reinforced') "
+                "ORDER BY confidence DESC LIMIT 20",
+                (agent_id,),
+            ).fetchall()
+        except sqlite3.OperationalError:
+            rows = conn.execute(
+                "SELECT kind, context, heuristic_text, prescribed_action, confidence FROM agent_memory "
+                "WHERE agent_id = ? AND status IN ('active', 'reinforced') "
+                "ORDER BY confidence DESC LIMIT ?",
+                (agent_id, settings.MAX_ACTIVE_HEURISTICS_IN_PROMPT),
+            ).fetchall()
+            return [dict(r) for r in rows]
 
     is_fundamental_persona = agent_id in ("jhunjhunwala", "marks", "lynch")
     results = []
@@ -340,8 +348,18 @@ def load_active_heuristics(
             if has_fast and not has_fund:
                 continue
 
+        # 0. Explicit Regime Tag Partitioning:
+        regime_tag = d.get("regime_tag") or "ALL"
+        if current_regime and regime_tag != "ALL":
+            if regime_tag != current_regime:
+                continue
+
         # 2. Dynamic Regime Gating:
         if current_regime:
+            if current_regime == "HIGH_VOLATILITY" and ctx == "ENTRY" and kind == "SEEK":
+                if '"volume_surge"' in trig_str or '"kaufman_er_20"' in trig_str:
+                    continue
+
             if '"regime"' in trig_str:
                 if '"RANGE_BOUND"' in trig_str and current_regime != "RANGE_BOUND":
                     continue

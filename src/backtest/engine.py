@@ -277,13 +277,15 @@ class BacktestEngine:
 
         source_port = Path(settings.PORTFOLIO_DB_PATH).resolve()
         conn = setup_isolated_backtest_db(self.db_path, source_port, clock, resume=self.resume)
-        if self.inherit_memory and self.inherit_memory.exists() and not self.resume:
-            inherited_count = inherit_prior_memory(conn, self.inherit_memory, clock)
-            logger.info(
-                "Inherited %d active/reinforced heuristics from prior database: %s",
-                inherited_count,
-                self.inherit_memory,
-            )
+        if self.inherit_memory and self.inherit_memory.exists():
+            existing_count = conn.execute("SELECT COUNT(*) FROM agent_memory").fetchone()[0]
+            if existing_count == 0:
+                inherited_count = inherit_prior_memory(conn, self.inherit_memory, clock)
+                logger.info(
+                    "Inherited %d active/reinforced heuristics from prior database: %s",
+                    inherited_count,
+                    self.inherit_memory,
+                )
         ohlcv_conn = get_connection(settings.OHLCV_DB_PATH)
         fundamental_conn = None
         news_conn = None

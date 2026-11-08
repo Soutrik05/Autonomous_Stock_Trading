@@ -66,7 +66,7 @@ def evaluate_baseline_candidates(
     marks_cfg = get_persona("marks")
     max_candidates = getattr(marks_cfg, "max_candidates", 15)
     max_positions = getattr(marks_cfg, "max_open_positions", 8)
-    atr_mult = getattr(marks_cfg, "atr_stop_multiplier", 2.5)
+    atr_mult = getattr(marks_cfg, "atr_stop_multiplier", 3.5)
     target_risk_pct = getattr(marks_cfg, "target_risk_pct", 1.25)
     max_pos_pct = getattr(marks_cfg, "max_position_pct", 12.5)
     sector_cap = getattr(marks_cfg, "sector_cap", 2)

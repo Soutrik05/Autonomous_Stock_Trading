@@ -112,7 +112,7 @@ def test_baseline_lynch_buys_when_all_garp_rules_pass():
     # Verify stop loss: close - 2.5 * ATR = 1000 - 2.5*20 = 950 (95000 paise)
     # Entry High: close + 0.25 * ATR = 1000 + 5 = 1005 (100500 paise)
     # Target: close + max(2.25 * (1005 - 950), 5.5 * 20) = 1000 + 123.75 = 1123.75 (112375 paise)
-    assert tata_dec["stop_paise"] == 95000
+    assert tata_dec["stop_paise"] == 93000
     assert tata_dec["entry_high_paise"] == 100500
     assert tata_dec["target_paise"] >= 112000
 
