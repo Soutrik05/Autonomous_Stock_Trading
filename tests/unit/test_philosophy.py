@@ -132,7 +132,12 @@ def test_holding_horizon_fidelity():
 
     # Premature technical shakeout on noise (hold_days=4 without thesis breakdown)
     lynch_positions_impatient = [
-        {"hold_days": 4, "exit_reason": "DISCRETIONARY_SELL", "forensics_type": "PREMATURE_EXIT", "realized_pnl_pct": 0.5},
+        {
+            "hold_days": 4,
+            "exit_reason": "DISCRETIONARY_SELL",
+            "forensics_type": "PREMATURE_EXIT",
+            "realized_pnl_pct": 0.5,
+        },
     ]
     h_lynch_bad = evaluate_horizon_fidelity("lynch", lynch_positions_impatient)
     assert h_lynch_bad["score"] == 20.0
@@ -143,6 +148,14 @@ def test_holding_horizon_fidelity():
     ]
     h_lynch_cut = evaluate_horizon_fidelity("lynch", lynch_emergency_cut)
     assert h_lynch_cut["score"] == 80.0
+
+
+    # Early target exit with large profit (hold_days=15, pnl=+22.5%) is fully compliant
+    lynch_early_target = [
+        {"hold_days": 15, "exit_reason": "AGENT_SELL", "forensics_type": "EARNINGS_MOMENTUM", "realized_pnl_pct": 22.5},
+    ]
+    h_lynch_target = evaluate_horizon_fidelity("lynch", lynch_early_target)
+    assert h_lynch_target["score"] == 100.0
 
 
 def test_cognitive_citation_fidelity():

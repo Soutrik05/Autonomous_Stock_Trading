@@ -13,11 +13,24 @@ See Plan_v3 §5.4.
 import json
 from datetime import datetime
 
+import pytest
+
 import learning.engine as engine
+from agents.personas import get_persona
 from core.clock import FakeClock
 from ingestion.sync_ohlcv import ensure_schema as ensure_ohlcv_schema
 from llm.client import FakeLLMClient
 from tests.conftest import make_portfolio_db
+
+
+@pytest.fixture(autouse=True)
+def set_test_min_closed_trades():
+    p = get_persona("simons")
+    orig = p.min_closed_trades_for_reflection
+    object.__setattr__(p, "min_closed_trades_for_reflection", 3)
+    yield
+    object.__setattr__(p, "min_closed_trades_for_reflection", orig)
+
 
 EXIT_DATE = "2026-11-01"  # a Sunday -- every trade in these tests closes on this date
 AS_OF_READY_ISO = "2026-11-06T20:00:00+05:30"  # 5 forward sessions exist -- post-exit ready
@@ -115,7 +128,8 @@ def insert_closed_position(
 
 
 def insert_three_eligible_trades(conn, ohlcv_conn, agent_id: str = AGENT) -> None:
-    for i in range(3):
+    n = get_persona(agent_id).min_closed_trades_for_reflection
+    for i in range(n):
         ticker = f"T{i}"
         insert_closed_position(conn, agent_id, ticker=ticker)
         seed_forward_sessions(ohlcv_conn, ticker)
@@ -473,11 +487,11 @@ def test_watermark_does_not_skip_over_a_recent_trade_blocking_a_later_one():
     ohlcv = make_ohlcv_conn()
     insert_agent(conn, AGENT)
 
-    recent_id = insert_closed_position(conn, AGENT, ticker="RECENT", exit_date="2026-11-05")
-    seed_forward_sessions(ohlcv, "RECENT", exit_date="2026-11-05", sessions=1)  # not ready by 11-06
+    recent_id = insert_closed_position(conn, AGENT, ticker="RECENT", exit_date="2026-11-04")
+    seed_forward_sessions(ohlcv, "RECENT", exit_date="2026-11-04", sessions=1)  # not ready by 11-06
 
-    ready_id = insert_closed_position(conn, AGENT, ticker="READY", exit_date="2026-10-20")
-    seed_forward_sessions(ohlcv, "READY", exit_date="2026-10-20", sessions=5)  # long since ready
+    ready_id = insert_closed_position(conn, AGENT, ticker="READY", exit_date="2026-11-05")
+    seed_forward_sessions(ohlcv, "READY", exit_date="2026-11-05", sessions=5)  # forward sessions seeded
     assert ready_id > recent_id
 
     fake_llm = FakeLLMClient(responses=[good_response()])
@@ -807,3 +821,80 @@ def test_reflection_accepts_exit_context_and_infers_from_action():
     rows = conn.execute("SELECT context, prescribed_action FROM agent_memory WHERE agent_id = ?", (AGENT,)).fetchall()
     contexts = [r["context"] for r in rows]
     assert contexts == ["EXIT", "EXIT"]
+
+
+def test_persona_tiered_reflection_gates():
+    """Verify tiered sample gates: Lynch (3 trades) vs Varsity (7 trades)."""
+    conn = make_portfolio_db()
+    ohlcv = make_ohlcv_conn()
+    insert_agent(conn, "lynch")
+    insert_agent(conn, "varsity")
+
+    # Seed 3 eligible trades for Lynch and 3 for Varsity
+    for i in range(3):
+        insert_closed_position(conn, "lynch", ticker=f"LYNCH_{i}")
+        seed_forward_sessions(ohlcv, f"LYNCH_{i}")
+        insert_closed_position(conn, "varsity", ticker=f"VARSITY_{i}")
+        seed_forward_sessions(ohlcv, f"VARSITY_{i}")
+
+    fake_llm = FakeLLMClient(responses=[good_response(), good_response()])
+    summary = engine.run(conn, clock_at(), llm_client=fake_llm, agent_ids=["lynch", "varsity"], ohlcv_conn=ohlcv)
+
+    # Lynch needs 3 -> DONE
+    assert summary["agents"]["lynch"]["status"] == "DONE"
+    assert summary["agents"]["lynch"]["trades_reviewed"] == 3
+
+    # Varsity needs 7 -> SKIPPED_TOO_FEW_TRADES with 3 trades
+    assert summary["agents"]["varsity"]["status"] == "SKIPPED_TOO_FEW_TRADES"
+    assert summary["agents"]["varsity"]["trades_reviewed"] == 3
+
+
+def test_heuristic_consolidation_supersedes_older_variant():
+    """When a new heuristic refines an existing active rule on the same feature/op, older one is deprecated."""
+    conn = make_portfolio_db()
+    ohlcv = make_ohlcv_conn()
+    insert_agent(conn, "lynch")
+
+    # 1. Insert existing active heuristic on PEG: peg > 1.2
+    h1 = {
+        "kind": "AVOID",
+        "context": "ENTRY",
+        "heuristic_text": "Avoid PEG ratio over 1.2",
+        "trigger": {"feature": "peg", "op": ">", "value": 1.2},
+        "prescribed_action": "avoid entry",
+        "rationale": "High PEG entries failed",
+    }
+    cur = conn.execute(
+        "INSERT INTO agent_memory (agent_id, kind, context, heuristic_text, trigger_json, prescribed_action, "
+        "status, confidence, created_at, updated_at) VALUES ('lynch', 'AVOID', 'ENTRY', ?, ?, ?, 'active', 0.6, ?, ?)",
+        (h1["heuristic_text"], json.dumps(h1["trigger"]), h1["prescribed_action"], NOW_ISO, NOW_ISO),
+    )
+    old_id = cur.lastrowid
+
+    # 2. Seed 3 trades and run reflection with updated PEG threshold: peg > 1.5
+    for i in range(3):
+        insert_closed_position(conn, "lynch", ticker=f"L_{i}")
+        seed_forward_sessions(ohlcv, f"L_{i}")
+
+    h2 = {
+        "kind": "AVOID",
+        "context": "ENTRY",
+        "heuristic_text": "Avoid PEG ratio over 1.5 to prevent paying excessive valuation",
+        "trigger": {"feature": "peg", "op": ">", "value": 1.5},
+        "prescribed_action": "avoid entry",
+        "rationale": "Refined threshold from recent drawdowns",
+    }
+    fake_llm = FakeLLMClient(responses=[good_response([h2])])
+    summary = engine.run(conn, clock_at(), llm_client=fake_llm, agent_ids=["lynch"], ohlcv_conn=ohlcv)
+
+    assert summary["agents"]["lynch"]["status"] == "DONE"
+    assert summary["agents"]["lynch"]["heuristics_created"] == 1
+
+    # Old heuristic must now be deprecated
+    old_row = conn.execute("SELECT status FROM agent_memory WHERE id = ?", (old_id,)).fetchone()
+    assert old_row["status"] == "deprecated"
+
+    # New heuristic is testing/active
+    new_row = conn.execute("SELECT id, status, heuristic_text FROM agent_memory WHERE id != ?", (old_id,)).fetchone()
+    assert new_row["status"] == "testing"
+    assert "1.5" in new_row["heuristic_text"]

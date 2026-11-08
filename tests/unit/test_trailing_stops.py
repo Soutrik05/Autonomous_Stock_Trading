@@ -87,14 +87,40 @@ def test_graduated_stop_peak_below_entry_stays_unadjusted():
     assert stop == 9500
 
 
+def test_graduated_stop_1_5r_lock_35_pct():
+    # Entry 100,00 (10000 paise), risk 500 paise.
+    # Peak price 108,00 (10800 paise) -> peak gain = 800 (>= 1.5x risk 750, < 2.0x risk 1000)
+    # Locked gain = 35% of 800 = 280 -> stop = 10000 + 280 = 10280
+    stop = compute_graduated_stop(
+        avg_entry_price_paise=10000,
+        current_stop_paise=10000,
+        initial_stop_paise=9500,
+        peak_price_paise=10800,
+    )
+    assert stop == 10280
+
+
+def test_graduated_stop_absolute_10pct_lock():
+    # Wide stop investor (RJ): entry 100,00, initial stop 86,00 (risk 1400 paise = 14%)
+    # Peak price 113,00 (11300 paise) -> peak gain = 1300 (only 0.93R, but >= 10% absolute gain)
+    # Locked gain = 35% of 1300 = 455 -> stop = 10000 + 455 = 10455
+    stop = compute_graduated_stop(
+        avg_entry_price_paise=10000,
+        current_stop_paise=8600,
+        initial_stop_paise=8600,
+        peak_price_paise=11300,
+    )
+    assert stop == 10455
+
+
 def test_graduated_stop_invalid_initial_stop_falls_back_to_current_or_default():
     # 1. When initial_stop is invalid (> entry), but current_stop is valid (9500), uses current_stop risk (500)
-    # Peak gain 800 >= 1x 500 -> ratchets to breakeven (10000)
+    # Peak gain 600 >= 1x 500 (< 1.5x 750) -> ratchets to breakeven (10000)
     stop1 = compute_graduated_stop(
         avg_entry_price_paise=10000,
         current_stop_paise=9500,
         initial_stop_paise=10500,
-        peak_price_paise=10800,
+        peak_price_paise=10600,
     )
     assert stop1 == 10000
 

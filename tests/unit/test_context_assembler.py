@@ -160,3 +160,88 @@ def test_headlines_block_rendering_and_trimming():
     )
     assert trimmed_tight.get("headlines") is True
     assert "RECENT HEADLINES:" not in text_tight
+
+
+def test_build_heuristics_block_natural_language_scopes():
+    from agents.context_assembler import build_heuristics_block
+
+    heuristics = [
+        {
+            "kind": "AVOID",
+            "context": "ENTRY",
+            "heuristic_text": "Avoid buying in range-bound conditions",
+            "prescribed_action": "Wait for breakout confirmation",
+            "confidence": 0.85,
+            "trigger_json": '{"feature": "regime", "op": "==", "value": "RANGE_BOUND"}',
+        },
+        {
+            "kind": "SEEK",
+            "context": "EXIT",
+            "heuristic_text": "Take profits when 14-day RSI drops below 60",
+            "prescribed_action": "Sell position",
+            "confidence": 0.75,
+            "trigger_json": '{"feature": "rsi_14", "op": "<", "value": 60}',
+        },
+    ]
+
+    block = build_heuristics_block(heuristics, current_regime="BULL_TREND")
+    assert "Current Market Regime Context: BULL_TREND" in block
+    assert "[ENTRY AVOID | Scope: Range-Bound Consolidation]" in block
+    assert "[EXIT SEEK | Scope: Universal]" in block
+    assert "-> Action: Wait for breakout confirmation" in block
+
+
+def test_load_active_heuristics_regime_and_horizon_filtering():
+    import sqlite3
+    from agents.context_assembler import load_active_heuristics
+
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("""
+        CREATE TABLE agent_memory (
+            id INTEGER PRIMARY KEY,
+            agent_id TEXT,
+            kind TEXT,
+            context TEXT,
+            heuristic_text TEXT,
+            prescribed_action TEXT,
+            confidence REAL,
+            trigger_json TEXT,
+            status TEXT
+        )
+    """)
+
+    # 1. Simons range-bound rule
+    conn.execute("""
+        INSERT INTO agent_memory (agent_id, kind, context, heuristic_text, prescribed_action, confidence, trigger_json, status)
+        VALUES ('simons', 'AVOID', 'ENTRY', 'Avoid range entries', 'Skip', 0.90, '{"feature": "regime", "op": "==", "value": "RANGE_BOUND"}', 'reinforced')
+    """)
+    # 2. Simons overextension rule without regime condition
+    conn.execute("""
+        INSERT INTO agent_memory (agent_id, kind, context, heuristic_text, prescribed_action, confidence, trigger_json, status)
+        VALUES ('simons', 'AVOID', 'ENTRY', 'Avoid high RSI entries', 'Skip', 0.80, '{"feature": "rsi_14", "op": ">", "value": 60}', 'reinforced')
+    """)
+    # 3. Jhunjhunwala fast technical exit rule (should be filtered out)
+    conn.execute("""
+        INSERT INTO agent_memory (agent_id, kind, context, heuristic_text, prescribed_action, confidence, trigger_json, status)
+        VALUES ('jhunjhunwala', 'SEEK', 'EXIT', 'Exit on macd negative', 'Sell', 0.85, '{"feature": "macd_hist", "op": "<", "value": 0}', 'active')
+    """)
+    # 4. Jhunjhunwala fundamental rule (should survive)
+    conn.execute("""
+        INSERT INTO agent_memory (agent_id, kind, context, heuristic_text, prescribed_action, confidence, trigger_json, status)
+        VALUES ('jhunjhunwala', 'SEEK', 'EXIT', 'Exit on ROCE collapse', 'Sell', 0.95, '{"feature": "roce_pct", "op": "<", "value": 12}', 'reinforced')
+    """)
+
+    # Under BULL_TREND, Simons' range-bound rule and overbought momentum filters should be suppressed
+    simons_bull = load_active_heuristics(conn, "simons", current_regime="BULL_TREND")
+    assert len(simons_bull) == 0
+
+    # Under RANGE_BOUND, Simons' range-bound rule should be loaded
+    simons_range = load_active_heuristics(conn, "simons", current_regime="RANGE_BOUND")
+    assert len(simons_range) == 2
+
+    # For Jhunjhunwala, fast macd exit must be suppressed while fundamental ROCE exit is kept
+    rj_rules = load_active_heuristics(conn, "jhunjhunwala", current_regime="NORMAL")
+    assert len(rj_rules) == 1
+    assert rj_rules[0]["heuristic_text"] == "Exit on ROCE collapse"
+

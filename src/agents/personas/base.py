@@ -31,3 +31,6 @@ class PersonaConfig:
     prompt_ceiling: int = 3800  # Persona-specific token ceiling (defaults to settings.PROMPT_TOKEN_CEILING)
     extra_metrics: tuple = ()  # Additional metrics for candidate rows and prompt cited_metrics
     require_above_ema200: bool = True  # Whether Stage 3 retention requires price > 200 EMA
+    min_closed_trades_for_reflection: int = (
+        3  # Minimum closed trades since last watermark required to trigger reflection
+    )

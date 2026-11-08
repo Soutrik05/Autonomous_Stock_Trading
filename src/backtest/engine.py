@@ -198,6 +198,48 @@ def is_persona_due_today(
     return sessions_since >= rule.base_interval_sessions
 
 
+def inherit_prior_memory(target_conn: sqlite3.Connection, source_db_path: Path, clock: Clock) -> int:
+    """Copies active and reinforced heuristics from a prior backtest DB into target_conn."""
+    if not source_db_path.exists():
+        return 0
+    src = sqlite3.connect(source_db_path)
+    src.row_factory = sqlite3.Row
+    try:
+        rows = src.execute(
+            """
+            SELECT agent_id, kind, context, heuristic_text, trigger_json, prescribed_action, status, confidence
+            FROM agent_memory
+            WHERE status IN ('active', 'reinforced')
+            """
+        ).fetchall()
+        now = clock.now_iso()
+        count = 0
+        for r in rows:
+            target_conn.execute(
+                """
+                INSERT INTO agent_memory (agent_id, kind, context, heuristic_text, trigger_json, prescribed_action, status, confidence, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    r["agent_id"],
+                    r["kind"],
+                    r["context"],
+                    r["heuristic_text"],
+                    r["trigger_json"],
+                    r["prescribed_action"],
+                    r["status"],
+                    r["confidence"],
+                    now,
+                    now,
+                ),
+            )
+            count += 1
+        target_conn.commit()
+        return count
+    finally:
+        src.close()
+
+
 class BacktestEngine:
     def __init__(
         self,
@@ -209,6 +251,7 @@ class BacktestEngine:
         progress_callback: Callable[[int, int, str], None] | None = None,
         agent_ids: list[str] | None = None,
         enable_heuristics: bool = True,
+        inherit_memory: str | Path | None = None,
     ):
         self.window = window
         self.db_path = db_path or Path(f"storage/backtest/{window.window_id}.db")
@@ -219,6 +262,7 @@ class BacktestEngine:
         self.progress_callback = progress_callback
         self.agent_ids = agent_ids
         self.enable_heuristics = enable_heuristics
+        self.inherit_memory = Path(inherit_memory).resolve() if inherit_memory else None
 
     def run(self) -> dict[str, Any]:
         """
@@ -233,6 +277,15 @@ class BacktestEngine:
 
         source_port = Path(settings.PORTFOLIO_DB_PATH).resolve()
         conn = setup_isolated_backtest_db(self.db_path, source_port, clock, resume=self.resume)
+        if self.inherit_memory and self.inherit_memory.exists():
+            existing_count = conn.execute("SELECT COUNT(*) FROM agent_memory").fetchone()[0]
+            if existing_count == 0:
+                inherited_count = inherit_prior_memory(conn, self.inherit_memory, clock)
+                logger.info(
+                    "Inherited %d active/reinforced heuristics from prior database: %s",
+                    inherited_count,
+                    self.inherit_memory,
+                )
         ohlcv_conn = get_connection(settings.OHLCV_DB_PATH)
         fundamental_conn = None
         news_conn = None

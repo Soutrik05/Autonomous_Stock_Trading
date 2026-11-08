@@ -65,7 +65,7 @@ def evaluate_baseline_candidates(
     lynch_cfg = get_persona("lynch")
     max_candidates = getattr(lynch_cfg, "max_candidates", 10)
     max_positions = getattr(lynch_cfg, "max_open_positions", 5)
-    atr_mult = getattr(lynch_cfg, "atr_stop_multiplier", 2.5)
+    atr_mult = getattr(lynch_cfg, "atr_stop_multiplier", 3.5)
     target_risk_pct = getattr(lynch_cfg, "target_risk_pct", 1.50)
     max_pos_pct = getattr(lynch_cfg, "max_position_pct", 20.0)
     sector_cap = getattr(lynch_cfg, "sector_cap", 2)

@@ -44,7 +44,8 @@ Return ONLY one JSON object, no commentary, no code fences:
     - kind "SEEK": exit/sell signal when an open position meets this trigger. Use this to address trades tagged GAVE_BACK_PROFIT (e.g., sell to lock in profit when momentum stalls or indicator rolls over).
     - kind "AVOID": hold signal (do NOT sell yet) while this trigger holds. Use this to address trades tagged EXITED_TOO_EARLY (e.g., stay in trend as long as ADX/EMA support holds).
 - kind is exactly "SEEK" or "AVOID".
-- heuristic_text is a single short sentence, at most 200 characters.
+- heuristic_text is a single short sentence, at most 200 characters. It MUST explicitly state the regime context in natural language (e.g. "[In RANGE_BOUND markets] ...", "[During HIGH_VOLATILITY] ...", "[In BULL_TREND regimes] ...", or "[Universal] ...").
+- prescribed_action must explicitly state the action and under what market regime to execute it.
 - trigger is a predicate using ONLY these metric names: {allowed_metrics}
   Use ONLY these operators: {allowed_operators}
   A trigger may combine conditions with {{"all": [...]}} or {{"any": [...]}} of the same leaf form.
@@ -52,6 +53,9 @@ Return ONLY one JSON object, no commentary, no code fences:
   for YOUR understanding of what happened -- they are NOT valid trigger feature names. A trigger
   must be built only from the allowed metric names above.
 - Propose AT MOST {max_heuristics} heuristics. Prefer fewer, stronger rules over many weak ones.
+- Explicit Regime Conditioning: Whenever a failure occurred due to choppy, range-bound, or elevated volatility conditions (e.g. FALSE_BREAKOUT, PREMATURE_TECHNICAL_STOPOUT in choppy tapes), the trigger MUST explicitly condition on regime (allowed values: "BULL_TREND", "RANGE_BOUND", "HIGH_VOLATILITY", "NORMAL") or india_vix (e.g. {{"feature": "regime", "op": "==", "value": "RANGE_BOUND"}} or {{"feature": "india_vix", "op": ">", "value": 18.0}}).
+- Momentum Preservation in Bull Regimes: DO NOT create universal, regime-blind AVOID rules on high RSI (>60) or positive Z-scores for momentum personas (Simons, Varsity). In BULL_TREND regimes, overbought momentum is a sign of strong institutional trend continuation, not reversal.
+- Holding Horizon Protection for Fundamental Personas: For long-horizon fundamental personas (Jhunjhunwala [180d], Marks [120d], Lynch [90d]), DO NOT propose EXIT heuristics based solely on fast daily technical oscillators (such as daily MACD histogram, 14-day RSI, or 1-day momentum). Long-term compounders naturally fluctuate through multi-week technical pullbacks. Exit heuristics for fundamental personas MUST require fundamental deterioration (e.g. ROCE drop, debt expansion, negative PAT growth) or macro regime breakdown, rather than daily technical noise.
 - A loss classified CORP_ACTION_ARTIFACT or BROAD_MARKET_DRAG is bad luck or market-wide noise,
   not a pattern in this agent's own decisions -- it must NEVER produce an AVOID heuristic.
 - A trade tagged GAVE_BACK_PROFIT entered fine and lost on the exit, not the entry -- it is an
@@ -62,6 +66,7 @@ Return ONLY one JSON object, no commentary, no code fences:
 - An empty "heuristics" list is valid and normal when the evidence does not support a new rule.
 - Every heuristic must be testable purely from the metric names above -- nothing you cannot see
   in the data given.
+- Structure heuristics with robust, philosophy-aligned predicates: For fundamental/swing personas (Lynch, Marks, Jhunjhunwala), prefer compound conditions with {{"all": [...]}} that combine business quality/valuation (ROCE, PEG, D/E, PAT growth) with technical/regime validation rather than isolated single-indicator thresholds.
 - Propose rules that fit this investor's philosophy, described below. Do not turn this agent
   into a different kind of investor."""
 

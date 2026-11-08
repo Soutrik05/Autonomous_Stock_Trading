@@ -19,7 +19,7 @@ from backtest.config import (
     get_all_trading_dates,
     get_rolling_windows,
 )
-from backtest.engine import SimulatedClock
+from backtest.engine import SimulatedClock, inherit_prior_memory
 from backtest.reports import format_markdown_report, generate_window_report
 
 IST = ZoneInfo("Asia/Kolkata")
@@ -456,7 +456,7 @@ def test_screener_parser_quarter_calculation():
 
 def test_broker_sim_breakeven_ratchet_and_time_stops():
     from backtest.broker_sim import resolve_day
-    from backtest.engine import SimulatedClock
+    from backtest.engine import SimulatedClock, inherit_prior_memory
     from broker.engine import Broker
     from scripts.init_db import init_db
 
@@ -556,3 +556,113 @@ def test_broker_sim_breakeven_ratchet_and_time_stops():
     time_pos = port_conn.execute("SELECT * FROM positions WHERE id = 2").fetchone()
     assert time_pos["status"] == "CLOSED"
     assert time_pos["exit_reason"] == "TIME_STOP_HIT"
+
+
+def test_broker_sim_crash_cancelled_on_gap_down():
+    from backtest.broker_sim import resolve_day
+    from backtest.engine import SimulatedClock, inherit_prior_memory
+    from scripts.init_db import init_db
+
+    port_conn = sqlite3.connect(":memory:")
+    port_conn.row_factory = sqlite3.Row
+    init_db(port_conn)
+
+    ohlcv_conn = sqlite3.connect(":memory:")
+    ohlcv_conn.row_factory = sqlite3.Row
+    ohlcv_conn.executescript("""
+        CREATE TABLE ohlcv (
+            trade_date TEXT, ticker TEXT, open REAL, high REAL, low REAL, close REAL, volume REAL
+        );
+        -- Gap-down crash candle: opens at 890.0, below stop @ 900.0 (90000 paise)
+        INSERT INTO ohlcv VALUES ('2026-10-02', 'TATAMOTORS', 890.0, 950.0, 880.0, 940.0, 100000);
+    """)
+
+    port_conn.executescript("""
+        INSERT INTO market_calendar (trade_date, is_trading_day) VALUES ('2026-10-02', 1);
+    """)
+
+    # Pending BUY order with entry [940.0, 960.0] and stop 900.0 (90000 paise)
+    now_iso = "2026-10-02T09:00:00+05:30"
+    port_conn.execute(
+        """
+        INSERT INTO pending_orders (
+            id, agent_id, ticker, side, shares, entry_low_paise, entry_high_paise,
+            stop_paise, target_paise, reserved_amount_paise, status, valid_for_date, created_at, updated_at
+        ) VALUES (
+            1, 'simons', 'TATAMOTORS', 'BUY', 10, 94000, 96000, 90000, 102000, 1000000, 'pending', '2026-10-02', ?, ?
+        )
+    """,
+        (now_iso, now_iso),
+    )
+    port_conn.commit()
+
+    clock = SimulatedClock(datetime(2026, 10, 2, 10, 0, tzinfo=IST))
+    res = resolve_day(port_conn, ohlcv_conn, clock, "2026-10-02", nifty500_close=24000.0)
+    assert res["status"] == "SUCCESS"
+    assert res["fills"] == 0
+
+    order = port_conn.execute("SELECT status, rejection_reason FROM pending_orders WHERE id = 1").fetchone()
+    assert order["status"] == "cancelled"
+    assert order["rejection_reason"] == "CRASH_CANCELLED"
+
+
+def test_inherit_prior_memory():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        src_db = Path(tmpdir) / "source.db"
+        src_conn = sqlite3.connect(src_db)
+        src_conn.execute("""
+            CREATE TABLE agent_memory (
+                id INTEGER PRIMARY KEY,
+                agent_id TEXT,
+                kind TEXT,
+                context TEXT,
+                heuristic_text TEXT,
+                trigger_json TEXT,
+                prescribed_action TEXT,
+                status TEXT,
+                confidence REAL,
+                created_at TEXT,
+                updated_at TEXT
+            )
+        """)
+        src_conn.execute("""
+            INSERT INTO agent_memory (agent_id, kind, context, heuristic_text, trigger_json, prescribed_action, status, confidence, created_at, updated_at)
+            VALUES ('varsity', 'AVOID', 'ENTRY', 'Avoid high RSI', '{\"feature\":\"rsi_14\",\"op\":\">\",\"value\":65}', 'HOLD', 'reinforced', 0.85, '2025-05-01', '2025-05-01')
+        """)
+        src_conn.execute("""
+            INSERT INTO agent_memory (agent_id, kind, context, heuristic_text, trigger_json, prescribed_action, status, confidence, created_at, updated_at)
+            VALUES ('simons', 'SEEK', 'EXIT', 'Exit on momentum decay', '{\"feature\":\"macd_hist\",\"op\":\"<\",\"value\":0}', 'SELL', 'active', 0.75, '2025-05-01', '2025-05-01')
+        """)
+        src_conn.execute("""
+            INSERT INTO agent_memory (agent_id, kind, context, heuristic_text, trigger_json, prescribed_action, status, confidence, created_at, updated_at)
+            VALUES ('lynch', 'AVOID', 'ENTRY', 'Testing rule', '{\"feature\":\"peg\",\"op\":\">\",\"value\":1.5}', 'HOLD', 'testing', 0.5, '2025-05-01', '2025-05-01')
+        """)
+        src_conn.commit()
+        src_conn.close()
+
+        target_conn = sqlite3.connect(":memory:")
+        target_conn.row_factory = sqlite3.Row
+        target_conn.execute("""
+            CREATE TABLE agent_memory (
+                id INTEGER PRIMARY KEY,
+                agent_id TEXT,
+                kind TEXT,
+                context TEXT,
+                heuristic_text TEXT,
+                trigger_json TEXT,
+                prescribed_action TEXT,
+                status TEXT,
+                confidence REAL,
+                created_at TEXT,
+                updated_at TEXT
+            )
+        """)
+        clock = SimulatedClock(datetime(2025, 6, 1, 9, 0, tzinfo=IST))
+        count = inherit_prior_memory(target_conn, src_db, clock)
+
+        # Should only copy active and reinforced (2 out of 3, ignoring testing)
+        assert count == 2
+        rows = target_conn.execute("SELECT agent_id, status FROM agent_memory ORDER BY agent_id").fetchall()
+        assert len(rows) == 2
+        assert rows[0]["agent_id"] == "simons" and rows[0]["status"] == "active"
+        assert rows[1]["agent_id"] == "varsity" and rows[1]["status"] == "reinforced"

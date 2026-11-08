@@ -215,3 +215,93 @@ def test_settlement_computes_daily_nav_correctly():
     # Total = 10,000,000 + 960,000 = 10,960,000 paise
     assert nav_row["total_paise"] == 10960000
     assert nav_row["nifty500_close"] == 22500.50
+
+
+def test_monitor_fills_buy_with_price_improvement_below_entry_low():
+    """Verify that BUY orders fill with price improvement when price opens below entry_low (but above stop)."""
+    conn = make_portfolio_db()
+    seed_db(conn)
+    clock = FakeClock(datetime(2026, 10, 19, 10, 0, 0))
+
+    cur = conn.execute(
+        "INSERT INTO decisions (run_date, agent_id, ticker, source, action, shares, entry_low_paise, entry_high_paise, stop_paise, target_paise, created_at) "
+        "VALUES (?, 'simons', 'TATAMOTORS', 'LLM', 'BUY', 10, 94000, 96000, 90000, 102000, ?)",
+        (TRADE_DATE, NOW),
+    )
+    decision_id = cur.lastrowid
+    broker = Broker(conn, clock)
+    outlay = broker.worst_case_buy_outlay_paise(10, 96000)
+    cur = conn.execute(
+        "INSERT INTO pending_orders (agent_id, ticker, side, shares, entry_low_paise, entry_high_paise, stop_paise, target_paise, reserved_amount_paise, decision_id, status, valid_for_date, created_at, updated_at) "
+        "VALUES ('simons', 'TATAMOTORS', 'BUY', 10, 94000, 96000, 90000, 102000, ?, ?, 'pending', ?, ?, ?)",
+        (outlay, decision_id, TRADE_DATE, NOW, NOW),
+    )
+    order_id = cur.lastrowid
+
+    # Market price 920.00 is below entry_low (940.00) but above stop (900.00) -> should fill with price improvement
+    quotes = ReplayQuoteProvider({"TATAMOTORS": 92000})
+    res = poll_once(conn, clock, quotes, run_date_str=TRADE_DATE)
+
+    assert res["status"] == "SUCCESS"
+    assert res["buys_filled"] == 1
+
+    order = conn.execute("SELECT status FROM pending_orders WHERE id = ?", (order_id,)).fetchone()
+    assert order["status"] == "filled"
+
+    fill = conn.execute("SELECT price_paise FROM fills WHERE order_id = ?", (order_id,)).fetchone()
+    assert fill is not None
+    # 92000 + 3bps slippage = 92028
+    assert fill["price_paise"] == 92028
+
+    pos = conn.execute("SELECT * FROM positions WHERE ticker = 'TATAMOTORS' AND status = 'OPEN'").fetchone()
+    assert pos is not None
+    assert pos["shares"] == 10
+
+
+def test_monitor_long_horizon_stop_loss_behavior():
+    """Verify long-horizon personas ignore minor midday wicks, but trigger at close or on severe crashes."""
+    conn = make_portfolio_db()
+    seed_db(conn)
+    conn.execute(
+        "INSERT OR IGNORE INTO agents (id, name, philosophy, kind, starting_cash_paise, cash_paise, created_at, updated_at) "
+        "VALUES ('jhunjhunwala', 'Rakesh Jhunjhunwala', 'Value Growth', 'LLM', 10000000, 10000000, ?, ?)",
+        (NOW, NOW),
+    )
+
+    # 1. Midday non-severe drop: stop=900.00, price=895.00 (> 900*0.90 = 810.00). Position should stay OPEN.
+    clock_midday = FakeClock(datetime(2026, 10, 19, 11, 0, 0))
+    conn.execute(
+        "INSERT INTO positions (agent_id, ticker, sector, shares, avg_entry_price_paise, stop_paise, target_paise, last_price_paise, status, entry_date) "
+        "VALUES ('jhunjhunwala', 'TATAMOTORS', 'Automobile', 10, 95000, 90000, 110000, 95000, 'OPEN', '2026-10-16')"
+    )
+
+    quotes_minor_drop = ReplayQuoteProvider({"TATAMOTORS": 89500})
+    res1 = poll_once(conn, clock_midday, quotes_minor_drop, run_date_str=TRADE_DATE)
+    assert res1["stops_hit"] == 0
+    pos1 = conn.execute(
+        "SELECT status FROM positions WHERE agent_id = 'jhunjhunwala' AND ticker = 'TATAMOTORS'"
+    ).fetchone()
+    assert pos1["status"] == "OPEN"
+
+    # 2. Midday severe drop: price=800.00 (<= 810.00). Position should STOP_HIT immediately.
+    quotes_severe_drop = ReplayQuoteProvider({"TATAMOTORS": 80000})
+    res2 = poll_once(conn, clock_midday, quotes_severe_drop, run_date_str=TRADE_DATE)
+    assert res2["stops_hit"] == 1
+    pos2 = conn.execute(
+        "SELECT status, exit_reason FROM positions WHERE agent_id = 'jhunjhunwala' AND ticker = 'TATAMOTORS'"
+    ).fetchone()
+    assert pos2["status"] == "CLOSED"
+    assert pos2["exit_reason"] == "STOP_HIT"
+
+    # 3. Closing window drop: price=895.00 at 15:20. Position should STOP_HIT.
+    conn.execute(
+        "UPDATE positions SET status = 'OPEN', exit_date = NULL, exit_price_paise = NULL, exit_reason = NULL WHERE agent_id = 'jhunjhunwala' AND ticker = 'TATAMOTORS'"
+    )
+    clock_close = FakeClock(datetime(2026, 10, 19, 15, 20, 0))
+    res3 = poll_once(conn, clock_close, quotes_minor_drop, run_date_str=TRADE_DATE)
+    assert res3["stops_hit"] == 1
+    pos3 = conn.execute(
+        "SELECT status, exit_reason FROM positions WHERE agent_id = 'jhunjhunwala' AND ticker = 'TATAMOTORS'"
+    ).fetchone()
+    assert pos3["status"] == "CLOSED"
+    assert pos3["exit_reason"] == "STOP_HIT"

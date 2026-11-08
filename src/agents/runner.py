@@ -33,7 +33,7 @@ from core.clock import Clock, SystemClock
 from core.config import settings
 from core.database import get_connection
 from core.money import rupees_to_paise
-from core.schemas import AdjustDecision, BuyDecision, DecisionBatch
+from core.schemas import AdjustDecision, BuyDecision, DecisionBatch, HoldDecision
 from evaluation.faithfulness import compute_faithfulness
 from features.builder import MAX_STALE_FRACTION, check_data_freshness
 from llm.client import FakeLLMClient, LLMClient, LLMConfigError, build_provider, require_setting
@@ -481,6 +481,29 @@ def run_one_agent(
             max_risk_pct=max_risk_pct,
             max_position_pct=max_position_pct,
         )
+
+        # Enforce Hard Quantitative Gate for Peter Lynch (zero narrative override of PEG <= 1.0, ROCE >= 15%)
+        if agent_id in ("lynch", "baseline-lynch-rules"):
+            gated = []
+            for d in calibrated_decisions:
+                if isinstance(d, BuyDecision):
+                    _, feats = features_with_ids.get(d.ticker, (None, {}))
+                    peg = feats.get("peg")
+                    roce = feats.get("roce_pct")
+                    if peg is None or peg <= 0 or peg > 1.0 or (roce is not None and roce < 15.0):
+                        logger.warning(
+                            "VETO by Lynch Hard Gate on %s: peg=%s (max 1.0), roce=%s%% (min 15.0%%). Converted to HOLD.",
+                            d.ticker,
+                            f"{peg:.2f}" if peg is not None else "None",
+                            f"{roce:.1f}" if roce is not None else "None",
+                        )
+                        d = HoldDecision(
+                            ticker=d.ticker,
+                            action="HOLD",
+                            reasoning=f"Vetoed by Lynch Hard-Gate: peg {peg} > 1.00 or roce_pct {roce}% < 15.0%. Narrative override prohibited.",
+                        )
+                gated.append(d)
+            calibrated_decisions = gated
 
         for decision in calibrated_decisions:
             snapshot_id, features = features_with_ids.get(decision.ticker, (None, {}))

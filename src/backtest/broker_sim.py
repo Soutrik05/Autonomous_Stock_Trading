@@ -254,6 +254,12 @@ def resolve_day(
             entry_low = order["entry_low_paise"] or 0
             entry_high = order["entry_high_paise"] or 0
             allowed_high = int(entry_high * overshoot_multiplier)
+            stop = order["stop_paise"] or 0
+
+            # Gap-down crash cancellation: if open is already at or below stop loss, cancel order
+            if stop > 0 and c["open"] <= stop:
+                broker.cancel_order(order["id"], "CRASH_CANCELLED")
+                continue
 
             # Candle must intersect or trade through entry range
             if c["low"] <= allowed_high and c["high"] >= entry_low:
@@ -476,6 +482,12 @@ def _resolve_day_intraday(
                 entry_low = order["entry_low_paise"] or 0
                 entry_high = order["entry_high_paise"] or 0
                 allowed_high = int(entry_high * overshoot_multiplier)
+                stop = order["stop_paise"] or 0
+
+                # Gap-down crash cancellation: if open is already at or below stop loss, cancel order
+                if stop > 0 and bar["open"] <= stop:
+                    broker.cancel_order(order["id"], "CRASH_CANCELLED")
+                    continue
 
                 if bar["low"] <= allowed_high and bar["high"] >= entry_low:
                     fill_price = (

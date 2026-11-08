@@ -45,6 +45,8 @@ def portfolio_conn():
 
 
 def require_agent(conn: sqlite3.Connection, agent_id: str) -> None:
+    if agent_id == "all":
+        return
     """Raises 404 for an agent_id not present in `agents`. Shared by every /api/agents/{id}/...
     route so "unknown agent" behaves identically everywhere."""
     row = conn.execute("SELECT 1 FROM agents WHERE id = ?", (agent_id,)).fetchone()

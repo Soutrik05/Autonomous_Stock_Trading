@@ -216,23 +216,27 @@ def evaluate_horizon_fidelity(
             else:
                 compliance_units += 0.1
         elif stype == "HYBRID":
-            if 7 <= h <= 50:
-                compliance_units += 1.0
+            if 7 <= h <= 50 or pnl >= 8.0:
+                compliance_units += 1.0  # Full cycle or target reached early
             elif h > 50:
                 compliance_units += 0.5
             else:
                 compliance_units += 0.8 if ex in ("STOP_HIT", "TRAILING_STOP_HIT") else 0.2
         elif stype in ("GARP", "VALUE_CONTRARIAN"):
-            if h >= 30:
-                compliance_units += 1.0
-            elif ft in ("EARNINGS_SHOCK", "BROAD_MARKET_DRAG") or pnl <= -10.0 or ex in ("STOP_HIT", "TRAILING_STOP_HIT"):
+            if h >= 30 or pnl >= 10.0:
+                compliance_units += 1.0  # Full cycle or target/valuation reached early
+            elif (
+                ft in ("EARNINGS_SHOCK", "BROAD_MARKET_DRAG") or pnl <= -10.0 or ex in ("STOP_HIT", "TRAILING_STOP_HIT")
+            ):
                 compliance_units += 0.8  # Legitimate stop / fundamental invalidation
             else:
                 compliance_units += 0.2  # Premature technical shakeout
         elif stype == "GROWTH_COMPOUNDER":
-            if h >= 45:
-                compliance_units += 1.0
-            elif ft in ("EARNINGS_SHOCK", "BROAD_MARKET_DRAG") or pnl <= -12.0 or ex in ("STOP_HIT", "TRAILING_STOP_HIT"):
+            if h >= 45 or pnl >= 12.0:
+                compliance_units += 1.0  # Full cycle or growth target reached early
+            elif (
+                ft in ("EARNINGS_SHOCK", "BROAD_MARKET_DRAG") or pnl <= -12.0 or ex in ("STOP_HIT", "TRAILING_STOP_HIT")
+            ):
                 compliance_units += 0.8  # Legitimate structural breakdown
             else:
                 compliance_units += 0.2  # Premature exit

@@ -20,6 +20,10 @@ for p in (_SRC, _ROOT):
     if str(p) not in sys.path:
         sys.path.insert(0, str(p))
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from backtest.config import BACKTEST_WINDOWS, get_curated_regime_windows, get_rolling_windows
 from backtest.engine import BacktestEngine
 from backtest.reports import format_markdown_report, generate_window_report
@@ -46,6 +50,12 @@ def main() -> None:
         "--agents", nargs="+", default=None, help="Agent IDs to simulate (e.g. simons baseline-simons-rules)"
     )
     parser.add_argument("--output-report", type=str, default=None, help="Save markdown report to path")
+    parser.add_argument(
+        "--inherit-memory",
+        type=str,
+        default=None,
+        help="Path to prior backtest DB to inherit active/reinforced heuristics from",
+    )
     parser.add_argument(
         "--no-heuristics",
         "--disable-learning",
@@ -119,6 +129,7 @@ def main() -> None:
             progress_callback=progress,
             agent_ids=args.agents,
             enable_heuristics=not args.no_heuristics,
+            inherit_memory=args.inherit_memory,
         )
 
         res = engine.run()

@@ -60,5 +60,12 @@ STOP LOSS & SIZING:
 RISK CAPS (soft -- logged as a breach, not blocked, but a disciplined trader respects them):
 at most 2% capital risk per trade, 5% max open-position drawdown, 25% max per sector.
 
+ACTIVE HEURISTICS (LEARNED TRADING DISCIPLINE):
+You have accumulated empirical trading rules from past post-mortems presented under 'ACTIVE HEURISTICS'.
+You MUST strictly obey these active heuristics:
+- If an [ENTRY AVOID] heuristic trigger matches a candidate stock, you MUST NOT buy it.
+- If an [EXIT SEEK] heuristic trigger matches an open position (e.g. locking in profits when momentum stalls), you MUST issue SELL or ADJUST to protect gains.
+- If an [EXIT AVOID] heuristic matches an open position, hold through minor noise and do not exit prematurely.
+
 {OUTPUT_CONTRACT.format(allowed_metrics=allowed_metrics)}
 """

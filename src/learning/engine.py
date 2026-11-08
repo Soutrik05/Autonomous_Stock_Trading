@@ -447,23 +447,56 @@ def _log_activity(conn, agent_id: str | None, event_type: str, description: str,
 def _insert_heuristic(conn, agent_id: str, item: dict, clock: Clock) -> int:
     now_iso = clock.now_iso()
     context = item.get("context", "ENTRY")
-    cur = conn.execute(
-        """
-        INSERT INTO agent_memory (agent_id, kind, context, heuristic_text, trigger_json, prescribed_action,
-                                   status, confidence, times_triggered, times_successful, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, 'testing', 0.5, 0, 0, ?, ?)
-        """,
-        (
-            agent_id,
-            item["kind"],
-            context,
-            item["heuristic_text"],
-            json.dumps(item["trigger"]),
-            item["prescribed_action"],
-            now_iso,
-            now_iso,
-        ),
-    )
+    regime_tag = item.get("regime_tag")
+    if not regime_tag:
+        txt = (item.get("heuristic_text") or "").upper()
+        trig = json.dumps(item.get("trigger") or {}).upper()
+        if "HIGH_VOL" in txt or "HIGH_VOL" in trig or "VIX" in txt or "VIX" in trig:
+            regime_tag = "HIGH_VOLATILITY"
+        elif "BULL" in txt or "BULL" in trig:
+            regime_tag = "BULL_TREND"
+        elif "RANGE" in txt or "RANGE" in trig or "CHOP" in txt or "SIDEWAYS" in txt:
+            regime_tag = "RANGE_BOUND"
+        else:
+            regime_tag = "ALL"
+
+    try:
+        cur = conn.execute(
+            """
+            INSERT INTO agent_memory (agent_id, kind, context, regime_tag, heuristic_text, trigger_json, prescribed_action,
+                                       status, confidence, times_triggered, times_successful, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'testing', 0.5, 0, 0, ?, ?)
+            """,
+            (
+                agent_id,
+                item["kind"],
+                context,
+                regime_tag,
+                item["heuristic_text"],
+                json.dumps(item["trigger"]),
+                item["prescribed_action"],
+                now_iso,
+                now_iso,
+            ),
+        )
+    except sqlite3.OperationalError:
+        cur = conn.execute(
+            """
+            INSERT INTO agent_memory (agent_id, kind, context, heuristic_text, trigger_json, prescribed_action,
+                                       status, confidence, times_triggered, times_successful, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, 'testing', 0.5, 0, 0, ?, ?)
+            """,
+            (
+                agent_id,
+                item["kind"],
+                context,
+                item["heuristic_text"],
+                json.dumps(item["trigger"]),
+                item["prescribed_action"],
+                now_iso,
+                now_iso,
+            ),
+        )
     return cur.lastrowid
 
 
@@ -514,7 +547,8 @@ def _run_one_agent(
         as_of_date,
     )
 
-    if len(eligible) < settings.MIN_CLOSED_TRADES_FOR_REFLECTION:
+    min_trades = getattr(persona, "min_closed_trades_for_reflection", settings.MIN_CLOSED_TRADES_FOR_REFLECTION)
+    if len(eligible) < min_trades:
         # The sample gate never moves the watermark, exactly as before -- write back the OLD
         # (exit_date, position_id), not whatever _load_eligible_trades scanned up to.
         _write_reflection_run(
@@ -620,10 +654,47 @@ def _run_one_agent(
                 {"heuristic_id": heuristic_id, "kind": item["kind"], "rationale": item.get("rationale", "")},
                 clock,
             )
+            # Automatic consolidation: if an active heuristic exists with identical predicate target
+            # (same kind, context, feature, and op), deprecate the older one so thresholds don't stack redundantly.
+            new_trigger = item.get("trigger", {})
+            new_feature = new_trigger.get("feature") if isinstance(new_trigger, dict) else None
+            new_op = new_trigger.get("op") if isinstance(new_trigger, dict) else None
+            if new_feature and new_op:
+                for old_h in existing:
+                    if old_h["status"] in ("testing", "active", "reinforced"):
+                        try:
+                            old_trig = json.loads(old_h["trigger_json"])
+                            if (
+                                old_h["kind"] == item["kind"]
+                                and (old_h.get("context") or "ENTRY") == item.get("context", "ENTRY")
+                                and old_trig.get("feature") == new_feature
+                                and old_trig.get("op") == new_op
+                            ):
+                                conn.execute(
+                                    "UPDATE agent_memory SET status = 'deprecated', updated_at = ? WHERE id = ?",
+                                    (clock.now_iso(), old_h["id"]),
+                                )
+                                old_h["status"] = "deprecated"
+                                _log_activity(
+                                    conn,
+                                    agent_id,
+                                    "HEURISTIC_STATUS_CHANGED",
+                                    f"Heuristic #{old_h['id']} deprecated (superseded by new #{heuristic_id})",
+                                    {"heuristic_id": old_h["id"], "superseded_by": heuristic_id},
+                                    clock,
+                                )
+                        except Exception:
+                            pass
         _write_reflection_run(
             conn, agent_id, as_of_date, clock, last_exit_date, last_position_id, len(eligible), "DONE"
         )
         conn.execute("COMMIT")
+
+        try:
+            from learning.consolidator import consolidate_persona_memory
+            consolidate_persona_memory(conn, agent_id, clock, primary)
+        except Exception:
+            logger.exception("learning.engine: consolidation failed for agent %s", agent_id)
     except Exception:
         conn.execute("ROLLBACK")
         raise

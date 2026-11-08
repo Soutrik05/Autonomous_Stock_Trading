@@ -32,12 +32,17 @@ def get_agent_positions(
                s.company_name
         FROM positions p
         LEFT JOIN symbols s ON s.ticker = p.ticker
-        WHERE p.agent_id = ?
-    """
-    params: list = [agent_id]
+        """
+    params: list = []
+    where_parts = []
+    if agent_id != "all":
+        where_parts.append("p.agent_id = ?")
+        params.append(agent_id)
     if status:
-        query += " AND p.status = ?"
+        where_parts.append("p.status = ?")
         params.append(status)
+    if where_parts:
+        query += " WHERE " + " AND ".join(where_parts)
     query += " ORDER BY p.id DESC"
 
     rows = conn.execute(query, params).fetchall()
@@ -91,10 +96,10 @@ def get_agent_orders(agent_id: str, conn: sqlite3.Connection = Depends(portfolio
                f.price_paise AS filled_price_paise, f.charges_paise, f.executed_at
         FROM pending_orders o
         LEFT JOIN fills f ON f.order_id = o.id
-        WHERE o.agent_id = ?
+        """ + (" WHERE o.agent_id = ?" if agent_id != "all" else "") + """
         ORDER BY o.id DESC
         """,
-        (agent_id,),
+        (() if agent_id == "all" else (agent_id,)),
     ).fetchall()
 
     return [
@@ -126,13 +131,13 @@ def get_agent_decisions(agent_id: str, conn: sqlite3.Connection = Depends(portfo
 
     rows = conn.execute(
         """
-        SELECT id, agent_id, ticker, run_date, action, reasoning, faithfulness_score,
+        SELECT id, agent_id, ticker, run_date, action, reasoning, pre_mortem_risk, faithfulness_score,
                sizing_fidelity_score, cited_metrics_json
         FROM decisions
-        WHERE agent_id = ?
+        """ + (" WHERE agent_id = ?" if agent_id != "all" else "") + """
         ORDER BY id DESC
         """,
-        (agent_id,),
+        (() if agent_id == "all" else (agent_id,)),
     ).fetchall()
 
     decisions = []
@@ -155,6 +160,7 @@ def get_agent_decisions(agent_id: str, conn: sqlite3.Connection = Depends(portfo
                 decision_date=r["run_date"],
                 action=r["action"],
                 rationale=r["reasoning"],
+                pre_mortem_risk=r["pre_mortem_risk"],
                 faithfulness_score=r["faithfulness_score"],
                 sizing_fidelity_score=r["sizing_fidelity_score"],
                 candidate_rank=None,  # not recorded

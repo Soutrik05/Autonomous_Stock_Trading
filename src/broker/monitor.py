@@ -97,10 +97,23 @@ def poll_once(
                 continue
 
             # Stop-loss check
-            if price <= pos["stop_paise"]:
-                if broker.close_position(pos["id"], price, "STOP_HIT"):
-                    summary["stops_hit"] += 1
-                continue
+            if pos["stop_paise"] and price <= pos["stop_paise"]:
+                is_long_horizon = pos["agent_id"] in (
+                    "jhunjhunwala",
+                    "baseline-rj-rules",
+                    "lynch",
+                    "baseline-lynch-rules",
+                    "marks",
+                    "baseline-marks-rules",
+                )
+                now_dt = clock.now()
+                is_closing_window = (now_dt.hour == 15 and now_dt.minute >= 15) or now_dt.hour > 15
+                severe_crash = price <= int(pos["stop_paise"] * 0.90)
+
+                if (not is_long_horizon) or is_closing_window or severe_crash:
+                    if broker.close_position(pos["id"], price, "STOP_HIT"):
+                        summary["stops_hit"] += 1
+                    continue
 
             # Target check (soft signal, logged at most once per position per day)
             if price >= pos["target_paise"]:
@@ -163,18 +176,19 @@ def poll_once(
                 if broker.fill_sell(order["id"], price):
                     summary["sells_filled"] += 1
             elif side == "BUY":
-                stop_paise = order["stop_paise"]
-                entry_low = order["entry_low_paise"]
+                stop_paise = order["stop_paise"] or 0
                 entry_high_overshoot = _entry_high_with_overshoot_paise(order["entry_high_paise"])
 
-                if price <= stop_paise:
+                if stop_paise > 0 and price <= stop_paise:
                     # Crash cancellation: price hit stop before filling
                     if broker.cancel_order(order["id"], "CRASH_CANCELLED"):
                         summary["crashes_cancelled"] += 1
-                elif entry_low <= price <= entry_high_overshoot:
+                elif price <= entry_high_overshoot:
+                    # Exchange limit buy mechanics: fill at prevailing price when price <= limit high
+                    # (provides price improvement on gap-downs below entry_low)
                     if broker.fill_buy(order["id"], price):
                         summary["buys_filled"] += 1
-                # Otherwise, price is either below entry_low (waiting) or above overshoot (waiting)
+                # Otherwise, price is above overshoot (waiting)
 
     return summary
 

@@ -1,6 +1,8 @@
 # Credentials
 .env
 .env.*
+*.pem
+*.key
 
 # Data & SQLite Databases
 *.xlsx
@@ -53,3 +55,7 @@ dashboard/.vite/
 # Editors
 .idea/
 .vscode/
+
+# Agent Skills
+skills-lock.json
+.agents/
