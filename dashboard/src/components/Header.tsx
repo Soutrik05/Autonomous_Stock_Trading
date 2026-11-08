@@ -67,25 +67,31 @@ export default function Header() {
 
   return (
     <>
-      {/* Top Session Micro-Ticker */}
-      <div className="bg-black border-b border-white/[0.06] text-[10px] font-mono text-zinc-500 py-1 px-4 sm:px-6 lg:px-8 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/80" />
-          <span>NIFTY 500 · session closed · paper tape active</span>
+      {/* Top Authoritative Status Strip */}
+      <div className="bg-black border-b border-white/[0.06] text-[10px] font-mono text-zinc-500 py-1.5 px-4 sm:px-6 lg:px-8 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            <span className="text-zinc-400 uppercase tracking-wider">Session Closed · Paper Tape Active</span>
+          </div>
+          <span className="text-zinc-700">|</span>
+          <span className="px-1.5 py-0.5 rounded border border-[#D4AF37]/40 text-[#D4AF37] bg-[#D4AF37]/5 font-semibold text-[9px] uppercase tracking-wider">
+            Paper Trading Only
+          </span>
         </div>
-        <div className="hidden sm:flex items-center gap-4">
+        <div className="hidden sm:flex items-center gap-4 text-zinc-500">
           <span>{istTime || '15:30:00 IST'}</span>
-          <span>10 Parallel Strategies</span>
+          <span>NSE NIFTY 500</span>
         </div>
       </div>
 
       <header className="sticky top-0 z-40 bg-black/95 backdrop-blur-md border-b border-white/[0.08] transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-14">
-            {/* Brand Mark: Editorial Serif Identity */}
+            {/* Brand Mark: Editorial Display Identity */}
             <Link to="/" className="flex items-center gap-2.5 group">
-              <span className="text-lg font-serif tracking-tight text-white group-hover:text-[#D4AF37] transition-colors">
-                StockMinds<span className="text-zinc-500 font-sans text-xs ml-1.5 tracking-normal">Arena</span>
+              <span className="text-xl font-display font-medium tracking-tight text-white group-hover:text-[#D4AF37] transition-colors">
+                StockMinds<span className="text-zinc-500 font-sans text-xs ml-1.5 font-normal tracking-normal">Benchmark</span>
               </span>
             </Link>
 
@@ -108,7 +114,7 @@ export default function Header() {
                     <>
                       <span>{label}</span>
                       {isActive && (
-                        <span className="absolute -bottom-1 left-0 right-0 h-[1px] bg-[#D4AF37]" />
+                        <span className="absolute -bottom-1 left-0 right-0 h-[1.5px] bg-[#D4AF37] transition-all duration-150" />
                       )}
                     </>
                   )}
@@ -116,31 +122,24 @@ export default function Header() {
               ))}
             </nav>
 
-            {/* Right Controls: Health & Backend Pill */}
+            {/* Right Controls: Connection Status Only */}
             <div className="hidden sm:flex items-center gap-3 text-xs font-mono">
               <button
-                onClick={() => setIsHealthOpen(true)}
-                className="flex items-center gap-1.5 text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer text-[11px]"
-                title="System telemetry health"
-              >
-                <span
-                  className={`w-1.5 h-1.5 rounded-full ${
-                    isBackendHealthy === false ? 'bg-amber-400' : 'bg-emerald-400'
-                  }`}
-                />
-                <span>10/10 Nominal</span>
-              </button>
-
-              <button
                 onClick={handleToggleMock}
-                className={`px-2.5 py-0.5 rounded border transition-colors cursor-pointer text-[10px] font-mono ${
+                className={`px-2.5 py-1 rounded border transition-colors cursor-pointer text-[10px] font-mono ${
                   !isMock
-                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400 font-semibold'
+                    ? isBackendHealthy === false
+                      ? 'border-amber-500/40 bg-amber-500/10 text-amber-400 font-semibold'
+                      : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400 font-semibold'
                     : 'border-white/10 text-zinc-400 hover:text-white'
                 }`}
                 title="Toggle Live backend API / Mock data"
               >
-                {!isMock ? '● Live API' : '○ Mock Mode'}
+                {!isMock
+                  ? isBackendHealthy === false
+                    ? '▲ API Offline'
+                    : '● Live API'
+                  : '○ Mock Mode'}
               </button>
             </div>
 

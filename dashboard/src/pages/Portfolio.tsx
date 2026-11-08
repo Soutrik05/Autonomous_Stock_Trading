@@ -1,13 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import {
-  Briefcase,
-  ListOrdered,
-  Brain,
-  Layers,
-  ArrowLeft,
-  History,
-} from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import type {
   AgentId,
   AgentLeaderboardEntry,
@@ -15,19 +8,92 @@ import type {
   Order,
   Decision,
   HeuristicMemory,
+  NavHistoryPoint,
 } from '../types';
-import { apiService } from '../services/api';
-import { formatPaiseToRupees, formatPct, formatISTDateTime } from '../utils/formatters';
-import PositionTable from '../components/PositionTable';
-import SmallSampleNotice from '../components/SmallSampleNotice';
-import { STRATEGY_THEME } from '../theme/tokens';
+import { apiService, getIsMockMode, setMockMode } from '../services/api';
+import { formatPaiseToRupees, formatPct } from '../utils/formatters';
+import PortfolioDualCurve from '../components/PortfolioDualCurve';
+import HoldingsLinearStack from '../components/HoldingsLinearStack';
+import IntegratedTradesSection from '../components/IntegratedTradesSection';
+import LearnedMemoryBankSection from '../components/LearnedMemoryBankSection';
+
+interface PersonaProfile {
+  school: string;
+  horizon: string;
+  inspiration: string;
+  description: string;
+}
+
+const PERSONA_PROFILES: Record<string, PersonaProfile> = {
+  simons: {
+    school: 'Quantitative Statistical Momentum & Volatility Parity',
+    horizon: '1–10 Trading Days',
+    inspiration: 'Jim Simons (Renaissance Technologies)',
+    description:
+      "Modeled on Jim Simons's systematic framework at Renaissance Technologies, this agent identifies confirmed statistical momentum breakouts, trend efficiency, and volume surges across the Nifty 500 universe. Positions are sized mathematically via volatility parity rather than subjective conviction. Stalled or decaying trades are pruned aggressively to continually recycle capital into fresh mathematical edges.",
+  },
+  lynch: {
+    school: 'Growth-at-a-Reasonable-Price (GARP) & Cash Conversion',
+    horizon: '15–60 Trading Days',
+    inspiration: 'Peter Lynch (Fidelity Magellan)',
+    description:
+      "Embodying Peter Lynch's classic GARP methodology (One Up On Wall Street), this agent targets understandable compounding franchises with durable operational margins, high return on capital (ROCE), and clean cash conversion (CFO/PAT). Positions are anchored to strict valuation hurdles (PEG <= 1.0) and held through interim market noise to let underlying earnings growth drive returns.",
+  },
+  marks: {
+    school: 'Second-Level Contrarian Value & Margin of Safety',
+    horizon: '30–90 Trading Days',
+    inspiration: 'Howard Marks (Oaktree Capital)',
+    description:
+      "Rooted in Howard Marks's second-level thinking (The Most Important Thing), this agent hunts for solvent, high-quality businesses experiencing extreme cyclical despair or forced institutional selling. It demands an asymmetric margin of safety, controlling downside risk through deep valuation buffers and sector diversification rather than tight mechanical stop losses.",
+  },
+  jhunjhunwala: {
+    school: 'High-Conviction Structural Growth & Pyramiding',
+    horizon: '90–180 Trading Days',
+    inspiration: 'Rakesh Jhunjhunwala (Rare Enterprises)',
+    description:
+      "Inspired by Rakesh Jhunjhunwala's compounding philosophy in Indian equities, this agent backs ambitious promoters with substantial skin-in-the-game riding multi-year capex and consumption tailwinds. It takes concentrated high-conviction positions and pyramids into winning structural themes, patiently absorbing interim drawdowns to capture multi-quarter upside.",
+  },
+  'stockminds-core': {
+    school: 'Dual-Confluence Swing & DCF Margin-of-Safety',
+    horizon: '5–20 Trading Days',
+    inspiration: 'Zerodha Varsity (Karthik Rangappa)',
+    description:
+      "Operating on the Zerodha Varsity framework (Modules 2, 3, and 9), this agent enforces a strict dual-confluence mandate: fundamental balance sheet solvency and DCF cash flow conservatism determine what to buy, while classical technical momentum (EMA stacks and pullback support) dictates when to execute. Neither discipline trades in isolation.",
+  },
+  varsity: {
+    school: 'Dual-Confluence Swing & DCF Margin-of-Safety',
+    horizon: '5–20 Trading Days',
+    inspiration: 'Zerodha Varsity (Karthik Rangappa)',
+    description:
+      "Operating on the Zerodha Varsity framework (Modules 2, 3, and 9), this agent enforces a strict dual-confluence mandate: fundamental balance sheet solvency and DCF cash flow conservatism determine what to buy, while classical technical momentum (EMA stacks and pullback support) dictates when to execute. Neither discipline trades in isolation.",
+  },
+};
+
+function getPersonaProfile(agentId: string): PersonaProfile {
+  const baseKey = agentId
+    .replace('baseline-', '')
+    .replace('-rules', '')
+    .replace('rj', 'jhunjhunwala');
+  const baseProfile = PERSONA_PROFILES[baseKey] || PERSONA_PROFILES['simons'];
+
+  if (agentId.startsWith('baseline-') || agentId.includes('rules')) {
+    return {
+      school: `${baseProfile.school} (Algorithmic Control Benchmark)`,
+      horizon: baseProfile.horizon,
+      inspiration: `Deterministic Control Group · Zero LLM Inference`,
+      description: `The non-cognitive scientific control benchmark for the ${baseProfile.inspiration} strategy. It executes the exact mathematical screening thresholds, hard stops, and ranking rules deterministically without LLM inference, prompt reflection, or heuristic adaptation, serving to rigorously isolate the net cognitive alpha added by LLM reasoning.`,
+    };
+  }
+
+  return baseProfile;
+}
 
 const AGENT_LIST = [
-  { id: 'simons', name: 'Jim Simons (LLM)' },
+  { id: 'simons', name: 'Jim Simons' },
   { id: 'lynch', name: 'Peter Lynch' },
   { id: 'marks', name: 'Howard Marks' },
   { id: 'jhunjhunwala', name: 'Rakesh Jhunjhunwala' },
-  { id: 'varsity', name: 'StockMinds Core (Varsity)' },
+  { id: 'stockminds-core', name: 'StockMinds Core' },
   { id: 'baseline-simons-rules', name: 'Simons (Rules Baseline)' },
   { id: 'baseline-lynch-rules', name: 'Lynch (Rules Baseline)' },
   { id: 'baseline-marks-rules', name: 'Marks (Rules Baseline)' },
@@ -45,74 +111,161 @@ export default function Portfolio() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [heuristics, setHeuristics] = useState<HeuristicMemory[]>([]);
-  const [activeTab, setActiveTab] = useState<'active' | 'past' | 'orders' | 'decisions' | 'heuristics'>('active');
+  const [navHistory, setNavHistory] = useState<NavHistoryPoint[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isMock, setIsMock] = useState(getIsMockMode());
 
   useEffect(() => {
     async function loadData() {
       setLoading(true);
       try {
-        const [allAgents, posData, orderData, decData, memData] = await Promise.all([
+        const [allAgents, posData, orderData, decData, memData, navData] = await Promise.all([
           apiService.getLeaderboard(),
           apiService.getAgentPositions(currentAgentId),
           apiService.getAgentOrders(currentAgentId),
           apiService.getAgentDecisions(currentAgentId),
           apiService.getAgentMemory(currentAgentId),
+          apiService.getAgentNavHistory(),
         ]);
 
-        const current = allAgents.find((a) => a.id === currentAgentId) || allAgents[0] || null;
+        // Prioritize EXACT ID match first to prevent rules control collision
+        const current =
+          allAgents.find((a) => a.id === currentAgentId) ||
+          allAgents.find(
+            (a) =>
+              a.id.replace('baseline-', '').replace('-rules', '') === currentAgentId ||
+              (currentAgentId === 'varsity' && a.id === 'stockminds-core')
+          ) ||
+          allAgents[0] ||
+          null;
+
         setAgent(current);
         setPositions(posData);
         setOrders(orderData);
         setDecisions(decData);
         setHeuristics(memData);
+        setNavHistory(navData);
       } finally {
         setLoading(false);
       }
     }
     loadData();
-    const handleSync = () => loadData();
+    const handleSync = () => {
+      setIsMock(getIsMockMode());
+      loadData();
+    };
     window.addEventListener('mock_mode_changed', handleSync);
     return () => window.removeEventListener('mock_mode_changed', handleSync);
   }, [currentAgentId]);
 
+  const handleToggleMockMode = () => {
+    const next = !isMock;
+    setIsMock(next);
+    setMockMode(next);
+  };
+
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-24 flex justify-center items-center">
-        <div className="flex items-center gap-3 text-slate-400 font-mono text-sm">
-          <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          <span>Loading agent portfolio...</span>
+      <div className="max-w-7xl mx-auto px-4 py-28 flex justify-center items-center font-mono">
+        <div className="flex items-center gap-3 text-zinc-500 text-xs">
+          <div className="w-4 h-4 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin" />
+          <span>Synchronizing strategy telemetry...</span>
         </div>
       </div>
     );
   }
 
   const activePositions = positions.filter((p) => p.status === 'OPEN');
-  const closedPositions = positions.filter((p) => p.status === 'CLOSED');
+  const costBasisPaise = activePositions.reduce((acc, p) => acc + p.quantity * p.entryPricePaise, 0);
+  const currentInvestedPaise = activePositions.reduce((acc, p) => acc + p.quantity * p.currentPricePaise, 0);
+  const totalNavPaise = agent?.navPaise || 10000000;
+  const startingCapitalPaise = agent?.startingCapitalPaise || 10000000;
+  const cashPaise = Math.max(0, totalNavPaise - currentInvestedPaise);
+  const unrealizedPnLPaise = currentInvestedPaise - costBasisPaise;
+  const netGainPaise = totalNavPaise - startingCapitalPaise;
+  const totalReturnPct = agent?.returnPct !== 0 ? (agent?.returnPct ?? 0) : (netGainPaise / startingCapitalPaise) * 100;
+  const alphaPct = agent?.alphaVsBenchmarkPct ?? 0;
 
-  const investedPaise = activePositions.reduce((acc, p) => acc + p.quantity * p.entryPricePaise, 0);
-  const cashPaise = (agent?.navPaise || 10000000) - investedPaise;
-  const config = STRATEGY_THEME[currentAgentId] || STRATEGY_THEME.simons;
+  const holdingsWeightPct = totalNavPaise > 0 ? (currentInvestedPaise / totalNavPaise) * 100 : 0;
+  const cashWeightPct = totalNavPaise > 0 ? (cashPaise / totalNavPaise) * 100 : 0;
+
+  const isRulesControl =
+    currentAgentId.startsWith('baseline-') ||
+    currentAgentId.includes('rules') ||
+    (agent?.name || '').toLowerCase().includes('rules');
+
+  const cleanAgentName = (agent?.name || currentAgentId)
+    .replace(' (LLM)', '')
+    .replace(' (Rules Baseline)', '')
+    .replace(' (Rules Control)', '');
+
+  const personaProfile = getPersonaProfile(currentAgentId);
+
+  // Build dual-curve points for this agent
+  const dualCurvePoints = (() => {
+    if (navHistory.length > 0) {
+      return navHistory.map((pt) => {
+        const key = currentAgentId.replace('baseline-', '').replace('-rules', '');
+        const rawVal =
+          (pt as any)[currentAgentId] ??
+          (pt as any)[key] ??
+          (currentAgentId === 'stockminds-core' ? pt.stockmindsCore : undefined) ??
+          100000;
+        const portfolioValuePaise = rawVal > 2000000 ? rawVal : rawVal * 100;
+        const investedCapitalPaise = startingCapitalPaise;
+
+        return {
+          date: pt.date,
+          portfolioValuePaise,
+          investedCapitalPaise,
+        };
+      });
+    }
+
+    const initialPaise = startingCapitalPaise;
+    const diff = totalNavPaise - initialPaise;
+    return [
+      { date: '2026-10-15', portfolioValuePaise: initialPaise, investedCapitalPaise: initialPaise },
+      { date: '2026-10-19', portfolioValuePaise: Math.round(initialPaise + diff * 0.3), investedCapitalPaise: initialPaise },
+      { date: '2026-10-22', portfolioValuePaise: Math.round(initialPaise + diff * 0.7), investedCapitalPaise: initialPaise },
+      { date: '2026-10-26', portfolioValuePaise: totalNavPaise, investedCapitalPaise: initialPaise },
+    ];
+  })();
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 animate-fade-in font-sans">
-      {/* Top Bar Navigation */}
-      <div className="flex items-center justify-between">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10 animate-hero-entrance font-sans">
+      
+      {/* 1. TOP ANCHOR: BACK LINK & STRATEGY SELECTOR & DATA SOURCE TOGGLE */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-white/[0.08] pb-4">
         <Link
           to="/leaderboard"
-          className="inline-flex items-center gap-2 text-xs font-mono text-slate-400 hover:text-white transition-colors"
+          className="inline-flex items-center gap-2 text-xs font-mono text-zinc-400 hover:text-white transition-colors"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Back to Strategy Leaderboard</span>
         </Link>
 
-        {/* Strategy Switcher */}
-        <div className="flex items-center gap-2 text-xs font-mono">
-          <span className="text-slate-500 hidden sm:inline">Active Strategy:</span>
+        {/* Strategy Switcher Dropdown & Live API Mode Pill */}
+        <div className="flex items-center gap-3 text-xs font-mono">
+          <button
+            onClick={handleToggleMockMode}
+            className={`px-2.5 py-1 rounded text-[11px] font-mono border transition-colors cursor-pointer ${
+              !isMock
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 font-medium hover:bg-emerald-500/20'
+                : 'bg-amber-500/10 border-amber-500/30 text-amber-400 font-medium hover:bg-amber-500/20'
+            }`}
+            title="Toggle between Live FastAPI backend data and calibrated Mock Fixtures"
+          >
+            {!isMock ? '● Live Backend API' : '⚡ Mock Fixture'}
+          </button>
+
+          <span className="text-zinc-500 uppercase tracking-wider text-[11px] hidden sm:inline">
+            Active Strategy:
+          </span>
           <select
             value={currentAgentId}
             onChange={(e) => navigate(`/portfolio/${e.target.value}`)}
-            className="bg-[#0A0A0E] border border-white/10 text-white rounded px-3 py-1.5 font-mono text-xs cursor-pointer focus:ring-1 focus:ring-blue-500"
+            className="bg-black border border-white/15 text-white rounded-sm px-3 py-1.5 font-mono text-xs cursor-pointer focus:outline-none focus:border-[#D4AF37]/60"
           >
             {AGENT_LIST.map((ag) => (
               <option key={ag.id} value={ag.id}>
@@ -123,277 +276,144 @@ export default function Portfolio() {
         </div>
       </div>
 
-      {/* Hero Identity Banner */}
-      <div className="arena-glass p-6 sm:p-7 space-y-4">
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-                {agent?.name || currentAgentId}
-              </h1>
-              <span
-                className={`px-2.5 py-0.5 rounded text-[10px] font-mono border ${
-                  config.badge === 'RULES'
-                    ? 'bg-white/5 text-slate-400 border-white/10'
-                    : 'bg-blue-500/15 text-blue-300 border-blue-500/30'
-                }`}
-              >
-                {config.badge === 'RULES' ? 'Rules Control' : 'LLM Persona'}
+      {/* 2. PERSONA DOSSIER BRIEFING: PHILOSOPHY, WORLDVIEW & DISCIPLINE (2-3 LINE EXPANSION) */}
+      <div className="space-y-3 pb-6 border-b border-white/[0.08]">
+        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
+          <h1 className="text-3xl sm:text-4xl font-display font-medium tracking-tight text-white">
+            {cleanAgentName}
+          </h1>
+
+          {/* Persona Metadata Badges */}
+          <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono">
+            <span className="px-2 py-0.5 rounded bg-[#D4AF37]/10 text-[#D4AF37] border border-[#D4AF37]/25 font-medium">
+              {personaProfile.school}
+            </span>
+            <span className="px-2 py-0.5 rounded bg-white/[0.04] text-zinc-400 border border-white/10">
+              Horizon: {personaProfile.horizon}
+            </span>
+            <span className="px-2 py-0.5 rounded bg-white/[0.04] text-zinc-300 border border-white/10">
+              {isRulesControl ? 'Control Group: Deterministic' : 'Engine: Autonomous LLM'}
+            </span>
+          </div>
+        </div>
+
+        {/* 2-3 Line Descriptive Overview (Informed by Codebase & Plan) */}
+        <p className="text-sm sm:text-[15px] text-zinc-300 font-sans leading-relaxed max-w-4xl">
+          {personaProfile.description}
+        </p>
+      </div>
+
+      {/* 3. HERO: UNIFIED VALUATION CARD (LEFT) & STREAMLINED HOLDINGS STACK (RIGHT) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+        
+        {/* Left Card: Unified Valuation & Curve (lg:col-span-7 ~58% width, left-aligned) */}
+        <div className="lg:col-span-7 bg-white/[0.02] border border-white/[0.08] p-5 sm:p-6 rounded-sm flex flex-col justify-between space-y-5">
+          {/* Top: Current NAV & Key Return Deltas */}
+          <div className="space-y-3 pb-3 border-b border-white/[0.08]">
+            <div className="flex flex-wrap justify-between items-baseline gap-3">
+              <div>
+                <span className="text-[11px] font-mono uppercase tracking-wider text-zinc-400 block font-sans">
+                  Portfolio Valuation
+                </span>
+                <div className="text-3xl sm:text-4xl font-display font-medium text-white tracking-tight mt-0.5">
+                  {formatPaiseToRupees(totalNavPaise)}
+                </div>
+              </div>
+
+              {/* Net All-Time Return & Rupee Return */}
+              <div className="text-right font-mono">
+                <span
+                  className={`text-sm font-semibold tabular-nums ${
+                    totalReturnPct >= 0 ? 'text-emerald-400' : 'text-[#c4553f]'
+                  }`}
+                >
+                  {formatPct(totalReturnPct)}{' '}
+                  <span className="text-xs text-zinc-400 font-normal">
+                    ({netGainPaise >= 0 ? '+' : ''}{formatPaiseToRupees(netGainPaise)})
+                  </span>
+                </span>
+                <div className="text-[11px] text-zinc-500 mt-0.5 font-sans">
+                  Alpha vs Benchmark: <span className={`font-mono ${alphaPct >= 0 ? 'text-emerald-400/90' : 'text-[#c4553f]'}`}>{formatPct(alphaPct)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Sub-bar: Transparent Capital Deployment Split */}
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs font-mono text-zinc-400 pt-1">
+              <span>
+                Holdings: <strong className="text-white font-medium">{formatPaiseToRupees(currentInvestedPaise)}</strong>{' '}
+                <span className="text-zinc-500 text-[11px]">({holdingsWeightPct.toFixed(1)}%)</span>
+              </span>
+              <span className="text-white/20">·</span>
+              <span>
+                Cash: <strong className="text-[#D4AF37] font-medium">{formatPaiseToRupees(cashPaise)}</strong>{' '}
+                <span className="text-zinc-500 text-[11px]">({cashWeightPct.toFixed(1)}%)</span>
+              </span>
+              <span className="text-white/20">·</span>
+              <span>
+                Cost Basis: <strong className="text-zinc-300 font-medium">{formatPaiseToRupees(costBasisPaise)}</strong>
+              </span>
+              <span className="text-white/20">·</span>
+              <span>
+                Unrealized:{' '}
+                <strong
+                  className={`font-semibold ${
+                    unrealizedPnLPaise >= 0 ? 'text-emerald-400' : 'text-[#c4553f]'
+                  }`}
+                >
+                  {unrealizedPnLPaise >= 0 ? '+' : ''}{formatPaiseToRupees(unrealizedPnLPaise)}
+                </strong>
               </span>
             </div>
-
-            <p className="text-xs sm:text-sm text-slate-400 max-w-2xl leading-relaxed">
-              {agent?.philosophy}
-            </p>
-
-            <div className="flex flex-wrap items-center gap-4 text-xs font-mono text-slate-500 pt-1">
-              <span>Family: <strong className="text-white">{config.family}</strong></span>
-              <span>·</span>
-              <span>Universe: <strong className="text-white">NSE Nifty 500</strong></span>
-              <span>·</span>
-              <span>Metric Faithfulness: <strong className="text-purple-400">{agent?.faithfulnessRatePct.toFixed(1)}%</strong></span>
-            </div>
           </div>
 
-          {/* Capital Matrix Inset */}
-          <div className="arena-glass-subdued p-5 rounded-xl border border-white/10 flex items-center gap-6 font-mono text-xs">
-            <div>
-              <div className="text-[10px] text-slate-500 uppercase">Portfolio NAV</div>
-              <div className="text-xl font-bold text-white mt-0.5">
-                {formatPaiseToRupees(agent?.navPaise)}
-              </div>
-              <div className={`text-[11px] font-semibold mt-0.5 ${(agent?.returnPct || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                {formatPct(agent?.returnPct)} (Alpha: +{formatPct(agent?.alphaVsBenchmarkPct)})
-              </div>
+          {/* Streamlined Dual Growth Curve (Minimalist & Uncluttered) */}
+          <div className="py-1">
+            <PortfolioDualCurve
+              navPoints={dualCurvePoints}
+              color={isRulesControl ? '#38BDF8' : '#10B981'}
+              height={205}
+            />
+          </div>
+
+          {/* Essential Institutional Metrics Strip (Clean, 3 Core Stats) */}
+          <div className="grid grid-cols-3 gap-3 pt-3 border-t border-white/[0.08] text-center font-mono text-xs">
+            <div className="p-2.5 bg-black/40 rounded border border-white/5">
+              <span className="text-[10px] text-zinc-500 block uppercase font-sans tracking-wider">Sharpe Ratio</span>
+              <span className="font-semibold text-white text-sm mt-0.5 block">{(agent?.sharpeRatio ?? 0).toFixed(2)}</span>
             </div>
-
-            <div className="h-10 w-px bg-white/10" />
-
-            <div className="space-y-1 text-[11px]">
-              <div>
-                <span className="text-slate-500">Available Cash: </span>
-                <span className="font-semibold text-white">{formatPaiseToRupees(cashPaise)}</span>
-              </div>
-              <div>
-                <span className="text-slate-500">Invested Equity: </span>
-                <span className="font-semibold text-white">{formatPaiseToRupees(investedPaise)}</span>
-              </div>
-              <div>
-                <span className="text-slate-500">Open Positions: </span>
-                <span className="font-semibold text-white">{activePositions.length} stocks</span>
-              </div>
+            <div className="p-2.5 bg-black/40 rounded border border-white/5">
+              <span className="text-[10px] text-zinc-500 block uppercase font-sans tracking-wider">Max Drawdown</span>
+              <span className="font-semibold text-zinc-300 text-sm mt-0.5 block">{formatPct(agent?.maxDrawdownPct ?? 0)}</span>
+            </div>
+            <div className="p-2.5 bg-black/40 rounded border border-white/5">
+              <span className="text-[10px] text-zinc-500 block uppercase font-sans tracking-wider">Win Rate</span>
+              <span className="font-semibold text-white text-sm mt-0.5 block">{formatPct(agent?.winRatePct ?? 0)}</span>
             </div>
           </div>
         </div>
+
+        {/* Right Card: Holdings Linear Stack (lg:col-span-5 ~42% width) */}
+        <div className="lg:col-span-5">
+          <HoldingsLinearStack
+            positions={positions}
+            cashPaise={cashPaise}
+            totalNavPaise={totalNavPaise}
+          />
+        </div>
+
       </div>
 
-      {/* Small Sample Warning */}
-      <SmallSampleNotice closedTradesCount={agent?.closedTrades || 0} threshold={30} />
+      {/* 4. STANDALONE LEARNED MEMORY BANK (HIGH LEGIBILITY, CAUSAL HEURISTICS) */}
+      <LearnedMemoryBankSection heuristics={heuristics} />
 
-      {/* Segmented Navigation Tabs */}
-      <div className="flex border-b border-white/10 space-x-6 text-xs font-mono font-medium overflow-x-auto">
-        {[
-          { key: 'active', label: 'Active Positions', count: activePositions.length, icon: Briefcase },
-          { key: 'past', label: 'Past Trades Ledger', count: closedPositions.length, icon: History },
-          { key: 'orders', label: 'Broker Orders', count: orders.length, icon: ListOrdered },
-          { key: 'decisions', label: 'Decisions Audit', count: decisions.length, icon: Brain },
-          { key: 'heuristics', label: 'Heuristic Memory', count: heuristics.length, icon: Layers },
-        ].map(({ key, label, count, icon: Icon }) => (
-          <button
-            key={key}
-            onClick={() => setActiveTab(key as typeof activeTab)}
-            className={`pb-3.5 flex items-center gap-2 border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === key
-                ? 'border-blue-500 text-white font-semibold'
-                : 'border-transparent text-slate-400 hover:text-white'
-            }`}
-          >
-            <Icon className="w-4 h-4 text-blue-400" />
-            <span>{label}</span>
-            <span className="px-2 py-0.5 rounded-full text-[10px] bg-white/[0.04] text-slate-400 border border-white/10">
-              {count}
-            </span>
-          </button>
-        ))}
-      </div>
+      {/* 5. INTEGRATED TRADE EXECUTION & DECISION LEDGER (TRADES + VERBATIM LLM MEMOS) */}
+      <IntegratedTradesSection
+        positions={positions}
+        decisions={decisions}
+        orders={orders}
+      />
 
-      {/* TAB CONTENT */}
-      {activeTab === 'active' && (
-        <PositionTable
-          positions={activePositions}
-          title="Active Positions (Current Holdings)"
-          defaultStatus="OPEN"
-        />
-      )}
-
-      {activeTab === 'past' && (
-        <PositionTable
-          positions={closedPositions}
-          title="Historical Trade Log & Forensics Ledger"
-          defaultStatus="CLOSED"
-        />
-      )}
-
-      {activeTab === 'orders' && (
-        <div className="arena-glass overflow-hidden shadow-2xl">
-          <div className="p-5 border-b border-white/10 bg-white/[0.02]">
-            <h3 className="text-base font-bold text-white">
-              Broker Execution & Audit Log
-            </h3>
-            <p className="text-xs text-slate-400">
-              Limit orders matched against daily OHLCV bands. Unfilled orders expire daily at 15:30 IST.
-            </p>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs font-mono text-slate-200">
-              <thead className="bg-white/[0.02] text-[11px] text-slate-400 border-b border-white/10">
-                <tr>
-                  <th className="py-3 px-4 font-semibold">Order ID</th>
-                  <th className="py-3 px-4 font-semibold">Symbol</th>
-                  <th className="py-3 px-4 font-semibold">Side / Type</th>
-                  <th className="py-3 px-4 text-right font-semibold">Quantity</th>
-                  <th className="py-3 px-4 text-right font-semibold">Limit Price</th>
-                  <th className="py-3 px-4 text-right font-semibold">Filled Price</th>
-                  <th className="py-3 px-4 font-semibold">Status</th>
-                  <th className="py-3 px-4 text-right font-semibold">Charges</th>
-                  <th className="py-3 px-4 font-semibold">Submitted (IST)</th>
-                  <th className="py-3 px-4 font-semibold">Notes / Rejection Reason</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {orders.map((ord) => (
-                  <tr key={ord.id} className="hover:bg-white/[0.04] transition-colors">
-                    <td className="py-3 px-4 text-slate-500">#{ord.id}</td>
-                    <td className="py-3 px-4 font-bold text-white">{ord.symbol}</td>
-                    <td className="py-3 px-4">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${ord.side === 'BUY' ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : 'bg-rose-500/15 text-rose-400 border-rose-500/30'}`}>
-                        {ord.side}
-                      </span>{' '}
-                      <span className="text-slate-500 text-[10px]">{ord.orderType}</span>
-                    </td>
-                    <td className="py-3 px-4 text-right text-white font-medium">{ord.quantity}</td>
-                    <td className="py-3 px-4 text-right text-slate-400">{formatPaiseToRupees(ord.limitPricePaise)}</td>
-                    <td className="py-3 px-4 text-right text-white font-semibold">
-                      {ord.filledPricePaise ? formatPaiseToRupees(ord.filledPricePaise) : '-'}
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${
-                        ord.status === 'FILLED' ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' :
-                        ord.status === 'EXPIRED' ? 'bg-amber-500/15 text-amber-400 border-amber-500/30' :
-                        ord.status === 'REJECTED' ? 'bg-rose-500/15 text-rose-400 border-rose-500/30' : 'bg-white/5 text-slate-400 border-white/10'
-                      }`}>
-                        {ord.status}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-right text-slate-400">
-                      {formatPaiseToRupees(ord.statutoryChargesPaise)}
-                    </td>
-                    <td className="py-3 px-4 text-[11px] text-slate-400">
-                      {formatISTDateTime(ord.submittedAt)}
-                    </td>
-                    <td className="py-3 px-4 text-slate-400 text-[11px] truncate max-w-xs font-sans">
-                      {ord.rejectionReason || 'Filled with standard statutory charges.'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'decisions' && (
-        <div className="space-y-4">
-          <div className="arena-glass p-5">
-            <h3 className="font-bold text-base text-white">
-              Decision Faithfulness & Verbatim Rationale Inspector
-            </h3>
-            <p className="text-xs text-slate-400">
-              Every metric citation is deterministically checked against the saved market snapshot.
-            </p>
-          </div>
-
-          {decisions.map((dec) => (
-            <div key={dec.id} className="arena-glass p-5 space-y-3">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-white/10 pb-3">
-                <div className="flex items-center gap-2.5">
-                  <span className={`px-2.5 py-0.5 rounded text-xs font-mono font-medium border ${
-                    dec.action === 'BUY' ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : 'bg-white/5 text-slate-400 border-white/10'
-                  }`}>
-                    {dec.action} {dec.symbol}
-                  </span>
-                  <span className="text-xs font-mono text-slate-500">
-                    Date: {dec.decisionDate}
-                  </span>
-                </div>
-
-                <div className="text-xs font-mono text-purple-300 bg-purple-500/15 px-2.5 py-0.5 rounded border border-purple-500/30">
-                  Faithfulness: {(dec.faithfulnessScore * 100).toFixed(0)}%
-                </div>
-              </div>
-
-              <div className="p-4 rounded-xl bg-black/40 text-xs text-slate-200 leading-relaxed italic border border-white/10">
-                "{dec.rationale}"
-              </div>
-
-              {/* Cited Metrics Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1 font-mono text-xs">
-                {dec.citedMetrics.map((cm, i) => (
-                  <div key={i} className="p-3 rounded-lg border border-white/10 bg-black/30 flex justify-between items-center">
-                    <div>
-                      <span className="text-[11px] text-slate-500 block">{cm.name}</span>
-                      <span className="font-semibold text-white">
-                        Cited: {cm.citedValue} <span className="text-slate-500 font-normal">(Truth: {cm.actualSnapshotValue})</span>
-                      </span>
-                    </div>
-                    <span className="text-emerald-400 font-bold text-xs">✓</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {activeTab === 'heuristics' && (
-        <div className="space-y-4">
-          <div className="arena-glass p-5">
-            <h3 className="font-bold text-base text-white">
-              Causal Forensics & Heuristic Memory Bank
-            </h3>
-            <p className="text-xs text-slate-400">
-              Machine-checkable rules extracted by the weekly reflection loop from closed trade post-mortems.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {heuristics.map((h) => (
-              <div key={h.id} className="arena-glass p-5 space-y-3">
-                <div className="flex justify-between items-center text-xs font-mono">
-                  <span className={`px-2 py-0.5 rounded font-semibold border ${
-                    h.kind === 'AVOID' ? 'bg-rose-500/15 text-rose-400 border-rose-500/30' : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-                  }`}>
-                    {h.kind}
-                  </span>
-                  <span className="px-2 py-0.5 rounded bg-white/5 text-slate-400 font-medium border border-white/10">
-                    {h.status}
-                  </span>
-                </div>
-
-                <p className="text-xs font-medium text-slate-200 leading-relaxed font-sans">
-                  {h.ruleDescription}
-                </p>
-
-                <div className="flex justify-between items-center text-xs font-mono text-slate-500 pt-3 border-t border-white/10">
-                  <span>Confidence: <strong className="text-white">{(h.confidenceScore * 100).toFixed(0)}%</strong></span>
-                  <span>Tested: <strong className="text-white">{h.timesApplied}x ({h.successRatePct.toFixed(0)}% win)</strong></span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -59,7 +59,7 @@ export default function TradeAutopsyDrawer({ trade, onClose }: TradeAutopsyDrawe
                   {formatPaiseToRupees(trade.realizedPnlPaise)}
                 </span>
                 <span className={`text-xs ml-1 ${isProfit ? 'text-emerald-400' : 'text-rose-400'}`}>
-                  ({isProfit ? `+${formatPct(trade.realizedPnlPct)}` : formatPct(trade.realizedPnlPct)})
+                  ({formatPct(trade.realizedPnlPct)})
                 </span>
               </div>
 

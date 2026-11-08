@@ -6,7 +6,12 @@ export type AgentId =
   | 'marks' 
   | 'jhunjhunwala' 
   | 'stockminds-core' 
-  | 'baseline-simons-rules';
+  | 'baseline-simons-rules'
+  | 'baseline-lynch-rules'
+  | 'baseline-marks-rules'
+  | 'baseline-rj-rules'
+  | 'baseline-varsity-rules'
+  | (string & {});
 
 export interface AgentLeaderboardEntry {
   id: AgentId;
@@ -128,11 +133,15 @@ export interface HeuristicMemory {
 export interface NavHistoryPoint {
   date: string;
   simons: number;
+  baselineSimons?: number;
   lynch: number;
+  baselineLynch?: number;
   marks: number;
+  baselineMarks?: number;
   jhunjhunwala: number;
+  baselineRj?: number;
   stockmindsCore: number;
-  baselineSimons: number;
+  baselineVarsity?: number;
   nifty500: number;
 }
 

@@ -12,6 +12,8 @@ import type {
   AgentId,
 } from '../types';
 
+import { STRATEGY_THEME } from '../theme/tokens';
+
 import {
   MOCK_LEADERBOARD,
   MOCK_POSITIONS,
@@ -164,11 +166,15 @@ function normalizeNavHistory(raw: any[]): NavHistoryPoint[] {
     return {
       date: r.date || '',
       simons: vals.simons ?? 10000000,
-      lynch: vals.lynch ?? 10000000,
-      marks: vals.marks ?? 10000000,
-      jhunjhunwala: vals.jhunjhunwala ?? 10000000,
-      stockmindsCore: vals.varsity ?? vals['stockminds-core'] ?? 10000000,
       baselineSimons: vals['baseline-simons-rules'] ?? 10000000,
+      lynch: vals.lynch ?? 10000000,
+      baselineLynch: vals['baseline-lynch-rules'] ?? 10000000,
+      marks: vals.marks ?? 10000000,
+      baselineMarks: vals['baseline-marks-rules'] ?? 10000000,
+      jhunjhunwala: vals.jhunjhunwala ?? 10000000,
+      baselineRj: vals['baseline-rj-rules'] ?? 10000000,
+      stockmindsCore: vals.varsity ?? vals['stockminds-core'] ?? 10000000,
+      baselineVarsity: vals['baseline-varsity-rules'] ?? 10000000,
       nifty500: vals.nifty500 ?? 10000000,
     };
   });
@@ -373,6 +379,83 @@ export const apiService = {
     }
   },
 
+  async getRunLeaderboard(windowId: string): Promise<AgentLeaderboardEntry[]> {
+    if (getIsMockMode()) {
+      return getMockRunLeaderboard(windowId);
+    }
+    try {
+      const data = await fetchFromBackend<any>(`/backtest/runs/${windowId}/leaderboard`);
+      const rawList = data?.leaderboard || [];
+      if (!Array.isArray(rawList) || rawList.length === 0) {
+        return getMockRunLeaderboard(windowId);
+      }
+      return rawList.map((r: any) => {
+        const canonicalId = r.agent_id === 'varsity' ? 'stockminds-core' : r.agent_id;
+        const theme = STRATEGY_THEME[canonicalId] || STRATEGY_THEME[r.agent_id];
+        return {
+          id: r.agent_id as AgentId,
+          name: theme?.name || r.agent_id,
+          philosophy: theme?.family || '',
+          horizonDays: getHorizonForAgent(r.agent_id),
+          navPaise: r.current_nav_paise ?? 50000000,
+          startingCapitalPaise: r.initial_nav_paise ?? 50000000,
+          returnPct: r.total_return_pct ?? 0,
+          alphaVsBenchmarkPct: r.alpha_pct ?? 0,
+          sharpeRatio: r.sharpe_ratio ?? 0,
+          maxDrawdownPct: Math.abs(r.max_drawdown_pct ?? 0),
+          winRatePct: r.win_rate_pct ?? 0,
+          faithfulnessRatePct: r.philosophy_adherence_pct ?? (r.avg_faithfulness ? Math.round(r.avg_faithfulness * 100) : 100),
+          totalTrades: r.total_closed_trades ?? 0,
+          closedTrades: r.total_closed_trades ?? 0,
+          isProvisional: r.is_provisional ?? (r.total_closed_trades < 30),
+          activePositionsCount: 3,
+          lastActiveDate: '2025-11-21',
+        };
+      });
+    } catch {
+      return getMockRunLeaderboard(windowId);
+    }
+  },
+
+  async getRunNavHistory(windowId: string): Promise<NavHistoryPoint[]> {
+    if (getIsMockMode()) {
+      return getMockRunNavHistory(windowId);
+    }
+    try {
+      const data = await fetchFromBackend<any>(`/backtest/runs/${windowId}/nav`);
+      const rawSeries = data?.nav_series || [];
+      if (!Array.isArray(rawSeries) || rawSeries.length === 0) {
+        return getMockRunNavHistory(windowId);
+      }
+      const first = rawSeries[0];
+      const startingCashPaise = first?.simons || 50000000;
+      const startingCashRupees = startingCashPaise / 100;
+      const baseNifty = first?.nifty500 || 1;
+
+      return rawSeries.map((r: any) => {
+        const niftyRatio = baseNifty > 0 ? (r.nifty500 || baseNifty) / baseNifty : 1;
+        const niftyScaledRupees = Math.round(startingCashRupees * niftyRatio);
+
+        return {
+          date: r.date,
+          simons: Math.round((r.simons ?? startingCashPaise) / 100),
+          baselineSimons: Math.round((r['baseline-simons-rules'] ?? startingCashPaise) / 100),
+          lynch: Math.round((r.lynch ?? startingCashPaise) / 100),
+          baselineLynch: Math.round((r['baseline-lynch-rules'] ?? startingCashPaise) / 100),
+          marks: Math.round((r.marks ?? startingCashPaise) / 100),
+          baselineMarks: Math.round((r['baseline-marks-rules'] ?? startingCashPaise) / 100),
+          jhunjhunwala: Math.round((r.jhunjhunwala ?? startingCashPaise) / 100),
+          baselineRj: Math.round((r['baseline-rj-rules'] ?? startingCashPaise) / 100),
+          stockmindsCore: Math.round((r.varsity ?? r['stockminds-core'] ?? startingCashPaise) / 100),
+          baselineVarsity: Math.round((r['baseline-varsity-rules'] ?? startingCashPaise) / 100),
+          nifty500: niftyScaledRupees,
+        };
+      });
+    } catch {
+      return getMockRunNavHistory(windowId);
+    }
+  },
+
   async checkBackendConnection(): Promise<boolean> {
     try {
       const res = await fetch(`${BASE_URL}/health`, { method: 'GET', signal: AbortSignal.timeout(2000) });
@@ -382,3 +465,72 @@ export const apiService = {
     }
   },
 };
+
+function getMockRunLeaderboard(windowId: string): AgentLeaderboardEntry[] {
+  const seed = 50000000; // ₹5,00,000 in paise
+  if (windowId.includes('w1')) {
+    return [
+      { id: 'baseline-marks-rules', name: 'Marks (Rules Baseline)', philosophy: 'Contrarian Value', horizonDays: '30–90 days', navPaise: 61315000, startingCapitalPaise: seed, returnPct: 22.63, alphaVsBenchmarkPct: 2.74, sharpeRatio: 0.85, maxDrawdownPct: 12.1, winRatePct: 64.0, faithfulnessRatePct: 100.0, totalTrades: 42, closedTrades: 38, isProvisional: false, activePositionsCount: 4, lastActiveDate: '2025-11-21' },
+      { id: 'marks', name: 'Howard Marks (LLM)', philosophy: 'Contrarian Value', horizonDays: '30–90 days', navPaise: 55020000, startingCapitalPaise: seed, returnPct: 10.04, alphaVsBenchmarkPct: -9.85, sharpeRatio: 0.42, maxDrawdownPct: 14.8, winRatePct: 58.0, faithfulnessRatePct: 96.5, totalTrades: 35, closedTrades: 31, isProvisional: false, activePositionsCount: 3, lastActiveDate: '2025-11-21' },
+      { id: 'baseline-varsity-rules', name: 'Varsity (Rules Baseline)', philosophy: 'Dual Confluence', horizonDays: '20–60 days', navPaise: 54615000, startingCapitalPaise: seed, returnPct: 9.23, alphaVsBenchmarkPct: -10.66, sharpeRatio: 0.35, maxDrawdownPct: 16.2, winRatePct: 54.0, faithfulnessRatePct: 100.0, totalTrades: 48, closedTrades: 42, isProvisional: false, activePositionsCount: 4, lastActiveDate: '2025-11-21' },
+      { id: 'baseline-lynch-rules', name: 'Lynch (Rules Baseline)', philosophy: 'GARP', horizonDays: '60–120 days', navPaise: 52175000, startingCapitalPaise: seed, returnPct: 4.35, alphaVsBenchmarkPct: -15.54, sharpeRatio: 0.11, maxDrawdownPct: 15.1, winRatePct: 61.5, faithfulnessRatePct: 100.0, totalTrades: 39, closedTrades: 35, isProvisional: false, activePositionsCount: 3, lastActiveDate: '2025-11-21' },
+      { id: 'stockminds-core', name: 'StockMinds Core (LLM)', philosophy: 'Dual Confluence', horizonDays: '20–60 days', navPaise: 51830000, startingCapitalPaise: seed, returnPct: 3.66, alphaVsBenchmarkPct: -16.23, sharpeRatio: 0.12, maxDrawdownPct: 17.5, winRatePct: 50.0, faithfulnessRatePct: 98.4, totalTrades: 44, closedTrades: 40, isProvisional: false, activePositionsCount: 4, lastActiveDate: '2025-11-21' },
+      { id: 'baseline-simons-rules', name: 'Simons (Rules Baseline)', philosophy: 'Quant Momentum', horizonDays: '5–15 days', navPaise: 49030000, startingCapitalPaise: seed, returnPct: -1.94, alphaVsBenchmarkPct: -21.83, sharpeRatio: -0.08, maxDrawdownPct: 13.9, winRatePct: 48.0, faithfulnessRatePct: 100.0, totalTrades: 62, closedTrades: 58, isProvisional: false, activePositionsCount: 4, lastActiveDate: '2025-11-21' },
+      { id: 'simons', name: 'Jim Simons (LLM)', philosophy: 'Quant Momentum', horizonDays: '5–15 days', navPaise: 48235000, startingCapitalPaise: seed, returnPct: -3.53, alphaVsBenchmarkPct: -23.42, sharpeRatio: -0.22, maxDrawdownPct: 12.5, winRatePct: 52.0, faithfulnessRatePct: 98.0, totalTrades: 56, closedTrades: 51, isProvisional: false, activePositionsCount: 4, lastActiveDate: '2025-11-21' },
+      { id: 'lynch', name: 'Peter Lynch (LLM)', philosophy: 'GARP', horizonDays: '60–120 days', navPaise: 47000000, startingCapitalPaise: seed, returnPct: -6.00, alphaVsBenchmarkPct: -25.89, sharpeRatio: -0.32, maxDrawdownPct: 18.2, winRatePct: 44.0, faithfulnessRatePct: 96.0, totalTrades: 32, closedTrades: 28, isProvisional: true, activePositionsCount: 3, lastActiveDate: '2025-11-21' },
+      { id: 'baseline-rj-rules', name: 'Jhunjhunwala (Rules Baseline)', philosophy: 'Secular Growth', horizonDays: '90–180 days', navPaise: 46515000, startingCapitalPaise: seed, returnPct: -6.97, alphaVsBenchmarkPct: -26.86, sharpeRatio: -0.41, maxDrawdownPct: 19.5, winRatePct: 42.0, faithfulnessRatePct: 100.0, totalTrades: 25, closedTrades: 20, isProvisional: true, activePositionsCount: 4, lastActiveDate: '2025-11-21' },
+      { id: 'jhunjhunwala', name: 'Rakesh Jhunjhunwala (LLM)', philosophy: 'Secular Growth', horizonDays: '90–180 days', navPaise: 44755000, startingCapitalPaise: seed, returnPct: -10.49, alphaVsBenchmarkPct: -30.38, sharpeRatio: -0.55, maxDrawdownPct: 21.0, winRatePct: 38.0, faithfulnessRatePct: 95.0, totalTrades: 22, closedTrades: 18, isProvisional: true, activePositionsCount: 4, lastActiveDate: '2025-11-21' },
+    ];
+  }
+  if (windowId.includes('s1')) {
+    return [
+      { id: 'baseline-marks-rules', name: 'Marks (Rules Baseline)', philosophy: 'Contrarian Value', horizonDays: '30–90 days', navPaise: 52435000, startingCapitalPaise: seed, returnPct: 4.87, alphaVsBenchmarkPct: 8.82, sharpeRatio: 1.25, maxDrawdownPct: 3.2, winRatePct: 62.0, faithfulnessRatePct: 100.0, totalTrades: 18, closedTrades: 16, isProvisional: true, activePositionsCount: 3, lastActiveDate: '2025-06-30' },
+      { id: 'marks', name: 'Howard Marks (LLM)', philosophy: 'Contrarian Value', horizonDays: '30–90 days', navPaise: 51470000, startingCapitalPaise: seed, returnPct: 2.94, alphaVsBenchmarkPct: 6.89, sharpeRatio: 0.95, maxDrawdownPct: 3.8, winRatePct: 58.0, faithfulnessRatePct: 97.2, totalTrades: 15, closedTrades: 13, isProvisional: true, activePositionsCount: 2, lastActiveDate: '2025-06-30' },
+      { id: 'baseline-lynch-rules', name: 'Lynch (Rules Baseline)', philosophy: 'GARP', horizonDays: '60–120 days', navPaise: 50980000, startingCapitalPaise: seed, returnPct: 1.96, alphaVsBenchmarkPct: 5.91, sharpeRatio: 0.75, maxDrawdownPct: 4.1, winRatePct: 55.0, faithfulnessRatePct: 100.0, totalTrades: 14, closedTrades: 12, isProvisional: true, activePositionsCount: 3, lastActiveDate: '2025-06-30' },
+      { id: 'stockminds-core', name: 'StockMinds Core (LLM)', philosophy: 'Dual Confluence', horizonDays: '20–60 days', navPaise: 50765000, startingCapitalPaise: seed, returnPct: 1.53, alphaVsBenchmarkPct: 5.48, sharpeRatio: 0.65, maxDrawdownPct: 4.5, winRatePct: 52.0, faithfulnessRatePct: 99.0, totalTrades: 20, closedTrades: 18, isProvisional: true, activePositionsCount: 4, lastActiveDate: '2025-06-30' },
+      { id: 'baseline-varsity-rules', name: 'Varsity (Rules Baseline)', philosophy: 'Dual Confluence', horizonDays: '20–60 days', navPaise: 50285000, startingCapitalPaise: seed, returnPct: 0.57, alphaVsBenchmarkPct: 4.52, sharpeRatio: 0.45, maxDrawdownPct: 4.8, winRatePct: 50.0, faithfulnessRatePct: 100.0, totalTrades: 21, closedTrades: 19, isProvisional: true, activePositionsCount: 4, lastActiveDate: '2025-06-30' },
+      { id: 'baseline-simons-rules', name: 'Simons (Rules Baseline)', philosophy: 'Quant Momentum', horizonDays: '5–15 days', navPaise: 49825000, startingCapitalPaise: seed, returnPct: -0.35, alphaVsBenchmarkPct: 3.60, sharpeRatio: 0.25, maxDrawdownPct: 4.9, winRatePct: 48.0, faithfulnessRatePct: 100.0, totalTrades: 28, closedTrades: 26, isProvisional: true, activePositionsCount: 4, lastActiveDate: '2025-06-30' },
+      { id: 'simons', name: 'Jim Simons (LLM)', philosophy: 'Quant Momentum', horizonDays: '5–15 days', navPaise: 49340000, startingCapitalPaise: seed, returnPct: -1.32, alphaVsBenchmarkPct: 2.63, sharpeRatio: 0.15, maxDrawdownPct: 5.2, winRatePct: 46.0, faithfulnessRatePct: 98.2, totalTrades: 26, closedTrades: 24, isProvisional: true, activePositionsCount: 4, lastActiveDate: '2025-06-30' },
+      { id: 'jhunjhunwala', name: 'Rakesh Jhunjhunwala (LLM)', philosophy: 'Secular Growth', horizonDays: '90–180 days', navPaise: 49325000, startingCapitalPaise: seed, returnPct: -1.35, alphaVsBenchmarkPct: 2.60, sharpeRatio: 0.12, maxDrawdownPct: 5.5, winRatePct: 45.0, faithfulnessRatePct: 96.0, totalTrades: 10, closedTrades: 8, isProvisional: true, activePositionsCount: 3, lastActiveDate: '2025-06-30' },
+      { id: 'baseline-rj-rules', name: 'Jhunjhunwala (Rules Baseline)', philosophy: 'Secular Growth', horizonDays: '90–180 days', navPaise: 48125000, startingCapitalPaise: seed, returnPct: -3.75, alphaVsBenchmarkPct: 0.20, sharpeRatio: -0.10, maxDrawdownPct: 6.8, winRatePct: 42.0, faithfulnessRatePct: 100.0, totalTrades: 11, closedTrades: 9, isProvisional: true, activePositionsCount: 3, lastActiveDate: '2025-06-30' },
+      { id: 'lynch', name: 'Peter Lynch (LLM)', philosophy: 'GARP', horizonDays: '60–120 days', navPaise: 47125000, startingCapitalPaise: seed, returnPct: -5.75, alphaVsBenchmarkPct: -1.80, sharpeRatio: -0.35, maxDrawdownPct: 7.2, winRatePct: 38.0, faithfulnessRatePct: 96.5, totalTrades: 12, closedTrades: 10, isProvisional: true, activePositionsCount: 3, lastActiveDate: '2025-06-30' },
+    ];
+  }
+  // Default to W2 (High Vol Correction & Recovery Vetted Benchmark)
+  return [
+    { id: 'stockminds-core', name: 'StockMinds Core (LLM)', philosophy: 'Dual Confluence', horizonDays: '5–20 days', navPaise: 52885000, startingCapitalPaise: seed, returnPct: 5.77, alphaVsBenchmarkPct: 5.41, sharpeRatio: 0.26, maxDrawdownPct: 8.5, winRatePct: 43.5, faithfulnessRatePct: 90.9, totalTrades: 92, closedTrades: 92, isProvisional: false, activePositionsCount: 4, lastActiveDate: '2026-10-29' },
+    { id: 'baseline-lynch-rules', name: 'Lynch (Rules Baseline)', philosophy: 'GARP', horizonDays: '15–60 days', navPaise: 50200000, startingCapitalPaise: seed, returnPct: 0.40, alphaVsBenchmarkPct: 0.04, sharpeRatio: -0.17, maxDrawdownPct: 14.57, winRatePct: 42.1, faithfulnessRatePct: 94.3, totalTrades: 38, closedTrades: 38, isProvisional: false, activePositionsCount: 3, lastActiveDate: '2026-10-29' },
+    { id: 'baseline-varsity-rules', name: 'Varsity (Rules Baseline)', philosophy: 'Dual Confluence', horizonDays: '5–20 days', navPaise: 49740000, startingCapitalPaise: seed, returnPct: -0.52, alphaVsBenchmarkPct: -0.88, sharpeRatio: -0.29, maxDrawdownPct: 13.32, winRatePct: 35.3, faithfulnessRatePct: 96.3, totalTrades: 85, closedTrades: 85, isProvisional: false, activePositionsCount: 4, lastActiveDate: '2026-10-29' },
+    { id: 'simons', name: 'Jim Simons (LLM)', philosophy: 'Quant Momentum', horizonDays: '1–10 days', navPaise: 48980000, startingCapitalPaise: seed, returnPct: -2.04, alphaVsBenchmarkPct: -2.40, sharpeRatio: -1.69, maxDrawdownPct: 3.65, winRatePct: 39.1, faithfulnessRatePct: 99.5, totalTrades: 161, closedTrades: 161, isProvisional: false, activePositionsCount: 4, lastActiveDate: '2026-10-29' },
+    { id: 'lynch', name: 'Peter Lynch (LLM)', philosophy: 'GARP', horizonDays: '15–60 days', navPaise: 48520000, startingCapitalPaise: seed, returnPct: -2.96, alphaVsBenchmarkPct: -3.32, sharpeRatio: -0.73, maxDrawdownPct: 8.20, winRatePct: 44.4, faithfulnessRatePct: 94.7, totalTrades: 27, closedTrades: 27, isProvisional: true, activePositionsCount: 3, lastActiveDate: '2026-10-29' },
+    { id: 'marks', name: 'Howard Marks (LLM)', philosophy: 'Contrarian Value', horizonDays: '30–90 days', navPaise: 48385000, startingCapitalPaise: seed, returnPct: -3.23, alphaVsBenchmarkPct: -3.59, sharpeRatio: -1.16, maxDrawdownPct: 6.61, winRatePct: 37.0, faithfulnessRatePct: 92.8, totalTrades: 46, closedTrades: 46, isProvisional: false, activePositionsCount: 2, lastActiveDate: '2026-10-29' },
+    { id: 'baseline-simons-rules', name: 'Simons (Rules Baseline)', philosophy: 'Quant Momentum', horizonDays: '1–10 days', navPaise: 46850000, startingCapitalPaise: seed, returnPct: -6.30, alphaVsBenchmarkPct: -6.66, sharpeRatio: -2.81, maxDrawdownPct: 6.38, winRatePct: 33.3, faithfulnessRatePct: 99.6, totalTrades: 57, closedTrades: 57, isProvisional: false, activePositionsCount: 4, lastActiveDate: '2026-10-29' },
+    { id: 'baseline-marks-rules', name: 'Marks (Rules Baseline)', philosophy: 'Contrarian Value', horizonDays: '30–90 days', navPaise: 46410000, startingCapitalPaise: seed, returnPct: -7.18, alphaVsBenchmarkPct: -7.54, sharpeRatio: -0.95, maxDrawdownPct: 14.77, winRatePct: 37.7, faithfulnessRatePct: 94.4, totalTrades: 53, closedTrades: 53, isProvisional: false, activePositionsCount: 2, lastActiveDate: '2026-10-29' },
+    { id: 'baseline-rj-rules', name: 'Jhunjhunwala (Rules Baseline)', philosophy: 'Secular Growth', horizonDays: '90–180 days', navPaise: 43745000, startingCapitalPaise: seed, returnPct: -12.51, alphaVsBenchmarkPct: -12.87, sharpeRatio: -1.27, maxDrawdownPct: 15.03, winRatePct: 50.0, faithfulnessRatePct: 93.2, totalTrades: 34, closedTrades: 34, isProvisional: false, activePositionsCount: 4, lastActiveDate: '2026-10-29' },
+    { id: 'jhunjhunwala', name: 'Rakesh Jhunjhunwala (LLM)', philosophy: 'Secular Growth', horizonDays: '90–180 days', navPaise: 43260000, startingCapitalPaise: seed, returnPct: -13.48, alphaVsBenchmarkPct: -13.84, sharpeRatio: -1.68, maxDrawdownPct: 15.88, winRatePct: 42.6, faithfulnessRatePct: 86.9, totalTrades: 47, closedTrades: 47, isProvisional: false, activePositionsCount: 4, lastActiveDate: '2026-10-29' },
+  ];
+}
+
+function getMockRunNavHistory(windowId: string): NavHistoryPoint[] {
+  const seed = 500000;
+  if (windowId.includes('w1')) {
+    return [
+      { date: '2025-02-28', simons: seed, baselineSimons: seed, lynch: seed, baselineLynch: seed, marks: seed, baselineMarks: seed, jhunjhunwala: seed, baselineRj: seed, stockmindsCore: seed, baselineVarsity: seed, nifty500: seed },
+      { date: '2025-05-15', simons: 495000, baselineSimons: 498000, lynch: 485000, baselineLynch: 512000, marks: 524000, baselineMarks: 556000, jhunjhunwala: 478000, baselineRj: 485000, stockmindsCore: 512000, baselineVarsity: 528000, nifty500: 545000 },
+      { date: '2025-08-30', simons: 489000, baselineSimons: 493000, lynch: 476000, baselineLynch: 518000, marks: 538000, baselineMarks: 589000, jhunjhunwala: 462000, baselineRj: 476000, stockmindsCore: 516000, baselineVarsity: 539000, nifty500: 578000 },
+      { date: '2025-11-21', simons: 482350, baselineSimons: 490300, lynch: 470000, baselineLynch: 521750, marks: 550200, baselineMarks: 613150, jhunjhunwala: 447550, baselineRj: 465150, stockmindsCore: 518300, baselineVarsity: 546150, nifty500: 599450 },
+    ];
+  }
+  if (windowId.includes('s1')) {
+    return [
+      { date: '2025-05-02', simons: seed, baselineSimons: seed, lynch: seed, baselineLynch: seed, marks: seed, baselineMarks: seed, jhunjhunwala: seed, baselineRj: seed, stockmindsCore: seed, baselineVarsity: seed, nifty500: seed },
+      { date: '2025-05-28', simons: 498000, baselineSimons: 499500, lynch: 485000, baselineLynch: 504000, marks: 508000, baselineMarks: 514000, jhunjhunwala: 497000, baselineRj: 492000, stockmindsCore: 504000, baselineVarsity: 501500, nifty500: 492000 },
+      { date: '2025-06-30', simons: 493400, baselineSimons: 498250, lynch: 471250, baselineLynch: 509800, marks: 514700, baselineMarks: 524350, jhunjhunwala: 493250, baselineRj: 481250, stockmindsCore: 507650, baselineVarsity: 502850, nifty500: 480250 },
+    ];
+  }
+  return [
+    { date: '2025-10-01', simons: seed, baselineSimons: seed, lynch: seed, baselineLynch: seed, marks: seed, baselineMarks: seed, jhunjhunwala: seed, baselineRj: seed, stockmindsCore: seed, baselineVarsity: seed, nifty500: seed },
+    { date: '2025-12-15', simons: 498500, baselineSimons: 482000, lynch: 495000, baselineLynch: 501500, marks: 478000, baselineMarks: 472000, jhunjhunwala: 472000, baselineRj: 458000, stockmindsCore: 475000, baselineVarsity: 504000, nifty500: 501200 },
+    { date: '2026-03-31', simons: 497100, baselineSimons: 466750, lynch: 490600, baselineLynch: 502000, marks: 452000, baselineMarks: 448850, jhunjhunwala: 455450, baselineRj: 437450, stockmindsCore: 450650, baselineVarsity: 506250, nifty500: 501800 },
+  ];
+}

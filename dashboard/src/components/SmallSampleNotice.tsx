@@ -24,16 +24,19 @@ export default function SmallSampleNotice({ closedTradesCount, threshold = 30, i
   }
 
   return (
-    <div className="arena-glass flex items-start gap-3.5 p-4 text-xs font-sans border-amber-500/30 bg-amber-500/5">
-      <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
-      <div>
-        <p className="font-bold text-amber-300 text-sm">
-          Small-Sample Notice (Statistical Guardrail)
-        </p>
-        <p className="mt-1 text-slate-300 leading-relaxed">
-          This agent currently has <strong>{closedTradesCount}</strong> closed trades, which is below the statistical threshold of <strong>{threshold}</strong> trades. Performance metrics (Sharpe ratio, win rate, return distribution) must be treated as <strong>provisional</strong> and may reflect regime variance rather than enduring alpha.
-        </p>
+    <div className="border-l-2 border-[#D4AF37] pl-4 py-1 text-xs font-mono text-zinc-400 space-y-1">
+      <div className="flex items-center gap-2">
+        <span className="text-[#D4AF37] font-semibold uppercase tracking-wider text-[11px]">
+          Provisional Sample Notice
+        </span>
+        <span className="text-zinc-600">·</span>
+        <span className="text-zinc-400">
+          {closedTradesCount} of {threshold} closed trades
+        </span>
       </div>
+      <p className="text-zinc-400 font-sans leading-relaxed text-xs">
+        Performance metrics must be treated as provisional until the sample reaches the statistical significance threshold of {threshold} closed trades.
+      </p>
     </div>
   );
 }

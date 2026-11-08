@@ -24,14 +24,18 @@ function EquityCurveComponent({
   title = 'Multi-Agent Portfolio Equity Curves',
   isBacktest = false,
 }: EquityCurveProps) {
-  // Active series visibility
+  // Active series visibility (All 10 strategies + Nifty 500 benchmark)
   const [activeSeries, setActiveSeries] = useState<Record<string, boolean>>({
     simons: true,
-    lynch: true,
-    marks: true,
-    jhunjhunwala: true,
-    stockmindsCore: true,
     baselineSimons: true,
+    lynch: true,
+    baselineLynch: true,
+    marks: true,
+    baselineMarks: true,
+    jhunjhunwala: true,
+    baselineRj: true,
+    stockmindsCore: true,
+    baselineVarsity: true,
     nifty500: true,
   });
 
@@ -45,33 +49,34 @@ function EquityCurveComponent({
   // Map NavHistoryPoint keys to StrategyTheme keys
   const seriesMap: Record<string, string> = {
     simons: 'simons',
-    lynch: 'lynch',
-    marks: 'marks',
-    jhunjhunwala: 'jhunjhunwala',
-    stockmindsCore: 'stockminds-core',
     baselineSimons: 'baseline-simons-rules',
+    lynch: 'lynch',
+    baselineLynch: 'baseline-lynch-rules',
+    marks: 'marks',
+    baselineMarks: 'baseline-marks-rules',
+    jhunjhunwala: 'jhunjhunwala',
+    baselineRj: 'baseline-rj-rules',
+    stockmindsCore: 'stockminds-core',
+    baselineVarsity: 'baseline-varsity-rules',
     nifty500: 'nifty500',
   };
 
   return (
-    <div className="arena-glass p-6 sm:p-7 space-y-5">
+    <div className="border-t border-b border-white/[0.08] py-8 space-y-6 font-sans">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+          <h3 className="text-lg font-display font-medium text-white flex items-center gap-2.5">
             <span>{title}</span>
             {isBacktest && (
-              <span className="text-[10px] px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 font-mono font-medium border border-purple-500/30">
+              <span className="text-[10px] px-2 py-0.5 rounded border border-[#D4AF37]/40 text-[#D4AF37] bg-[#D4AF37]/10 font-mono font-medium">
                 Backtest Simulation
               </span>
             )}
           </h3>
-          <p className="text-xs text-slate-400">
-            Net asset value indexed to ₹1,00,000.00 base. Hover any curve or chip to focus.
-          </p>
         </div>
 
         {/* Series Filter Chips with Hover Focus */}
-        <div className="flex flex-wrap gap-1.5 text-xs font-mono">
+        <div className="flex flex-wrap gap-2 text-xs font-mono">
           {Object.entries(seriesMap).map(([pointKey, themeKey]) => {
             const config = STRATEGY_THEME[themeKey] || STRATEGY_THEME.nifty500;
             const isEnabled = activeSeries[pointKey];
@@ -83,18 +88,18 @@ function EquityCurveComponent({
                 onClick={() => toggleSeries(pointKey)}
                 onMouseEnter={() => setHoveredSeries(pointKey)}
                 onMouseLeave={() => setHoveredSeries(null)}
-                className={`px-2.5 py-1 rounded-md border transition-all cursor-pointer flex items-center gap-1.5 ${
+                className={`px-2.5 py-1 text-xs font-mono border transition-all cursor-pointer flex items-center gap-2 ${
                   isEnabled
                     ? isHovered
-                      ? 'ring-1 ring-white/60 font-semibold text-white'
-                      : 'border-transparent text-white'
-                    : 'bg-white/5 text-slate-500 border-white/10 opacity-50'
+                      ? 'border-white/30 bg-white/[0.08] text-white'
+                      : 'border-white/10 bg-white/[0.03] text-zinc-300'
+                    : 'border-white/5 bg-transparent text-zinc-600 opacity-40'
                 }`}
-                style={{
-                  backgroundColor: isEnabled ? config.color : undefined,
-                }}
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-white/90" />
+                <span
+                  className="w-1.5 h-1.5 rounded-full"
+                  style={{ backgroundColor: isEnabled ? config.color : '#52525b' }}
+                />
                 <span>{config.shortName}</span>
               </button>
             );
@@ -105,20 +110,21 @@ function EquityCurveComponent({
       <div className="w-full h-80 sm:h-96 min-h-[320px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-            <XAxis dataKey="date" stroke="#64748B" fontSize={11} tickMargin={8} />
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+            <XAxis dataKey="date" stroke="#71717A" fontSize={11} tickMargin={8} fontFamily="JetBrains Mono" />
             <YAxis
-              stroke="#64748B"
+              stroke="#71717A"
               fontSize={11}
               domain={['dataMin - 1000', 'dataMax + 1000']}
               tickFormatter={(v) => formatPaiseCompact(v * 100)}
+              fontFamily="JetBrains Mono"
             />
             <Tooltip
               content={({ active, payload, label }) => {
                 if (active && payload && payload.length) {
                   return (
-                    <div className="arena-glass p-3.5 shadow-2xl text-xs space-y-1.5 bg-[#0B0F19]/95 border border-white/15 backdrop-blur-xl">
-                      <p className="font-bold text-white border-b pb-1 mb-1 border-white/10 font-sans">
+                    <div className="p-3 shadow-2xl text-xs space-y-1.5 bg-[#070709] border border-white/10 font-mono">
+                      <p className="font-sans font-medium text-white border-b pb-1 mb-1 border-white/10">
                         Trading Date: {label}
                       </p>
                       {payload.map((item) => {
@@ -127,11 +133,11 @@ function EquityCurveComponent({
                         return (
                           <div
                             key={item.dataKey as string}
-                            className="flex justify-between items-center gap-4 font-mono text-[11px]"
+                            className="flex justify-between items-center gap-4 text-[11px]"
                           >
                             <span className="flex items-center gap-1.5" style={{ color: config.color }}>
                               <span
-                                className="w-2 h-2 rounded-full"
+                                className="w-1.5 h-1.5 rounded-full"
                                 style={{ backgroundColor: config.color }}
                               />
                               <span>{config.shortName}:</span>

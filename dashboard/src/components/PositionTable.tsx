@@ -155,7 +155,7 @@ export default function PositionTable({ positions, title, defaultStatus = 'ALL' 
                             isPositive ? 'text-emerald-400' : 'text-rose-400'
                           }`}
                         >
-                          {isPositive ? `+${formatPct(pnlPct)}` : formatPct(pnlPct)}
+                          {formatPct(pnlPct)}
                         </div>
                       </td>
 

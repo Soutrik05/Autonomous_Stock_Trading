@@ -1,323 +1,343 @@
 import { useState, useEffect } from 'react';
-import {
-  ChevronDown,
-  ChevronUp,
-} from 'lucide-react';
 import type { AgentLeaderboardEntry, NavHistoryPoint } from '../types';
 import { apiService } from '../services/api';
-import { formatPaiseToRupees, formatPct } from '../utils/formatters';
 import EquityCurve from '../components/EquityCurve';
-import SmallSampleNotice from '../components/SmallSampleNotice';
-import { STRATEGY_THEME } from '../theme/tokens';
+import BenchmarkMatrixTable from '../components/BenchmarkMatrixTable';
+import HeadToHeadDuelsTable from '../components/HeadToHeadDuelsTable';
+
+interface EvaluationWindowConfig {
+  id: 'LIVE' | 'W1' | 'S1' | 'W2';
+  runId: string;
+  name: string;
+  regime: string;
+  vix: number;
+  benchmarkReturnPct: number;
+  seedCapitalFormatted: string;
+  description: string;
+}
+
+const EVALUATION_WINDOWS: EvaluationWindowConfig[] = [
+  {
+    id: 'LIVE',
+    runId: 'LIVE',
+    name: 'Live Pilot',
+    regime: 'HIGH_VOL_CORRECTION',
+    vix: 18.42,
+    benchmarkReturnPct: -3.95,
+    seedCapitalFormatted: '₹1,00,000 / AGENT',
+    description: 'Current production paper-trading tape on live Nifty 500 constituents',
+  },
+  {
+    id: 'W1',
+    runId: 'rolling_w1_vetted',
+    name: 'W1: Bull Rally',
+    regime: 'STRONG_BULL_EXPANSION',
+    vix: 13.80,
+    benchmarkReturnPct: 19.89,
+    seedCapitalFormatted: '₹5,00,000 / AGENT',
+    description: '180 sessions (2025-02-28 to 2025-11-21) · Sustained momentum expansion',
+  },
+  {
+    id: 'S1',
+    runId: 's1_vetted',
+    name: 'S1: Range Chop',
+    regime: 'RANGE_COMPRESSION',
+    vix: 11.30,
+    benchmarkReturnPct: -0.60,
+    seedCapitalFormatted: '₹5,00,000 / AGENT',
+    description: '51 sessions (2025-11-24 to 2026-02-04) · Low-volatility sideways mean-reversion',
+  },
+  {
+    id: 'W2',
+    runId: 'w2_vetted',
+    name: 'W2: High-Vol Drawdown',
+    regime: 'HIGH_VOL_CORRECTION',
+    vix: 22.40,
+    benchmarkReturnPct: 0.36,
+    seedCapitalFormatted: '₹5,00,000 / AGENT',
+    description: '180 sessions (2026-02-05 to 2026-10-29) · Volatility spikes & recovery stress-testing',
+  },
+];
 
 export default function Leaderboard() {
   const [agents, setAgents] = useState<AgentLeaderboardEntry[]>([]);
   const [navHistory, setNavHistory] = useState<NavHistoryPoint[]>([]);
   const [strategyFilter, setStrategyFilter] = useState<'ALL' | 'LLM' | 'RULES'>('ALL');
-  const [expandedAgentId, setExpandedAgentId] = useState<string | null>(null);
+  const [selectedWindow, setSelectedWindow] = useState<'LIVE' | 'W1' | 'S1' | 'W2'>('LIVE');
   const [loading, setLoading] = useState(true);
+  const [switchingWindow, setSwitchingWindow] = useState(false);
 
-  useEffect(() => {
-    async function loadData() {
-      try {
+  async function loadWindowData(windowId: 'LIVE' | 'W1' | 'S1' | 'W2') {
+    const config = EVALUATION_WINDOWS.find((w) => w.id === windowId) || EVALUATION_WINDOWS[0];
+    try {
+      if (windowId === 'LIVE') {
         const [leaderboardData, navData] = await Promise.all([
           apiService.getLeaderboard(),
           apiService.getAgentNavHistory(),
         ]);
         setAgents(leaderboardData);
         setNavHistory(navData);
-      } finally {
-        setLoading(false);
+      } else {
+        const [leaderboardData, navData] = await Promise.all([
+          apiService.getRunLeaderboard(config.runId),
+          apiService.getRunNavHistory(config.runId),
+        ]);
+        setAgents(leaderboardData);
+        setNavHistory(navData);
       }
+    } finally {
+      setLoading(false);
+      setSwitchingWindow(false);
     }
-    loadData();
+  }
+
+  useEffect(() => {
+    loadWindowData('LIVE');
 
     const handleModeChange = () => {
-      loadData();
+      loadWindowData(selectedWindow);
     };
     window.addEventListener('mock_mode_changed', handleModeChange);
     return () => window.removeEventListener('mock_mode_changed', handleModeChange);
   }, []);
 
+  const handleWindowChange = async (winId: 'LIVE' | 'W1' | 'S1' | 'W2') => {
+    if (winId === selectedWindow) return;
+    setSelectedWindow(winId);
+    setSwitchingWindow(true);
+    await loadWindowData(winId);
+  };
+
+  const currentWindowConfig =
+    EVALUATION_WINDOWS.find((w) => w.id === selectedWindow) || EVALUATION_WINDOWS[0];
+
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-24 flex justify-center items-center">
-        <div className="flex items-center gap-3 text-slate-400 font-mono text-sm">
-          <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          <span>Synchronizing strategy telemetry...</span>
+      <div className="max-w-7xl mx-auto px-4 py-28 flex justify-center items-center">
+        <div className="flex items-center gap-3 text-zinc-400 font-sans text-sm">
+          <div className="w-5 h-5 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin" />
+          <span>Synchronizing benchmark telemetry...</span>
         </div>
       </div>
     );
   }
 
-  // Filter strategies
+  // Filter strategies for the primary leaderboard
   const filtered = agents.filter((a) => {
-    const isControl = a.id.startsWith('baseline-');
+    const isControl =
+      a.id.startsWith('baseline-') ||
+      a.id.includes('rules') ||
+      a.name.toLowerCase().includes('rules');
     if (strategyFilter === 'LLM') return !isControl;
     if (strategyFilter === 'RULES') return isControl;
     return true;
   });
 
-  const sorted = [...filtered].sort((a, b) => b.returnPct - a.returnPct);
-
-  // Compute leaders for bold highlighting (SSOT)
-  const maxReturn = Math.max(...agents.map((a) => a.returnPct));
-  const maxAlpha = Math.max(...agents.map((a) => a.alphaVsBenchmarkPct));
-  const maxSharpe = Math.max(...agents.map((a) => a.sharpeRatio));
-  const minDrawdown = Math.min(...agents.map((a) => a.maxDrawdownPct));
-  const maxFaithfulness = Math.max(...agents.map((a) => a.faithfulnessRatePct));
-
-  const totalPaise = agents.reduce((sum, a) => sum + a.navPaise, 0);
-
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 animate-fade-in font-sans">
-      {/* Header */}
-      <div className="border-b border-white/[0.08] pb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <div className="text-xs font-mono text-zinc-500 uppercase tracking-widest mb-1">
-            Arena Standings · 10 Parallel Portfolios
-          </div>
-          <h1 className="font-serif text-3xl sm:text-4xl font-normal tracking-tight text-white">
-            Leaderboard
-          </h1>
-        </div>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-12 animate-hero-entrance font-sans">
 
-        {/* Strategy Category Filter Chips */}
-        <div className="flex items-center gap-1.5 p-1 rounded bg-white/[0.04] border border-white/10 text-xs font-mono">
-          {(['ALL', 'LLM', 'RULES'] as const).map((filter) => (
-            <button
-              key={filter}
-              onClick={() => setStrategyFilter(filter)}
-              className={`px-3 py-1.5 rounded font-medium transition-all cursor-pointer ${
-                strategyFilter === filter
-                  ? 'bg-white/[0.12] text-[#D4AF37] font-semibold border border-[#D4AF37]/30'
-                  : 'text-zinc-400 hover:text-white hover:bg-white/[0.04]'
+      {/* 1. THE BENCHMARK EVALUATION ENVIRONMENT */}
+      <section className="cosmic-card rounded-xl p-5 sm:p-6 space-y-5">
+
+        {/* Top Header: Label on Left, Distinct Regime Window Selector on Right */}
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 pb-4 border-b border-white/[0.08]">
+          <div className="flex items-center gap-2.5">
+            <span
+              className={`w-2 h-2 rounded-full ${
+                selectedWindow === 'LIVE' ? 'bg-emerald-400 animate-pulse' : 'bg-zinc-400'
               }`}
+            />
+            <span className="text-xs font-sans uppercase tracking-widest text-zinc-300 font-bold">
+              BENCHMARK EVALUATION ENVIRONMENT
+            </span>
+          </div>
+
+          {/* Segmented Window Tabs: Distinct LIVE_PILOT vs BACKTEST_DERIVED Family */}
+          <div className="flex flex-wrap items-center gap-2 p-1 rounded-lg cosmic-well text-xs font-sans">
+            {/* Live Pilot Tab */}
+            <button
+              onClick={() => handleWindowChange('LIVE')}
+              className={`px-3 py-1.5 rounded transition-all cursor-pointer text-xs font-medium flex items-center gap-2 ${
+                selectedWindow === 'LIVE'
+                  ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/40 shadow-sm font-semibold'
+                  : 'text-zinc-300 hover:text-emerald-300 hover:bg-emerald-500/10 border border-emerald-500/20'
+              }`}
+              title={EVALUATION_WINDOWS[0].description}
             >
-              {filter === 'ALL'
-                ? `All 10 Strategies`
-                : filter === 'LLM'
-                ? `5 LLM Personas`
-                : `5 Rules Controls`}
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Live Pilot</span>
+              <span className="text-[9px] font-mono uppercase px-1 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                Live
+              </span>
             </button>
-          ))}
-        </div>
-      </div>
 
-      {/* Mandatory Small Sample Alert Banner */}
-      <SmallSampleNotice closedTradesCount={14} threshold={30} />
+            <span className="w-px h-4 bg-white/10 hidden sm:block mx-0.5" />
 
-      {/* KPI Cards Strip (Translucent Glass) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="arena-glass p-5">
-          <span className="text-[11px] font-sans text-slate-400 block">Total capital managed</span>
-          <span className="text-2xl font-bold font-mono text-white mt-1 block tracking-tight">
-            {formatPaiseToRupees(totalPaise)}
-          </span>
-          <span className="text-[11px] font-mono text-slate-500 mt-1 block">
-            Across 10 paper accounts
-          </span>
-        </div>
-
-        <div className="arena-glass p-5">
-          <span className="text-[11px] font-sans text-slate-400 block">Current leader</span>
-          <span className="text-xl font-bold text-white mt-1 block truncate">
-            {sorted[0]?.name || 'Jim Simons'}
-          </span>
-          <span className="text-xs font-mono font-medium text-emerald-400 mt-1 block">
-            {formatPct(sorted[0]?.returnPct)} (Alpha: +{formatPct(sorted[0]?.alphaVsBenchmarkPct)})
-          </span>
-        </div>
-
-        <div className="arena-glass p-5">
-          <span className="text-[11px] font-sans text-slate-400 block">Simons cognitive spread</span>
-          <span className="text-2xl font-bold font-mono text-emerald-400 mt-1 block">
-            +3.10%
-          </span>
-          <span className="text-[11px] font-mono text-slate-500 mt-1 block">
-            LLM Simons vs. Rules Simons
-          </span>
-        </div>
-
-        <div className="arena-glass p-5">
-          <span className="text-[11px] font-sans text-slate-400 block">Average faithfulness</span>
-          <span className="text-2xl font-bold font-mono text-purple-400 mt-1 block">
-            97.3%
-          </span>
-          <span className="text-[11px] font-mono text-slate-500 mt-1 block">
-            Verified metric citations
-          </span>
-        </div>
-      </div>
-
-      {/* Multi-Agent Equity Curves Chart */}
-      <EquityCurve data={navHistory} />
-
-      {/* The 10-Agent Leaderboard Translucent Table */}
-      <div className="arena-glass overflow-hidden shadow-2xl">
-        <div className="p-5 border-b border-white/10 flex justify-between items-center bg-white/[0.02]">
-          <div>
-            <h3 className="text-base font-bold text-white">
-              Strategy Rankings & Performance Ledger
-            </h3>
-            <p className="text-xs text-slate-400">
-              Metric leaders highlighted in <strong>bold</strong>. Click any row to expand quick inspection details.
-            </p>
+            {/* Backtest Walk-Forward Regimes */}
+            {EVALUATION_WINDOWS.filter((w) => w.id !== 'LIVE').map((win) => (
+              <button
+                key={win.id}
+                onClick={() => handleWindowChange(win.id)}
+                className={`px-3 py-1.5 rounded transition-all cursor-pointer text-xs font-medium ${
+                  selectedWindow === win.id
+                    ? 'bg-white/[0.12] text-white font-semibold border border-white/20 shadow-sm'
+                    : 'text-zinc-400 hover:text-white hover:bg-white/[0.04] border border-transparent'
+                }`}
+                title={win.description}
+              >
+                {win.name}
+              </button>
+            ))}
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs font-mono text-slate-200">
-            <thead className="bg-white/[0.02] text-[11px] text-slate-400 border-b border-white/10">
-              <tr>
-                <th className="py-3 px-4 font-semibold">Rank / Strategy</th>
-                <th className="py-3 px-4 font-semibold">Family</th>
-                <th className="py-3 px-4 text-right font-semibold">NAV (₹)</th>
-                <th className="py-3 px-4 text-right font-semibold">Return</th>
-                <th className="py-3 px-4 text-right font-semibold">Alpha</th>
-                <th className="py-3 px-4 text-right font-semibold">Sharpe</th>
-                <th className="py-3 px-4 text-right font-semibold">Max DD</th>
-                <th className="py-3 px-4 text-right font-semibold">Faithfulness</th>
-                <th className="py-3 px-4 text-center font-semibold">Trades (O/C)</th>
-                <th className="py-3 px-4 text-center font-semibold">Status</th>
-                <th className="py-3 px-2"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {sorted.map((agent, idx) => {
-                const config = STRATEGY_THEME[agent.id] || STRATEGY_THEME.simons;
-                const isControl = agent.id.startsWith('baseline-');
-                const isExpanded = expandedAgentId === agent.id;
+        {/* 4 Clean Metric Cards for Environment Conditions (Cosmic Pods) */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 
-                // Bold leader checks
-                const isReturnLeader = agent.returnPct === maxReturn;
-                const isAlphaLeader = agent.alphaVsBenchmarkPct === maxAlpha;
-                const isSharpeLeader = agent.sharpeRatio === maxSharpe;
-                const isDrawdownLeader = agent.maxDrawdownPct === minDrawdown;
-                const isFaithfulnessLeader = agent.faithfulnessRatePct === maxFaithfulness;
+          {/* Regime */}
+          <div className="cosmic-pod p-3.5 rounded-lg space-y-1">
+            <span className="text-[11px] font-sans uppercase tracking-wider text-zinc-400 font-semibold block">
+              Market Regime
+            </span>
+            <div className="font-sans text-sm sm:text-[15px] font-bold text-white tracking-tight truncate">
+              {currentWindowConfig.regime.replace(/_/g, ' ')}
+            </div>
+          </div>
 
-                return (
-                  <tr
-                    key={agent.id}
-                    onClick={() => setExpandedAgentId(isExpanded ? null : agent.id)}
-                    className="hover:bg-white/[0.04] transition-colors cursor-pointer group"
-                  >
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-2.5">
-                        <span className={`text-xs w-6 font-mono font-semibold ${idx === 0 ? 'text-[#D4AF37]' : 'text-zinc-500'}`}>
-                          0{idx + 1}
-                        </span>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-white text-sm group-hover:text-[#D4AF37] transition-colors">
-                              {agent.name}
-                            </span>
-                            <span
-                              className={`px-1.5 py-0.2 rounded text-[9px] border ${
-                                isControl
-                                  ? 'bg-white/5 text-slate-400 border-white/10'
-                                  : 'bg-blue-500/15 text-blue-400 border-blue-500/30'
-                              }`}
-                            >
-                              {isControl ? 'Rules' : 'LLM'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </td>
+          {/* India VIX */}
+          <div className="cosmic-pod p-3.5 rounded-lg space-y-1">
+            <span className="text-[11px] font-sans uppercase tracking-wider text-zinc-400 font-semibold block">
+              India VIX
+            </span>
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-base font-bold text-white tabular-nums">
+                {currentWindowConfig.vix.toFixed(2)}
+              </span>
+              <span
+                className={`px-1.5 py-0.5 rounded text-[10px] font-sans font-bold uppercase tracking-wider ${currentWindowConfig.vix < 14
+                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                    : currentWindowConfig.vix <= 18
+                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
+                      : 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
+                  }`}
+              >
+                {currentWindowConfig.vix < 14 ? 'Low Vol' : currentWindowConfig.vix <= 18 ? 'Elevated' : 'High Vol'}
+              </span>
+            </div>
+          </div>
 
-                    <td className="py-3.5 px-4 text-[11px] text-slate-400">
-                      {config.family}
-                    </td>
+          {/* Nifty 500 Benchmark */}
+          <div className="cosmic-pod p-3.5 rounded-lg space-y-1">
+            <span className="text-[11px] font-sans uppercase tracking-wider text-zinc-400 font-semibold block">
+              Nifty 500 Benchmark
+            </span>
+            <div
+              className={`font-mono text-base font-bold tabular-nums ${currentWindowConfig.benchmarkReturnPct > 0
+                  ? 'text-emerald-400'
+                  : currentWindowConfig.benchmarkReturnPct < 0
+                    ? 'text-rose-400/90'
+                    : 'text-zinc-200'
+                }`}
+            >
+              {currentWindowConfig.benchmarkReturnPct > 0
+                ? `+${currentWindowConfig.benchmarkReturnPct.toFixed(2)}%`
+                : `${currentWindowConfig.benchmarkReturnPct.toFixed(2)}%`}
+            </div>
+          </div>
 
-                    <td className="py-3.5 px-4 text-right font-semibold text-white">
-                      {formatPaiseToRupees(agent.navPaise)}
-                    </td>
+          {/* Seed Capital */}
+          <div className="cosmic-pod p-3.5 rounded-lg space-y-1">
+            <span className="text-[11px] font-sans uppercase tracking-wider text-zinc-400 font-semibold block">
+              Seed Capital
+            </span>
+            <div className="font-mono text-base font-bold text-[#D4AF37] tabular-nums">
+              {currentWindowConfig.seedCapitalFormatted}
+            </div>
+          </div>
 
-                    <td
-                      className={`py-3.5 px-4 text-right font-medium ${
-                        isReturnLeader
-                          ? 'font-extrabold text-emerald-400 underline decoration-emerald-400/50'
-                          : agent.returnPct >= 0
-                          ? 'text-emerald-400'
-                          : 'text-rose-400'
-                      }`}
-                    >
-                      {formatPct(agent.returnPct)}
-                    </td>
-
-                    <td
-                      className={`py-3.5 px-4 text-right ${
-                        isAlphaLeader
-                          ? 'font-extrabold text-emerald-400 underline decoration-emerald-400/50'
-                          : agent.alphaVsBenchmarkPct >= 0
-                          ? 'text-emerald-400 font-semibold'
-                          : 'text-rose-400'
-                      }`}
-                    >
-                      {agent.alphaVsBenchmarkPct >= 0 ? `+${formatPct(agent.alphaVsBenchmarkPct)}` : formatPct(agent.alphaVsBenchmarkPct)}
-                    </td>
-
-                    <td
-                      className={`py-3.5 px-4 text-right ${
-                        isSharpeLeader ? 'font-bold text-white' : 'text-slate-400'
-                      }`}
-                    >
-                      {agent.sharpeRatio.toFixed(2)}
-                    </td>
-
-                    <td
-                      className={`py-3.5 px-4 text-right text-rose-400 ${
-                        isDrawdownLeader ? 'font-bold' : ''
-                      }`}
-                    >
-                      -{agent.maxDrawdownPct.toFixed(2)}%
-                    </td>
-
-                    <td
-                      className={`py-3.5 px-4 text-right text-purple-400 ${
-                        isFaithfulnessLeader ? 'font-bold' : 'font-medium'
-                      }`}
-                    >
-                      {agent.faithfulnessRatePct.toFixed(1)}%
-                    </td>
-
-                    <td className="py-3.5 px-4 text-center text-slate-400">
-                      {agent.activePositionsCount} / {agent.closedTrades}
-                    </td>
-
-                    <td className="py-3.5 px-4 text-center">
-                      <SmallSampleNotice
-                        closedTradesCount={agent.closedTrades}
-                        threshold={30}
-                        inline
-                      />
-                    </td>
-
-                    <td className="py-3.5 px-2 text-center text-slate-500">
-                      {isExpanded ? (
-                        <ChevronUp className="w-4 h-4 inline" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4 inline" />
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
         </div>
 
-        {/* Dynamic Model Footnote */}
-        <div className="p-4 bg-white/[0.02] border-t border-white/10 text-[11px] text-slate-400 space-y-1">
-          <p>
-            * <strong>Cognitive Architecture Parity:</strong> All LLM-based strategies are evaluated using the identical underlying foundation model (<code>Gemini 2.5 Flash</code>) to ensure clean cognitive parity with zero per-agent prompt bias.
-          </p>
-          <p className="text-[10px] text-slate-500">
-            * Metric leaders indicated in bold. PROVISIONAL tags automatically apply to any strategy with fewer than 30 closed trades.
-          </p>
+      </section>
+
+      {/* 2. SECTION 1: CURRENT STANDINGS (UNIFIED WITH LANDING PAGE) */}
+      <section className="space-y-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-white/[0.1] pb-4">
+          <div>
+            <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-white">
+              Current Standings
+            </h1>
+          </div>
+
+          {/* Architecture Filter: All | LLMs | Rules */}
+          <div className="flex items-center gap-3">
+            {switchingWindow && (
+              <span className="text-xs font-sans text-[#D4AF37] font-semibold animate-pulse mr-2">
+                Updating benchmark data...
+              </span>
+            )}
+            <div className="flex items-center gap-1 p-1 rounded bg-black/80 border border-white/10 text-xs font-sans">
+              {(['ALL', 'LLM', 'RULES'] as const).map((filter) => (
+                <button
+                  key={filter}
+                  onClick={() => setStrategyFilter(filter)}
+                  className={`px-3 py-1.5 rounded transition-all cursor-pointer text-xs font-medium ${strategyFilter === filter
+                      ? 'bg-white/[0.16] text-[#D4AF37] font-bold border border-[#D4AF37]/40 shadow-sm'
+                      : 'text-zinc-400 hover:text-white'
+                    }`}
+                >
+                  {filter === 'ALL' ? 'All Strategies' : filter === 'LLM' ? 'LLMs Only' : 'Rules Only'}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
-      </div>
+
+        {/* Empirical Context Banner: Reframes all-red or flat benchmark comparisons */}
+        {currentWindowConfig.benchmarkReturnPct > 15 && (
+          <div className="flex items-center gap-2.5 text-xs text-zinc-300 bg-white/[0.02] border border-white/[0.07] rounded-lg px-4 py-2.5 font-sans">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
+            <span>
+              <strong className="text-zinc-200">Regime Observation:</strong> Nifty 500 returned +{currentWindowConfig.benchmarkReturnPct.toFixed(2)}% in this window — index rally was heavily concentrated in mega-caps; all systematic stock-picking strategies underperformed pure beta.
+            </span>
+          </div>
+        )}
+        {currentWindowConfig.benchmarkReturnPct < 0 && (
+          <div className="flex items-center gap-2.5 text-xs text-zinc-300 bg-white/[0.02] border border-white/[0.07] rounded-lg px-4 py-2.5 font-sans">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
+            <span>
+              <strong className="text-zinc-200">Regime Observation:</strong> Nifty 500 was flat/contracting ({currentWindowConfig.benchmarkReturnPct.toFixed(2)}%) in this sideways chop window — cash preservation and disciplined pruning generated positive relative alpha.
+            </span>
+          </div>
+        )}
+
+        {/* Master Standings Table */}
+        <BenchmarkMatrixTable agents={filtered} isCompact={false} />
+      </section>
+
+      {/* 3. SECTION 2: HEAD-TO-HEAD PHILOSOPHY SHOWDOWNS (COGNITION VS DETERMINISM) */}
+      <section className="pt-6 border-t border-white/[0.1]">
+        <HeadToHeadDuelsTable agents={agents} />
+      </section>
+
+      {/* 4. SECTION 3: MULTI-AGENT EQUITY GROWTH COMBAT CURVES */}
+      <section className="pt-6 border-t border-white/[0.1] space-y-4">
+        <div>
+          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-white">
+            Equity Growth Trajectories
+          </h2>
+        </div>
+
+        <EquityCurve
+          data={navHistory}
+          title={
+            selectedWindow === 'LIVE'
+              ? 'Multi-Agent Equity Growth'
+              : `${currentWindowConfig.name} — Multi-Agent Equity Growth`
+          }
+          isBacktest={selectedWindow !== 'LIVE'}
+        />
+      </section>
+
     </div>
   );
 }
