@@ -643,7 +643,15 @@ def run(
                 fallback_client=fallback_client if not fake_llm else None,
             )
             is_last = i == len(agent_ids) - 1
-            if not dry_run and not fake_llm and not is_last:
+            next_agent = agent_ids[i + 1] if not is_last else None
+            needs_delay = (
+                not dry_run
+                and not fake_llm
+                and not is_last
+                and not agent_id.startswith("baseline-")
+                and (next_agent is not None and not next_agent.startswith("baseline-"))
+            )
+            if needs_delay:
                 time.sleep(settings.AGENT_RUN_DELAY_SEC)
         return results
     finally:
