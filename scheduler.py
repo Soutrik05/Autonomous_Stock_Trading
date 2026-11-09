@@ -212,21 +212,82 @@ def job_retry_2100() -> None:
     job_nightly_pipeline_retry("21:00_checkpoint", is_final=True)
 
 
+def ensure_database_bootstrapped(clock: Clock, conn: sqlite3.Connection) -> None:
+    """Verifies that schema, seed agents, symbols master, and market calendar exist."""
+    from scripts.init_db import init_db
+
+    init_db(conn, clock)
+    logger.info("Portfolio database schema verified at %s", settings.PORTFOLIO_DB_PATH)
+
+    # 1. Check symbols master
+    try:
+        n_symbols = conn.execute("SELECT COUNT(*) FROM symbols WHERE is_active = 1").fetchone()[0]
+    except sqlite3.OperationalError:
+        n_symbols = 0
+
+    if n_symbols == 0:
+        logger.info("Symbols table is empty. Auto-bootstrapping Nifty 500 constituents...")
+        try:
+            from scripts.build_symbol_master import main as build_symbols_main
+
+            build_symbols_main()
+            logger.info("Symbol master bootstrap complete.")
+        except Exception as sym_err:
+            logger.exception("Failed to auto-seed symbol master: %s", sym_err)
+
+    # 2. Check market calendar
+    try:
+        n_cal = conn.execute("SELECT COUNT(*) FROM market_calendar").fetchone()[0]
+    except sqlite3.OperationalError:
+        n_cal = 0
+
+    if n_cal == 0:
+        logger.info("Market calendar is empty. Auto-seeding market calendar...")
+        try:
+            from core.calendar import seed_calendar
+            from ingestion.upstox_client import UpstoxClient
+
+            client = UpstoxClient()
+            seed_calendar(client, conn)
+            logger.info("Market calendar seeded successfully.")
+        except Exception as cal_err:
+            logger.warning("Could not auto-seed market calendar: %s", cal_err)
+
+
 def check_and_run_startup_catchup(clock: Clock, conn: sqlite3.Connection) -> None:
-    """Checks whether the service started after 20:00 on a trading day with an incomplete pipeline."""
+    """Checks whether the service started after 20:00 on a trading day with an incomplete pipeline,
+    or if historical OHLCV data has 0 candles."""
     today = clock.today()
     if today.weekday() >= 5:  # Weekend
         return
 
-    now_dt = clock.now()
-    if now_dt.hour >= 20:
-        run_date = today.isoformat()
-        if not is_nightly_pipeline_complete(conn, run_date):
-            logger.info(
-                "Startup catch-up: Nightly pipeline not yet completed for %s. Executing catch-up pass...",
-                run_date,
+    run_date = today.isoformat()
+
+    needs_initial_ingest = False
+    try:
+        ohlcv_conn = get_connection(settings.OHLCV_DB_PATH)
+        try:
+            ohlcv_conn.execute(
+                "CREATE TABLE IF NOT EXISTS ohlcv (ticker TEXT, trade_date TEXT, open REAL, high REAL, low REAL, close REAL, volume INTEGER, PRIMARY KEY (ticker, trade_date))"
             )
-            execute_nightly_pipeline_pass(clock, conn, run_date)
+            n_candles = ohlcv_conn.execute("SELECT COUNT(*) FROM ohlcv").fetchone()[0]
+            if n_candles == 0:
+                logger.info("OHLCV database has 0 candles; initial ingestion is required.")
+                needs_initial_ingest = True
+        finally:
+            ohlcv_conn.close()
+    except Exception as ohlcv_err:
+        logger.warning("Error inspecting OHLCV database: %s; flagging initial ingest.", ohlcv_err)
+        needs_initial_ingest = True
+
+    now_dt = clock.now()
+    if needs_initial_ingest or (now_dt.hour >= 20 and not is_nightly_pipeline_complete(conn, run_date)):
+        logger.info(
+            "Startup catch-up: Executing ingestion and pipeline pass for %s (needs_initial=%s)...",
+            run_date,
+            needs_initial_ingest,
+        )
+        execute_nightly_pipeline_pass(clock, conn, run_date)
 
 
 def job_nightly_backup() -> None:
@@ -487,13 +548,10 @@ def main() -> None:
     # Bootstrap schema migrations and seed agents if database is empty/uninitialized
     conn = get_connection(settings.PORTFOLIO_DB_PATH)
     try:
-        from scripts.init_db import init_db
-
-        init_db(conn, clock)
-        logger.info("Portfolio database verified/initialized at %s", settings.PORTFOLIO_DB_PATH)
+        ensure_database_bootstrapped(clock, conn)
         check_and_run_startup_catchup(clock, conn)
     except Exception as exc:
-        logger.error("Failed to initialize or catch up portfolio database: %s", exc)
+        logger.error("Failed to initialize, bootstrap, or catch up portfolio database: %s", exc)
     finally:
         conn.close()
 
