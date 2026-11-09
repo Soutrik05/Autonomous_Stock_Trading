@@ -13,6 +13,7 @@ import time
 from datetime import date, timedelta
 from urllib.parse import quote
 
+import pytest
 import requests
 from dotenv import load_dotenv
 
@@ -74,6 +75,18 @@ def call(name: str, method: str, path_template: str, path_args: tuple = (), para
         record["category"] = "REQUEST_FAILED"
     results.append(record)
     time.sleep(SLEEP_SEC)
+
+
+@pytest.mark.live
+def test_upstox_live_auth_and_quote():
+    """Live integration test: verifies UPSTOX_ANALYTICS_TOKEN against Upstox endpoints."""
+    token = os.environ.get("UPSTOX_ANALYTICS_TOKEN", "")
+    if not token:
+        pytest.skip("UPSTOX_ANALYTICS_TOKEN not configured in environment.")
+
+    headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
+    resp = requests.get(f"{BASE_URL}/v2/market/holidays", headers=headers, timeout=10)
+    assert resp.status_code == 200, f"Upstox holidays endpoint returned status {resp.status_code}: {resp.text[:200]}"
 
 
 def main() -> None:

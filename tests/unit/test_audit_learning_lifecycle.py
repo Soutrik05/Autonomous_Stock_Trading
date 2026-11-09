@@ -11,7 +11,7 @@ import json
 import sqlite3
 from pathlib import Path
 
-import scripts.audit_learning_lifecycle as audit
+import scripts.backtest.audit_learning_lifecycle as audit
 
 _DB_DIR = Path(__file__).resolve().parents[2] / "db"
 _SCHEMA_PATH = _DB_DIR / "schema.sql"

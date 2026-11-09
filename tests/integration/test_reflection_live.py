@@ -18,6 +18,8 @@ import tempfile
 from datetime import timedelta
 from pathlib import Path
 
+import pytest
+
 WORKSPACE_ROOT = Path(__file__).resolve().parent.parent / "src"
 for p in (str(WORKSPACE_ROOT), str(WORKSPACE_ROOT.parent)):
     if p not in sys.path:
@@ -308,6 +310,15 @@ def main() -> None:
             ohlcv_conn.close()
 
     print("\nDone. The temp database has been removed; storage/portfolio.db was never touched.")
+
+
+@pytest.mark.live
+def test_reflection_live_smoke():
+    """Live smoke test: verifies configured LLM provider against reflection engine."""
+    ok, err_msg = _check_api_keys_configured()
+    if not ok:
+        pytest.skip(f"Live LLM API keys not configured: {err_msg}")
+    main()
 
 
 if __name__ == "__main__":
