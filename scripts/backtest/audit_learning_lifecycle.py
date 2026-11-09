@@ -18,7 +18,7 @@ import sqlite3
 import sys
 from pathlib import Path
 
-_WORKSPACE_ROOT = Path(__file__).resolve().parent.parent / "src"
+_WORKSPACE_ROOT = Path(__file__).resolve().parent.parent.parent / "src"
 for _p in (str(_WORKSPACE_ROOT), str(_WORKSPACE_ROOT.parent)):
     if _p not in sys.path:
         sys.path.insert(0, _p)

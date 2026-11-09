@@ -17,7 +17,7 @@ import time
 from pathlib import Path
 
 # Ensure workspace root and src are in sys.path
-_ROOT = Path(__file__).resolve().parent.parent
+_ROOT = Path(__file__).resolve().parent.parent.parent
 _SRC = _ROOT / "src"
 for p in (_SRC, _ROOT):
     if str(p) not in sys.path:

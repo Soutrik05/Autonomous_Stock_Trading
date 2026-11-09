@@ -12,9 +12,13 @@ import sqlite3
 import sys
 import time
 from datetime import date, datetime, timedelta
+from pathlib import Path
 
-sys.path.insert(0, "src")
-sys.path.insert(0, ".")
+WORKSPACE_ROOT = Path(__file__).resolve().parent.parent.parent
+SRC_ROOT = WORKSPACE_ROOT / 'src'
+for _p in (SRC_ROOT, WORKSPACE_ROOT):
+    if str(_p) not in sys.path:
+        sys.path.insert(0, str(_p))
 
 try:
     from jugaad_data.nse import NSELive
