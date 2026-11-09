@@ -123,3 +123,30 @@ def test_init_db_seeds_agents_and_is_idempotent():
     assert len(rows_after) == len(AGENTS)
     version_rows = conn.execute("SELECT version FROM schema_version").fetchall()
     assert len(version_rows) == len({row["version"] for row in version_rows})
+
+
+
+def test_dividend_payouts_table_created():
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys=ON")
+    clock = FakeClock(datetime(2026, 1, 1, 9, 0, 0))
+    init_db(conn, clock)
+
+    tables = [r["name"] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
+    assert "dividend_payouts" in tables
+
+    # Verify unique constraint on (agent_id, ticker, ex_date)
+    conn.execute(
+        "INSERT INTO positions (id, agent_id, ticker, sector, shares, avg_entry_price_paise, stop_paise, target_paise, last_price_paise, status, entry_date) "
+        "VALUES (1, 'simons', 'TATAMOTORS', 'Automobile', 10, 95000, 90000, 105000, 95000, 'OPEN', '2026-01-01')"
+    )
+    conn.execute(
+        "INSERT INTO dividend_payouts (agent_id, ticker, position_id, ex_date, amount_per_share, shares, payout_paise, credited_at) "
+        "VALUES ('simons', 'TATAMOTORS', 1, '2026-01-02', 5.0, 10, 5000, '2026-01-02T15:35:00')"
+    )
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute(
+            "INSERT INTO dividend_payouts (agent_id, ticker, position_id, ex_date, amount_per_share, shares, payout_paise, credited_at) "
+            "VALUES ('simons', 'TATAMOTORS', 1, '2026-01-02', 5.0, 10, 5000, '2026-01-02T15:35:00')"
+        )
