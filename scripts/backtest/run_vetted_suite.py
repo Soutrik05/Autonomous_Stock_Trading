@@ -1,14 +1,15 @@
 """
-End-to-end walk-forward backtest baseline runner across all 3 windows:
-1. Rolling Window 1 (Bull Trend: 2025-02-28 to 2025-11-21, 180 sessions)
-2. Supplementary Window (Range-Bound Compression: 2025-11-24 to 2026-02-04, 51 sessions)
-3. Rolling Window 2 (High Volatility Correction: 2026-02-05 to 2026-10-29, 180 sessions)
+Vetted Suite Backtest Runner across 3 Regimes:
+1. Rolling Window 1 (rolling_w1: Bull Trend, 180 sessions)
+2. Supplementary Window (supplementary_range: Range-Bound Compression, 51 sessions)
+3. Rolling Window 2 (rolling_w2: High-Vol Correction & Recovery, 180 sessions)
 
-All personas running with heuristics active (Heuristics ON baseline).
-Saves databases to:
-- storage/backtest/rolling_w1_heuristics_on.db
-- storage/backtest/supplementary_range_heuristics_on.db
-- storage/backtest/rolling_w2_heuristics_on.db
+Inherits vetted, regime-scoped, reinforced heuristics from:
+storage/backtest/fleet_collective_memory.db
+
+Models configured:
+Trading Agent LLM: gemini-3.1-flash-lite
+Reflection LLM:    gemini-3.8-flash
 """
 
 import logging
@@ -17,7 +18,7 @@ import time
 from pathlib import Path
 
 # Ensure workspace root and src are in sys.path
-_ROOT = Path(__file__).resolve().parent.parent
+_ROOT = Path(__file__).resolve().parent.parent.parent
 _SRC = _ROOT / "src"
 for p in (_SRC, _ROOT):
     if str(p) not in sys.path:
@@ -32,22 +33,24 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
-logger = logging.getLogger("baseline_backtest_runner")
+logger = logging.getLogger("vetted_backtest_suite")
 
 
-def run_window(window_id: str, db_path: Path, report_path: Path) -> dict:
+def run_window(window_id: str, db_path: Path, report_path: Path, memory_source: Path) -> dict:
     win = BACKTEST_WINDOWS[window_id]
     logger.info("=" * 80)
-    logger.info("STARTING WALK-FORWARD WINDOW: [%s] — %s", win.window_id, win.name)
+    logger.info("STARTING VETTED WALK-FORWARD WINDOW: [%s] — %s", win.window_id, win.name)
     logger.info("Historical Range: %s to %s (%d sessions)", win.start_date, win.end_date, win.sessions_count)
     logger.info("Regime:           %s (%s)", win.regime_label, win.description)
-    logger.info("Active Model:     %s (Provider: %s)", settings.LLM_MODEL, settings.LLM_PROVIDER)
-    logger.info("Isolated DB:      %s", db_path)
+    logger.info("Trading Model:    %s (Provider: %s)", settings.LLM_MODEL, settings.LLM_PROVIDER)
+    logger.info("Reflection Model: %s (Provider: %s)", settings.REFLECTION_LLM_MODEL, settings.REFLECTION_LLM_PROVIDER)
+    logger.info("Inheriting From:  %s", memory_source)
+    logger.info("Target DB:        %s", db_path)
     logger.info("Report Target:    %s", report_path)
     logger.info("=" * 80)
 
     def progress(day_idx: int, total: int, date_str: str) -> None:
-        if day_idx % 5 == 0 or day_idx == 1 or day_idx == total:
+        if day_idx % 10 == 0 or day_idx == 1 or day_idx == total:
             logger.info(
                 "  -> [%s] Progress: %d/%d sessions (%.1f%%) | Date: %s",
                 win.window_id,
@@ -65,6 +68,7 @@ def run_window(window_id: str, db_path: Path, report_path: Path) -> dict:
         resume=True,
         progress_callback=progress,
         enable_heuristics=True,
+        inherit_memory=memory_source,
     )
 
     t0 = time.time()
@@ -88,36 +92,47 @@ def run_window(window_id: str, db_path: Path, report_path: Path) -> dict:
 def main():
     start_total = time.time()
     logger.info("=" * 80)
-    logger.info("STARTING FULL BASELINE BACKTEST (HEURISTICS ON) ACROSS 3 WINDOWS")
-    logger.info("LLM Provider: %s | Model: %s", settings.LLM_PROVIDER, settings.LLM_MODEL)
+    logger.info("STARTING VETTED MULTI-REGIME SUITE (OPTION 2)")
+    logger.info("Trading Model:    %s", settings.LLM_MODEL)
+    logger.info("Reflection Model: %s", settings.REFLECTION_LLM_MODEL)
     logger.info("=" * 80)
+
+    memory_source = Path("storage/backtest/fleet_collective_memory.db").resolve()
+    if not memory_source.exists():
+        logger.error("Fleet collective memory not found at: %s", memory_source)
+        sys.exit(1)
 
     windows = [
         (
             "rolling_w1",
-            Path("storage/backtest/rolling_w1_heuristics_on.db").resolve(),
-            Path("reports/rolling_w1_heuristics_on_report.md").resolve(),
+            Path("storage/backtest/rolling_w1_vetted.db").resolve(),
+            Path("storage/backtest/reports/rolling_w1_vetted.md").resolve(),
         ),
         (
             "supplementary_range",
-            Path("storage/backtest/supplementary_range_heuristics_on.db").resolve(),
-            Path("reports/supplementary_range_heuristics_on_report.md").resolve(),
+            Path("storage/backtest/s1_vetted.db").resolve(),
+            Path("storage/backtest/reports/s1_vetted.md").resolve(),
         ),
         (
             "rolling_w2",
-            Path("storage/backtest/rolling_w2_heuristics_on.db").resolve(),
-            Path("reports/rolling_w2_heuristics_on_report.md").resolve(),
+            Path("storage/backtest/w2_vetted.db").resolve(),
+            Path("storage/backtest/reports/w2_vetted.md").resolve(),
         ),
     ]
 
-    for win_id, db_p, rep_p in windows:
-        run_window(win_id, db_p, rep_p)
+    results = []
+    for win_id, db_path, report_path in windows:
+        res = run_window(win_id, db_path, report_path, memory_source)
+        results.append((win_id, res))
 
     total_elapsed = time.time() - start_total
     logger.info("=" * 80)
-    logger.info("ALL 3 WALK-FORWARD WINDOWS COMPLETED in %.1fs (%.1f min)", total_elapsed, total_elapsed / 60)
+    logger.info("ALL 3 VETTED BACKTEST WINDOWS COMPLETED in %.1fs (%.1f min)", total_elapsed, total_elapsed / 60)
+    for win_id, r in results:
+        logger.info(" - Window %s: Status=%s", win_id, r.get("status", "SUCCESS"))
     logger.info("=" * 80)
 
 
 if __name__ == "__main__":
     main()
+

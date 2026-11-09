@@ -382,7 +382,7 @@ def test_historical_data_provider_point_in_time_layering():
 
     fund_conn = sqlite3.connect(":memory:")
     fund_conn.row_factory = sqlite3.Row
-    from scripts.parse_screener_sheets import init_quarterly_history_table
+    from scripts.backtest.parse_screener_sheets import init_quarterly_history_table
 
     init_quarterly_history_table(fund_conn)
 
@@ -441,7 +441,7 @@ def test_persona_cadence_and_debounce_rules():
 
 
 def test_screener_parser_quarter_calculation():
-    from scripts.parse_screener_sheets import compute_lodr_filing_date, parse_period_string
+    from scripts.backtest.parse_screener_sheets import compute_lodr_filing_date, parse_period_string
 
     q_june = parse_period_string("Jun 2025")
     assert q_june == date(2025, 6, 30)

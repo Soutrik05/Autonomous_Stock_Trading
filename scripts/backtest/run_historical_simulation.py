@@ -24,9 +24,11 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 # Ensure workspace root is in sys.path
-WORKSPACE_ROOT = Path(__file__).resolve().parent.parent
+WORKSPACE_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(WORKSPACE_ROOT) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_ROOT))
+if str(WORKSPACE_ROOT / 'src') not in sys.path:
+    sys.path.insert(0, str(WORKSPACE_ROOT / 'src'))
 
 from agents.personas import all_personas
 from agents.runner import run as run_agents
