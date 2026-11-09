@@ -4,6 +4,7 @@ import { apiService } from '../services/api';
 import EquityCurve from '../components/EquityCurve';
 import BenchmarkMatrixTable from '../components/BenchmarkMatrixTable';
 import HeadToHeadDuelsTable from '../components/HeadToHeadDuelsTable';
+import PodiumCards from '../components/PodiumCards';
 
 interface EvaluationWindowConfig {
   id: 'LIVE' | 'W1' | 'S1' | 'W2';
@@ -24,7 +25,7 @@ const EVALUATION_WINDOWS: EvaluationWindowConfig[] = [
     regime: 'HIGH_VOL_CORRECTION',
     vix: 18.42,
     benchmarkReturnPct: -3.95,
-    seedCapitalFormatted: '₹1,00,000 / AGENT',
+    seedCapitalFormatted: '₹5,00,000 / AGENT',
     description: 'Current production paper-trading tape on live Nifty 500 constituents',
   },
   {
@@ -258,6 +259,9 @@ export default function Leaderboard() {
         </div>
 
       </section>
+
+      {/* PODIUM TOP 3 CARDS */}
+      <PodiumCards topAgents={filtered} />
 
       {/* 2. SECTION 1: CURRENT STANDINGS (UNIFIED WITH LANDING PAGE) */}
       <section className="space-y-4">

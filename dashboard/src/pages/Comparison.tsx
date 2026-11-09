@@ -19,6 +19,7 @@ import type { BaselineComparison } from '../types';
 import { apiService } from '../services/api';
 import { formatPaiseToRupees, formatPct } from '../utils/formatters';
 import SmallSampleNotice from '../components/SmallSampleNotice';
+import ExplainabilitySpotlight from '../components/ExplainabilitySpotlight';
 
 export default function Comparison() {
   const [data, setData] = useState<BaselineComparison | null>(null);
@@ -267,6 +268,7 @@ export default function Comparison() {
           </table>
         </div>
       </div>
+      <ExplainabilitySpotlight />
     </div>
   );
 }

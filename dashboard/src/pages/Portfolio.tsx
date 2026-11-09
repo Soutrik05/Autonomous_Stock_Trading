@@ -16,6 +16,7 @@ import PortfolioDualCurve from '../components/PortfolioDualCurve';
 import HoldingsLinearStack from '../components/HoldingsLinearStack';
 import IntegratedTradesSection from '../components/IntegratedTradesSection';
 import LearnedMemoryBankSection from '../components/LearnedMemoryBankSection';
+import WatchlistFunnel from '../components/WatchlistFunnel';
 
 interface PersonaProfile {
   school: string;
@@ -403,6 +404,9 @@ export default function Portfolio() {
         </div>
 
       </div>
+
+      {/* 3.5 ACTIVE WATCHLIST CANDIDATE FUNNEL */}
+      <WatchlistFunnel />
 
       {/* 4. STANDALONE LEARNED MEMORY BANK (HIGH LEGIBILITY, CAUSAL HEURISTICS) */}
       <LearnedMemoryBankSection heuristics={heuristics} />
