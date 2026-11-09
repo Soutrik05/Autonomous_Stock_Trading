@@ -8,6 +8,7 @@ import math
 import sqlite3
 from typing import Any
 
+from core.config import settings
 from core.money import paise_to_rupees
 from evaluation.philosophy import evaluate_agent_philosophy_adherence
 
@@ -107,8 +108,21 @@ def calculate_agent_performance(
         (agent_id,),
     ).fetchall()
 
-    initial_nav = 100_000_000  # Default initial Rs 10,00,000 in paise
+    initial_nav = settings.INITIAL_CASH_PER_AGENT_PAISE
     current_nav = initial_nav
+    try:
+        agent_row = conn.execute(
+            "SELECT starting_cash_paise, cash_paise FROM agents WHERE id = ?", (agent_id,)
+        ).fetchone()
+        if agent_row:
+            if "starting_cash_paise" in agent_row.keys() and agent_row["starting_cash_paise"]:
+                initial_nav = agent_row["starting_cash_paise"]
+            if "cash_paise" in agent_row.keys() and agent_row["cash_paise"]:
+                current_nav = agent_row["cash_paise"]
+            else:
+                current_nav = initial_nav
+    except sqlite3.OperationalError:
+        pass
     total_return_pct = 0.0
     benchmark_return_pct = 0.0
     alpha_pct = 0.0
