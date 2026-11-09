@@ -310,7 +310,13 @@ def job_agent_runner() -> None:
     try:
         run_date = clock.today().isoformat()
         logger.info("Running agent decisions for %s...", run_date)
-        agent_ids = [p.id for p in all_personas()] + ["baseline-simons-rules"]
+        agent_ids = [p.id for p in all_personas()] + [
+            "baseline-simons-rules",
+            "baseline-varsity-rules",
+            "baseline-lynch-rules",
+            "baseline-marks-rules",
+            "baseline-rj-rules",
+        ]
         res = run_agents(agent_ids, as_of_date=run_date, clock=clock, portfolio_conn=conn)
         logger.info("Agent decisions result: %s", res)
     except Exception as exc:
