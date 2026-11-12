@@ -11,6 +11,7 @@ services:
     env_file:
       - .env
     volumes:
+      - ./src:/app/src
       - ./storage:/app/storage
       - ./backups:/app/backups
 
@@ -21,11 +22,21 @@ services:
     image: stockminds:latest
     container_name: stockminds_api
     restart: unless-stopped
-    command: ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    command: ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     ports:
       - "8000:8000"
+      - "80:8000"
     env_file:
       - .env
     volumes:
+      - ./src:/app/src
       - ./storage:/app/storage
       - ./backups:/app/backups
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: stockminds_tunnel
+    restart: unless-stopped
+    command: ${CLOUDFLARE_TUNNEL_COMMAND:-tunnel --no-autoupdate --url http://api:8000}
+    depends_on:
+      - api

@@ -5,6 +5,7 @@ See Plan_v3 §1.4.
 """
 
 import logging
+import signal
 import sqlite3
 import sys
 from zoneinfo import ZoneInfo
@@ -150,7 +151,7 @@ def execute_nightly_pipeline_pass(clock: Clock, conn: sqlite3.Connection, run_da
 
 
 def job_nightly_ingestion_and_features() -> None:
-    """20:00 IST: Primary nightly pipeline pass."""
+    """22:00 IST: Primary nightly pipeline pass."""
     clock = SystemClock()
     conn = get_connection(settings.PORTFOLIO_DB_PATH)
     try:
@@ -160,22 +161,22 @@ def job_nightly_ingestion_and_features() -> None:
 
         run_date = clock.today().isoformat()
         if is_nightly_pipeline_complete(conn, run_date):
-            logger.info("Nightly pipeline already completed for %s; skipping 20:00 pass.", run_date)
+            logger.info("Nightly pipeline already completed for %s; skipping 22:00 pass.", run_date)
             return
 
         status = execute_nightly_pipeline_pass(clock, conn, run_date)
         if status == "FAILED":
             logger.warning(
-                "Nightly pipeline failed initial 20:00 pass. Automated retries scheduled for 20:30 and 21:00 IST."
+                "Nightly pipeline failed initial 22:00 pass. Automated retry scheduled for 22:30 IST."
             )
     except Exception as exc:
-        logger.exception("Nightly pipeline 20:00 pass encountered unhandled error: %s", exc)
+        logger.exception("Nightly pipeline 22:00 pass encountered unhandled error: %s", exc)
     finally:
         conn.close()
 
 
 def job_nightly_pipeline_retry(checkpoint_label: str, is_final: bool = False) -> None:
-    """Checkpoint retry job scheduled at 20:30 and 21:00 IST."""
+    """Checkpoint retry job scheduled at 22:30 IST."""
     from notifications.alerts import record_pipeline_failure
 
     clock = SystemClock()
@@ -204,12 +205,61 @@ def job_nightly_pipeline_retry(checkpoint_label: str, is_final: bool = False) ->
         conn.close()
 
 
-def job_retry_2030() -> None:
-    job_nightly_pipeline_retry("20:30_checkpoint", is_final=False)
+def job_retry_2230() -> None:
+    job_nightly_pipeline_retry("22:30_checkpoint", is_final=True)
 
 
-def job_retry_2100() -> None:
-    job_nightly_pipeline_retry("21:00_checkpoint", is_final=True)
+
+def cleanup_orphaned_pipeline_runs(conn: sqlite3.Connection, clock: Clock) -> None:
+    """Detects and resolves dangling RUNNING states left by ungraceful kills or container crashes."""
+    try:
+        rows = conn.execute(
+            "SELECT job, run_date, started_at FROM pipeline_runs WHERE status = 'RUNNING'"
+        ).fetchall()
+        for r in rows:
+            conn.execute(
+                "UPDATE pipeline_runs SET status = 'INTERRUPTED', finished_at = ?, detail = ? "
+                "WHERE job = ? AND run_date = ? AND status = 'RUNNING'",
+                (
+                    clock.now_iso(),
+                    "Process interrupted: host restarted or container terminated before completion",
+                    r["job"],
+                    r["run_date"],
+                ),
+            )
+        if rows:
+            logger.warning("Auto-recovered %d orphaned RUNNING job(s) as INTERRUPTED.", len(rows))
+    except sqlite3.OperationalError:
+        pass
+
+
+def register_signal_handlers(scheduler: BlockingScheduler) -> None:
+    """Intercepts SIGTERM and SIGINT from Docker to clean up running states gracefully on shutdown."""
+    def _shutdown(signum, frame):
+        sig_name = "SIGTERM" if signum == signal.SIGTERM else "SIGINT"
+        logger.warning("Received %s. Shutting down APScheduler and cleaning active jobs...", sig_name)
+        try:
+            conn = get_connection(settings.PORTFOLIO_DB_PATH)
+            clock = SystemClock()
+            conn.execute(
+                "UPDATE pipeline_runs SET status = 'INTERRUPTED', finished_at = ?, detail = ? WHERE status = 'RUNNING'",
+                (clock.now_iso(), f"Process interrupted: container shutdown ({sig_name})"),
+            )
+            conn.close()
+        except Exception as exc:
+            logger.exception("Failed to update pipeline_runs on %s: %s", sig_name, exc)
+        finally:
+            try:
+                scheduler.shutdown(wait=False)
+            except Exception:
+                pass
+            sys.exit(0)
+
+    try:
+        signal.signal(signal.SIGTERM, _shutdown)
+        signal.signal(signal.SIGINT, _shutdown)
+    except Exception as sig_err:
+        logger.warning("Could not register POSIX signal handlers: %s", sig_err)
 
 
 def ensure_database_bootstrapped(clock: Clock, conn: sqlite3.Connection) -> None:
@@ -218,6 +268,7 @@ def ensure_database_bootstrapped(clock: Clock, conn: sqlite3.Connection) -> None
 
     init_db(conn, clock)
     logger.info("Portfolio database schema verified at %s", settings.PORTFOLIO_DB_PATH)
+    cleanup_orphaned_pipeline_runs(conn, clock)
 
     # 1. Check symbols master
     try:
@@ -281,7 +332,7 @@ def check_and_run_startup_catchup(clock: Clock, conn: sqlite3.Connection) -> Non
         needs_initial_ingest = True
 
     now_dt = clock.now()
-    if needs_initial_ingest or (now_dt.hour >= 20 and not is_nightly_pipeline_complete(conn, run_date)):
+    if needs_initial_ingest or (now_dt.hour >= 22 and not is_nightly_pipeline_complete(conn, run_date)):
         logger.info(
             "Startup catch-up: Executing ingestion and pipeline pass for %s (needs_initial=%s)...",
             run_date,
@@ -291,7 +342,7 @@ def check_and_run_startup_catchup(clock: Clock, conn: sqlite3.Connection) -> Non
 
 
 def job_nightly_backup() -> None:
-    """21:45 IST: SQLite backup API snapshot of portfolio.db."""
+    """23:45 IST: SQLite backup API snapshot of portfolio.db after daily agent runs and heuristics."""
     try:
         clock = SystemClock()
         res = backup_portfolio_db(clock=clock)
@@ -301,14 +352,19 @@ def job_nightly_backup() -> None:
 
 
 def job_agent_runner() -> None:
-    """22:00 IST: Runs agent decisions for all 5 LLM personas and baseline."""
+    """23:00 IST: Runs agent decisions for all 5 LLM personas and baseline."""
     from agents.personas import all_personas
     from agents.runner import run as run_agents
+    from core.calendar import is_trading_day
 
     clock = SystemClock()
     conn = get_connection(settings.PORTFOLIO_DB_PATH)
     try:
-        run_date = clock.today().isoformat()
+        today_obj = clock.today()
+        run_date = today_obj.isoformat()
+        if not is_trading_day(conn, today_obj):
+            logger.info("Market closed on %s (SKIPPED_HOLIDAY); skipping agent runner pass.", run_date)
+            return
         logger.info("Running agent decisions for %s...", run_date)
         agent_ids = [p.id for p in all_personas()] + [
             "baseline-simons-rules",
@@ -341,7 +397,7 @@ def _is_agent_runner_complete(conn: sqlite3.Connection, run_date: str) -> bool:
 
 
 def job_heuristic_nightly() -> None:
-    """22:30 IST: nightly heuristic trigger evaluation and lifecycle update, after
+    """23:30 IST: nightly heuristic trigger evaluation and lifecycle update, after
     job_agent_runner, followed by forensics post-exit enrichment as a second, independently
     isolated step (one failing must never stop the other). Skipped entirely (not failed) if
     that day's agent-runner step hasn't finished."""
@@ -475,63 +531,53 @@ def build_scheduler() -> BlockingScheduler:
         id="settlement",
     )
 
-    # 4. Ingestion, features, watchlist at 20:00 IST Mon-Fri
+    # 4. Ingestion, features, watchlist at 22:00 IST Mon-Fri
     scheduler.add_job(
         job_nightly_ingestion_and_features,
         "cron",
         day_of_week="mon-fri",
-        hour=20,
+        hour=22,
         minute=0,
         id="nightly_ingestion",
     )
 
-    # 4b. Pipeline retry checkpoint 1 at 20:30 IST Mon-Fri
+    # 4b. Pipeline retry checkpoint (single & final) at 22:30 IST Mon-Fri
     scheduler.add_job(
-        job_retry_2030,
+        job_retry_2230,
         "cron",
         day_of_week="mon-fri",
-        hour=20,
+        hour=22,
         minute=30,
-        id="nightly_pipeline_retry_2030",
+        id="nightly_pipeline_retry_2230",
     )
 
-    # 4c. Pipeline retry checkpoint 2 (final) at 21:00 IST Mon-Fri
-    scheduler.add_job(
-        job_retry_2100,
-        "cron",
-        day_of_week="mon-fri",
-        hour=21,
-        minute=0,
-        id="nightly_pipeline_retry_2100",
-    )
-
-    # 5. Backup at 21:45 IST daily
-    scheduler.add_job(
-        job_nightly_backup,
-        "cron",
-        hour=21,
-        minute=45,
-        id="nightly_backup",
-    )
-
-    # 6. Agent decision runner at 22:00 IST Mon-Fri
+    # 5. Agent decision runner at 23:00 IST Mon-Fri
     scheduler.add_job(
         job_agent_runner,
         "cron",
         day_of_week="mon-fri",
-        hour=22,
+        hour=23,
         minute=0,
         id="agent_runner",
     )
 
-    # 7. Nightly heuristic trigger evaluation at 22:30 IST Mon-Fri, after the agent runner
+    # 6. Nightly heuristic trigger evaluation at 23:30 IST Mon-Fri, after the agent runner
     scheduler.add_job(
         job_heuristic_nightly,
         "cron",
         day_of_week="mon-fri",
-        hour=22,
+        hour=23,
         minute=30,
         id="heuristic_nightly",
+    )
+
+    # 7. Backup at 23:45 IST daily (captures all daily settlement, decisions, and heuristics)
+    scheduler.add_job(
+        job_nightly_backup,
+        "cron",
+        hour=23,
+        minute=45,
+        id="nightly_backup",
     )
 
     # 8. Weekly reflection (heuristic generation) at 10:00 IST on Sunday
@@ -562,6 +608,7 @@ def main() -> None:
         conn.close()
 
     scheduler = build_scheduler()
+    register_signal_handlers(scheduler)
     for job in scheduler.get_jobs():
         logger.info("Registered job %s: trigger=%s", job.id, job.trigger)
 
