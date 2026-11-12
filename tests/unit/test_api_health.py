@@ -6,6 +6,7 @@ See docs/backend_implementation_guide_week5.md §3.8.
 
 import pytest
 
+from core.config import settings
 from ._api_test_helpers import NOW, build_file_db, clear_overrides, make_client
 
 
@@ -57,7 +58,7 @@ def test_seeded_pipeline_runs_returns_latest_row_per_job_with_duration(tmp_path)
     assert job["status"] == "FAILED"
     assert job["duration_sec"] == 5
     assert job["error_message"] == "upstream timeout"
-    assert job["cadence"] == "Daily 20:00 IST (Mon-Fri)"
+    assert job["cadence"] == f"Daily {settings.INGESTION_TIME} IST (Mon-Fri)"
 
 
 def test_unknown_job_name_still_appears_with_null_cadence(tmp_path):

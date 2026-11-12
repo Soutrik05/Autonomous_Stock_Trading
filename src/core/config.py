@@ -44,9 +44,11 @@ class Settings(BaseSettings):
     RATE_LIMIT_PER_30MIN: int = 1800
 
     # --- Schedule, all times IST (§1.4) ---
-    INGESTION_TIME: str = "20:00"
-    BACKUP_TIME: str = "21:45"
-    AGENT_RUN_TIME: str = "22:00"
+    INGESTION_TIME: str = "22:00"
+    RETRY_TIME: str = "22:30"
+    BACKUP_TIME: str = "23:45"
+    AGENT_RUN_TIME: str = "23:00"
+    HEURISTIC_TIME: str = "23:30"
     MONITOR_START: str = "09:20"
     MONITOR_END: str = "15:20"
     MONITOR_INTERVAL_MIN: int = 10

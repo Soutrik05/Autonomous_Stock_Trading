@@ -27,6 +27,10 @@ _ALIASES = {
     "core": "varsity",
     "varsity-dcf": "varsity",
     "baseline-simons-rules": "simons",
+    "baseline-varsity-rules": "varsity",
+    "baseline-lynch-rules": "lynch",
+    "baseline-marks-rules": "marks",
+    "baseline-rj-rules": "jhunjhunwala",
 }
 
 

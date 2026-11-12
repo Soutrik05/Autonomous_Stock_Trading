@@ -193,3 +193,14 @@ class FunnelEntry(BaseModel):
     agent_id: str
     run_date: str
     stages: list[FunnelStage]
+
+
+class WatchlistItem(BaseModel):
+    agent_id: str
+    ticker: str
+    company_name: Optional[str] = None
+    sector: str
+    added_on: str
+    ttl_days: int
+    expires_on: str
+    intensity_score: float

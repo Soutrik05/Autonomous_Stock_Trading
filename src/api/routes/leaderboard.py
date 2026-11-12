@@ -1,16 +1,19 @@
 """
 GET /api/leaderboard: NAV, return %, alpha, Sharpe, drawdown, win rate, faithfulness, small-sample
 notice. GET /api/agents/nav: daily NAV series for every agent plus the Nifty 500 benchmark.
+GET /api/market/context: live market regime, India VIX, macro trend, and advance-decline.
 See Plan_v3 Part IV.
 """
 
 import sqlite3
-from typing import Optional
+from pathlib import Path
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends
 
 from api.deps import portfolio_conn
 from api.schemas import LeaderboardEntry, NavPoint
+from core.config import settings
 from evaluation.performance import evaluate_all_agents
 
 router = APIRouter(prefix="/api", tags=["leaderboard"])
@@ -100,3 +103,43 @@ def get_agents_nav(conn: sqlite3.Connection = Depends(portfolio_conn)) -> list[N
             by_date[d]["nifty500"] = round(default_starting_cash * (r["nifty500_close"] / first_nifty_close))
 
     return [NavPoint(date=d, values=vals) for d, vals in sorted(by_date.items())]
+
+
+@router.get("/market/context")
+def get_market_context() -> dict[str, Any]:
+    """Returns the latest market regime, India VIX, and macro trend from macro.db."""
+    macro_path = Path(settings.MACRO_DB_PATH).resolve()
+    if not macro_path.exists():
+        return {
+            "trade_date": None,
+            "regime": "NORMAL",
+            "india_vix": 17.56,
+            "nifty50_trend": "NEUTRAL",
+            "nifty500_trend": "NEUTRAL",
+            "advance_decline": 1.0,
+        }
+    conn = sqlite3.connect(f"file:{macro_path.as_posix()}?mode=ro", uri=True)
+    conn.row_factory = sqlite3.Row
+    try:
+        row = conn.execute("SELECT * FROM macro_daily ORDER BY trade_date DESC LIMIT 1").fetchone()
+        if not row:
+            return {
+                "trade_date": None,
+                "regime": "NORMAL",
+                "india_vix": 17.56,
+                "nifty50_trend": "NEUTRAL",
+                "nifty500_trend": "NEUTRAL",
+                "advance_decline": 1.0,
+            }
+        return {
+            "trade_date": row["trade_date"],
+            "regime": row["regime"] or "NORMAL",
+            "india_vix": float(row["india_vix"]) if row["india_vix"] is not None else 17.56,
+            "fii_net_cr": row["fii_net_cr"],
+            "dii_net_cr": row["dii_net_cr"],
+            "nifty50_trend": row["nifty50_trend"] or "NEUTRAL",
+            "nifty500_trend": row["nifty500_trend"] or "NEUTRAL",
+            "advance_decline": row["advance_decline"],
+        }
+    finally:
+        conn.close()

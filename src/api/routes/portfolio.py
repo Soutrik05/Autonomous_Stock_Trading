@@ -11,7 +11,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query
 
 from api.deps import portfolio_conn, require_agent, to_ist_iso
-from api.schemas import CitedMetric, Decision, Order, Position
+from api.schemas import CitedMetric, Decision, Order, Position, WatchlistItem
 
 router = APIRouter(prefix="/api/agents", tags=["portfolio"])
 
@@ -170,3 +170,42 @@ def get_agent_decisions(agent_id: str, conn: sqlite3.Connection = Depends(portfo
             )
         )
     return decisions
+
+
+@router.get("/{agent_id}/watchlist", response_model=list[WatchlistItem])
+def get_agent_watchlist(
+    agent_id: str,
+    conn: sqlite3.Connection = Depends(portfolio_conn),
+) -> list[WatchlistItem]:
+    # Support baseline agents by mapping them to their underlying strategy watchlist
+    lookup_id = (
+        agent_id.replace("baseline-", "")
+        .replace("-rules", "")
+        .replace("rj", "jhunjhunwala")
+        .replace("stockminds-core", "varsity")
+    )
+    rows = conn.execute(
+        """
+        SELECT w.agent_id, w.ticker, w.sector, w.added_on, w.ttl_days, w.expires_on, w.intensity_score,
+               s.company_name
+        FROM agent_watchlist w
+        LEFT JOIN symbols s ON s.ticker = w.ticker
+        WHERE w.agent_id = ? OR w.agent_id = ?
+        ORDER BY w.intensity_score DESC
+        """,
+        (agent_id, lookup_id),
+    ).fetchall()
+
+    return [
+        WatchlistItem(
+            agent_id=r["agent_id"],
+            ticker=r["ticker"],
+            company_name=r["company_name"] or r["ticker"],
+            sector=r["sector"],
+            added_on=r["added_on"],
+            ttl_days=r["ttl_days"],
+            expires_on=r["expires_on"],
+            intensity_score=round(float(r["intensity_score"]), 2) if r["intensity_score"] is not None else 0.0,
+        )
+        for r in rows
+    ]

@@ -606,7 +606,15 @@ def run(
     if ohlcv_conn is None and not dry_run:
         ohlcv_conn = get_connection(settings.OHLCV_DB_PATH)
     try:
-        run_date = as_of_date or clock.today().isoformat()
+        from core.calendar import is_trading_day
+        from datetime import date
+        today_obj = clock.today()
+        run_date = as_of_date or today_obj.isoformat()
+        run_date_obj = today_obj if as_of_date is None else date.fromisoformat(run_date)
+
+        if not dry_run and not is_trading_day(portfolio_conn, run_date_obj):
+            _upsert_terminal_run(portfolio_conn, run_date, "SKIPPED_HOLIDAY", clock, detail="Not a trading day.")
+            return {aid: {"status": "SKIPPED_HOLIDAY", "detail": "Not a trading day."} for aid in agent_ids}
 
         if llm_client is None and not dry_run:
             if fake_llm:
@@ -643,7 +651,15 @@ def run(
                 fallback_client=fallback_client if not fake_llm else None,
             )
             is_last = i == len(agent_ids) - 1
-            if not dry_run and not fake_llm and not is_last:
+            next_agent = agent_ids[i + 1] if not is_last else None
+            needs_delay = (
+                not dry_run
+                and not fake_llm
+                and not is_last
+                and not agent_id.startswith("baseline-")
+                and (next_agent is not None and not next_agent.startswith("baseline-"))
+            )
+            if needs_delay:
                 time.sleep(settings.AGENT_RUN_DELAY_SEC)
         return results
     finally:

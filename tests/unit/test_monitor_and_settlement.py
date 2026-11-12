@@ -200,7 +200,8 @@ def test_settlement_computes_daily_nav_correctly():
     # Latest quote brings TATAMOTORS to 960.00 paise (96000), and Nifty 500 close is 22500.50
     quotes = ReplayQuoteProvider({"TATAMOTORS": 96000, "NIFTY_500": rupees_to_paise(22500.50)})
 
-    res = run_settlement(conn, clock, quote_provider=quotes, run_date_str=TRADE_DATE)
+    empty_fconn = sqlite3.connect(chr(58) + 'memory' + chr(58))
+    res = run_settlement(conn, clock, quote_provider=quotes, run_date_str=TRADE_DATE, fundamental_conn=empty_fconn)
     assert res["status"] == "SUCCESS"
     assert res["agents_settled"] >= 1
     assert res["nifty500_close"] == 22500.50
@@ -305,3 +306,173 @@ def test_monitor_long_horizon_stop_loss_behavior():
     ).fetchone()
     assert pos3["status"] == "CLOSED"
     assert pos3["exit_reason"] == "STOP_HIT"
+
+
+
+def make_fundamental_db_with_actions():
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute(
+        """
+        CREATE TABLE corporate_actions (
+            ticker         TEXT NOT NULL,
+            isin           TEXT NOT NULL,
+            action_type    TEXT NOT NULL,
+            expiry_date    TEXT,
+            amount         REAL,
+            ratio          TEXT,
+            raw_details    TEXT,
+            updated_at     TEXT NOT NULL,
+            PRIMARY KEY (ticker, action_type, expiry_date)
+        )
+        """
+    )
+    return conn
+
+
+def test_settlement_credits_dividend_to_held_positions():
+    portfolio_conn = make_portfolio_db()
+    seed_db(portfolio_conn)
+    fundamental_conn = make_fundamental_db_with_actions()
+    clock = FakeClock(datetime(2026, 10, 19, 15, 35, 0))
+
+    # Add dividend for TATAMOTORS on 2026-10-19: Rs 8.50 per share
+    fundamental_conn.execute(
+        "INSERT INTO corporate_actions (ticker, isin, action_type, expiry_date, amount, updated_at) "
+        "VALUES ('TATAMOTORS', 'INE155A01022', 'Dividend', '2026-10-19', 8.5, '2026-10-19T00:00:00')"
+    )
+
+    # 1. Open position entered before ex-date (2026-10-16): 100 shares -> Should receive Rs 850 (85,000 paise)
+    portfolio_conn.execute(
+        "INSERT INTO positions (agent_id, ticker, sector, shares, avg_entry_price_paise, stop_paise, target_paise, last_price_paise, status, entry_date) "
+        "VALUES ('simons', 'TATAMOTORS', 'Automobile', 100, 95000, 90000, 105000, 95000, 'OPEN', '2026-10-16')"
+    )
+
+    initial_cash = 10000000  # 10,000,000 paise
+    quotes = ReplayQuoteProvider({"TATAMOTORS": 94000, "NIFTY_500": rupees_to_paise(22500.0)})
+
+    res = run_settlement(
+        portfolio_conn,
+        clock,
+        quote_provider=quotes,
+        run_date_str="2026-10-19",
+        fundamental_conn=fundamental_conn,
+    )
+
+    assert res["status"] == "SUCCESS"
+    assert res["dividends_credited"] == 1
+    assert res["dividend_payout_paise"] == 85000  # 100 * 8.5 * 100
+
+    # Agent cash should be initial + 85,000
+    agent = portfolio_conn.execute("SELECT cash_paise FROM agents WHERE id = 'simons'").fetchone()
+    assert agent["cash_paise"] == initial_cash + 85000
+
+    # dividend_payouts table audit record
+    payout = portfolio_conn.execute("SELECT * FROM dividend_payouts WHERE agent_id = 'simons'").fetchone()
+    assert payout is not None
+    assert payout["ticker"] == "TATAMOTORS"
+    assert payout["amount_per_share"] == 8.5
+    assert payout["shares"] == 100
+    assert payout["payout_paise"] == 85000
+    assert payout["ex_date"] == "2026-10-19"
+
+    # activity_log record
+    log_row = portfolio_conn.execute(
+        "SELECT * FROM activity_log WHERE event_type = 'DIVIDEND_CREDITED'"
+    ).fetchone()
+    assert log_row is not None
+    assert "850.00" in log_row["description"]
+    assert log_row["ticker"] == "TATAMOTORS"
+
+    # Daily NAV total should include the credited dividend cash
+    nav = portfolio_conn.execute("SELECT * FROM daily_nav WHERE agent_id = 'simons'").fetchone()
+    # invested: 100 * 94000 = 9,400,000; cash: 10,085,000; total: 19,485,000
+    assert nav["cash_paise"] == 10085000
+    assert nav["invested_paise"] == 9400000
+    assert nav["total_paise"] == 19485000
+
+
+def test_settlement_dividend_eligibility_and_idempotence():
+    portfolio_conn = make_portfolio_db()
+    seed_db(portfolio_conn)
+    fundamental_conn = make_fundamental_db_with_actions()
+    clock = FakeClock(datetime(2026, 10, 19, 15, 35, 0))
+
+    # Dividend Rs 5.00 on 2026-10-19 for TATAMOTORS
+    fundamental_conn.execute(
+        "INSERT INTO corporate_actions (ticker, isin, action_type, expiry_date, amount, updated_at) "
+        "VALUES ('TATAMOTORS', 'INE155A01022', 'Dividend', '2026-10-19', 5.0, '2026-10-19T00:00:00')"
+    )
+
+    # Position A: Bought on ex-date 2026-10-19 -> NOT eligible
+    portfolio_conn.execute(
+        "INSERT INTO positions (agent_id, ticker, sector, shares, avg_entry_price_paise, stop_paise, target_paise, last_price_paise, status, entry_date) "
+        "VALUES ('simons', 'TATAMOTORS', 'Automobile', 50, 95000, 90000, 105000, 95000, 'OPEN', '2026-10-19')"
+    )
+
+    quotes = ReplayQuoteProvider({"TATAMOTORS": 95000})
+    res1 = run_settlement(
+        portfolio_conn, clock, quote_provider=quotes, run_date_str="2026-10-19", fundamental_conn=fundamental_conn
+    )
+    assert res1["dividends_credited"] == 0
+    assert res1["dividend_payout_paise"] == 0
+
+    # Position B: Bought on 2026-10-15, closed BEFORE ex-date on 2026-10-18 -> NOT eligible
+    portfolio_conn.execute("DELETE FROM positions")
+    portfolio_conn.execute(
+        "INSERT INTO positions (agent_id, ticker, sector, shares, avg_entry_price_paise, stop_paise, target_paise, last_price_paise, status, entry_date, exit_date) "
+        "VALUES ('simons', 'TATAMOTORS', 'Automobile', 50, 95000, 90000, 105000, 95000, 'CLOSED', '2026-10-15', '2026-10-18')"
+    )
+    res2 = run_settlement(
+        portfolio_conn, clock, quote_provider=quotes, run_date_str="2026-10-19", fundamental_conn=fundamental_conn
+    )
+    assert res2["dividends_credited"] == 0
+
+    # Position C: Bought on 2026-10-15, sold ON ex-date (2026-10-19) -> IS eligible (held cum-date overnight)
+    portfolio_conn.execute("DELETE FROM positions")
+    portfolio_conn.execute(
+        "INSERT INTO positions (agent_id, ticker, sector, shares, avg_entry_price_paise, stop_paise, target_paise, last_price_paise, status, entry_date, exit_date) "
+        "VALUES ('simons', 'TATAMOTORS', 'Automobile', 40, 95000, 90000, 105000, 95000, 'CLOSED', '2026-10-15', '2026-10-19')"
+    )
+    res3 = run_settlement(
+        portfolio_conn, clock, quote_provider=quotes, run_date_str="2026-10-19", fundamental_conn=fundamental_conn
+    )
+    assert res3["dividends_credited"] == 1
+    assert res3["dividend_payout_paise"] == 20000  # 40 * 5.0 * 100
+
+    # Idempotence: re-running settlement on the same date does not credit again
+    res4 = run_settlement(
+        portfolio_conn, clock, quote_provider=quotes, run_date_str="2026-10-19", fundamental_conn=fundamental_conn
+    )
+    assert res4["dividends_credited"] == 0
+    assert res4["dividend_payout_paise"] == 0
+
+
+
+def test_settlement_dividend_upstox_date_format():
+    portfolio_conn = make_portfolio_db()
+    seed_db(portfolio_conn)
+    fundamental_conn = make_fundamental_db_with_actions()
+    clock = FakeClock(datetime(2026, 10, 19, 15, 35, 0))
+
+    # Upstox returns expiry_date as '19 Oct 2026'
+    fundamental_conn.execute(
+        "INSERT INTO corporate_actions (ticker, isin, action_type, expiry_date, amount, updated_at) "
+        "VALUES ('TATAMOTORS', 'INE155A01022', 'Dividend', '19 Oct 2026', 12.0, '2026-10-19T00:00:00')"
+    )
+
+    portfolio_conn.execute(
+        "INSERT INTO positions (agent_id, ticker, sector, shares, avg_entry_price_paise, stop_paise, target_paise, last_price_paise, status, entry_date) "
+        "VALUES ('simons', 'TATAMOTORS', 'Automobile', 50, 95000, 90000, 105000, 95000, 'OPEN', '2026-10-16')"
+    )
+
+    quotes = ReplayQuoteProvider({"TATAMOTORS": 95000})
+    res = run_settlement(
+        portfolio_conn, clock, quote_provider=quotes, run_date_str="2026-10-19", fundamental_conn=fundamental_conn
+    )
+    assert res["status"] == "SUCCESS"
+    assert res["dividends_credited"] == 1
+    assert res["dividend_payout_paise"] == 60000  # 50 * 12.0 * 100
+
+    payout = portfolio_conn.execute("SELECT * FROM dividend_payouts WHERE agent_id = 'simons'").fetchone()
+    assert payout["ex_date"] == "2026-10-19"  # normalized to ISO

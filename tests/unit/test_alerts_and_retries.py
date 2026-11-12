@@ -12,6 +12,7 @@ from unittest.mock import patch
 import pytest
 
 from core.clock import FakeClock
+from core.config import settings
 from notifications.alerts import count_consecutive_failures, record_pipeline_failure
 from scheduler import (
     check_and_run_startup_catchup,
@@ -147,7 +148,8 @@ class TestSchedulerRetriesAndCatchup:
             patch("scheduler.execute_nightly_pipeline_pass", return_value="FAILED"),
             patch("notifications.alerts.record_pipeline_failure") as mock_alert,
         ):
-            job_nightly_pipeline_retry("21:00_checkpoint", is_final=True)
+            checkpoint_label = f"{settings.RETRY_TIME}_checkpoint"
+            job_nightly_pipeline_retry(checkpoint_label, is_final=True)
 
             mock_alert.assert_called_once()
             args, _ = mock_alert.call_args
@@ -156,12 +158,13 @@ class TestSchedulerRetriesAndCatchup:
 
     def test_startup_catchup_triggers_between_2000_and_2200(self, test_db):
         conn = test_db
-        # Monday at 20:45 IST
-        clock_2045 = FakeClock(datetime(2026, 10, 19, 20, 45, 0))
+        ing_h = int(settings.INGESTION_TIME.split(":")[0])
+        # Monday after scheduled ingestion
+        clock_after = FakeClock(datetime(2026, 10, 19, ing_h, 45, 0))
 
         with patch("scheduler.execute_nightly_pipeline_pass") as mock_exec:
-            check_and_run_startup_catchup(clock_2045, conn)
-            mock_exec.assert_called_once_with(clock_2045, conn, "2026-10-19")
+            check_and_run_startup_catchup(clock_after, conn)
+            mock_exec.assert_called_once_with(clock_after, conn, "2026-10-19")
 
     def test_startup_catchup_skips_outside_window_or_on_weekend(self, test_db):
         conn = test_db

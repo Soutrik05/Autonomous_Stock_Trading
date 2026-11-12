@@ -20,10 +20,7 @@ backups/*.db
 data/
 storage/
 
-# Results & Artifacts
-results/
-_legacy_archive/
-_legacy_reference/
+# Artifacts
 docs/
 reports/
 *.md
@@ -56,6 +53,6 @@ dashboard/.vite/
 .idea/
 .vscode/
 
-# Agent Skills
+# Coding Agent Skills
 skills-lock.json
 .agents/
