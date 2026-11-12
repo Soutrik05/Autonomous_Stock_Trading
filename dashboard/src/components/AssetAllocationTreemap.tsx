@@ -19,7 +19,7 @@ export default function AssetAllocationTreemap({
   const [hoveredSymbol, setHoveredSymbol] = useState<string | null>(null);
 
   const activePositions = positions.filter((p) => p.status === 'OPEN');
-  const effectiveTotalNav = totalNavPaise > 0 ? totalNavPaise : 10000000;
+  const effectiveTotalNav = totalNavPaise > 0 ? totalNavPaise : 50000000;
 
   // Compute stock weights
   const stockItems = activePositions.map((pos) => {
@@ -89,7 +89,7 @@ export default function AssetAllocationTreemap({
         </div>
 
         {/* Toggle between Stock Treemap and Sector Mix */}
-        <div className="flex items-center gap-1 p-0.5 rounded bg-black border border-white/10 text-xs font-mono">
+        <div className="flex items-center gap-1 p-0.5 rounded bg-[#181818] border border-white/10 text-xs font-mono">
           <button
             onClick={() => setViewMode('STOCKS')}
             className={`px-2.5 py-1 rounded transition-colors cursor-pointer text-xs ${

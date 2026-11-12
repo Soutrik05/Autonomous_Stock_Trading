@@ -1,347 +1,220 @@
-import { useState, useEffect } from 'react';
-import type { AgentLeaderboardEntry, NavHistoryPoint } from '../types';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import type { AgentLeaderboardEntry, NavHistoryPoint, MarketContext } from '../types';
 import { apiService } from '../services/api';
-import EquityCurve from '../components/EquityCurve';
 import BenchmarkMatrixTable from '../components/BenchmarkMatrixTable';
-import HeadToHeadDuelsTable from '../components/HeadToHeadDuelsTable';
-import PodiumCards from '../components/PodiumCards';
-
-interface EvaluationWindowConfig {
-  id: 'LIVE' | 'W1' | 'S1' | 'W2';
-  runId: string;
-  name: string;
-  regime: string;
-  vix: number;
-  benchmarkReturnPct: number;
-  seedCapitalFormatted: string;
-  description: string;
-}
-
-const EVALUATION_WINDOWS: EvaluationWindowConfig[] = [
-  {
-    id: 'LIVE',
-    runId: 'LIVE',
-    name: 'Live Pilot',
-    regime: 'HIGH_VOL_CORRECTION',
-    vix: 18.42,
-    benchmarkReturnPct: -3.95,
-    seedCapitalFormatted: '₹5,00,000 / AGENT',
-    description: 'Current production paper-trading tape on live Nifty 500 constituents',
-  },
-  {
-    id: 'W1',
-    runId: 'rolling_w1_vetted',
-    name: 'W1: Bull Rally',
-    regime: 'STRONG_BULL_EXPANSION',
-    vix: 13.80,
-    benchmarkReturnPct: 19.89,
-    seedCapitalFormatted: '₹5,00,000 / AGENT',
-    description: '180 sessions (2025-02-28 to 2025-11-21) · Sustained momentum expansion',
-  },
-  {
-    id: 'S1',
-    runId: 's1_vetted',
-    name: 'S1: Range Chop',
-    regime: 'RANGE_COMPRESSION',
-    vix: 11.30,
-    benchmarkReturnPct: -0.60,
-    seedCapitalFormatted: '₹5,00,000 / AGENT',
-    description: '51 sessions (2025-11-24 to 2026-02-04) · Low-volatility sideways mean-reversion',
-  },
-  {
-    id: 'W2',
-    runId: 'w2_vetted',
-    name: 'W2: High-Vol Drawdown',
-    regime: 'HIGH_VOL_CORRECTION',
-    vix: 22.40,
-    benchmarkReturnPct: 0.36,
-    seedCapitalFormatted: '₹5,00,000 / AGENT',
-    description: '180 sessions (2026-02-05 to 2026-10-29) · Volatility spikes & recovery stress-testing',
-  },
-];
+import { TrajectoryChart, type TrajectoryChartPoint } from '../components/TrajectoryChart';
+import { SectionHeader } from '../components/ui/SectionHeader';
+import { formatPaiseCompact } from '../utils/formatters';
+import { cn } from '../utils/cn';
 
 export default function Leaderboard() {
   const [agents, setAgents] = useState<AgentLeaderboardEntry[]>([]);
   const [navHistory, setNavHistory] = useState<NavHistoryPoint[]>([]);
+  const [marketContext, setMarketContext] = useState<MarketContext | null>(null);
   const [strategyFilter, setStrategyFilter] = useState<'ALL' | 'LLM' | 'RULES'>('ALL');
-  const [selectedWindow, setSelectedWindow] = useState<'LIVE' | 'W1' | 'S1' | 'W2'>('LIVE');
+  const [chartMode, setChartMode] = useState<'COMPOSITE' | 'PERSONAS'>('COMPOSITE');
   const [loading, setLoading] = useState(true);
-  const [switchingWindow, setSwitchingWindow] = useState(false);
 
-  async function loadWindowData(windowId: 'LIVE' | 'W1' | 'S1' | 'W2') {
-    const config = EVALUATION_WINDOWS.find((w) => w.id === windowId) || EVALUATION_WINDOWS[0];
+  async function loadData() {
     try {
-      if (windowId === 'LIVE') {
-        const [leaderboardData, navData] = await Promise.all([
-          apiService.getLeaderboard(),
-          apiService.getAgentNavHistory(),
-        ]);
-        setAgents(leaderboardData);
-        setNavHistory(navData);
-      } else {
-        const [leaderboardData, navData] = await Promise.all([
-          apiService.getRunLeaderboard(config.runId),
-          apiService.getRunNavHistory(config.runId),
-        ]);
-        setAgents(leaderboardData);
-        setNavHistory(navData);
-      }
+      const [leaderboardData, navData, macroData] = await Promise.all([
+        apiService.getLeaderboard(),
+        apiService.getAgentNavHistory(),
+        apiService.getMarketContext(),
+      ]);
+      setAgents(leaderboardData);
+      setNavHistory(navData);
+      setMarketContext(macroData);
+    } catch (err) {
+      console.warn('Failed to load leaderboard telemetry:', err);
     } finally {
       setLoading(false);
-      setSwitchingWindow(false);
     }
   }
 
   useEffect(() => {
-    loadWindowData('LIVE');
+    loadData();
 
     const handleModeChange = () => {
-      loadWindowData(selectedWindow);
+      loadData();
     };
     window.addEventListener('mock_mode_changed', handleModeChange);
     return () => window.removeEventListener('mock_mode_changed', handleModeChange);
   }, []);
 
-  const handleWindowChange = async (winId: 'LIVE' | 'W1' | 'S1' | 'W2') => {
-    if (winId === selectedWindow) return;
-    setSelectedWindow(winId);
-    setSwitchingWindow(true);
-    await loadWindowData(winId);
-  };
+  const filtered = useMemo(() => {
+    return agents.filter((a) => {
+      const isControl =
+        a.id.startsWith('baseline-') ||
+        a.id.includes('rules') ||
+        a.name.toLowerCase().includes('rules');
+      if (strategyFilter === 'LLM') return !isControl;
+      if (strategyFilter === 'RULES') return isControl;
+      return true;
+    });
+  }, [agents, strategyFilter]);
 
-  const currentWindowConfig =
-    EVALUATION_WINDOWS.find((w) => w.id === selectedWindow) || EVALUATION_WINDOWS[0];
+  const seedCapitalDisplay = useMemo(() => {
+    const seed = agents[0]?.startingCapitalPaise;
+    return seed ? formatPaiseCompact(seed) : '₹5.00 L';
+  }, [agents]);
+
+  // Compute percentage return trajectories from ₹5,00,000 seed (memoized)
+  const SEED_NAV = 500000;
+  const chartData: TrajectoryChartPoint[] = useMemo(() => {
+    return navHistory.map((pt) => {
+      const llmAvgNav = (pt.simons + pt.lynch + pt.marks + pt.jhunjhunwala + pt.stockmindsCore) / 5;
+      const llmCompositeReturn = ((llmAvgNav - SEED_NAV) / SEED_NAV) * 100;
+
+      const bSimons = pt.baselineSimons ?? pt.simons;
+      const bLynch = pt.baselineLynch ?? pt.lynch;
+      const bMarks = pt.baselineMarks ?? pt.marks;
+      const bRj = pt.baselineRj ?? pt.jhunjhunwala;
+      const bVarsity = pt.baselineVarsity ?? pt.stockmindsCore;
+      const rulesAvgNav = (bSimons + bLynch + bMarks + bRj + bVarsity) / 5;
+      const rulesCompositeReturn = ((rulesAvgNav - SEED_NAV) / SEED_NAV) * 100;
+
+      const niftyReturn = ((pt.nifty500 - SEED_NAV) / SEED_NAV) * 100;
+
+      const simonsReturn = ((pt.simons - SEED_NAV) / SEED_NAV) * 100;
+      const marksReturn = ((pt.marks - SEED_NAV) / SEED_NAV) * 100;
+      const lynchReturn = ((pt.lynch - SEED_NAV) / SEED_NAV) * 100;
+
+      const dateParts = pt.date.split('-');
+      const shortDate = dateParts.length === 3 ? `${dateParts[1]}/${dateParts[2]}` : pt.date;
+
+      return {
+        date: shortDate,
+        fullDate: pt.date,
+        llmComposite: Number(llmCompositeReturn.toFixed(2)),
+        rulesComposite: Number(rulesCompositeReturn.toFixed(2)),
+        nifty500: Number(niftyReturn.toFixed(2)),
+        simons: Number(simonsReturn.toFixed(2)),
+        marks: Number(marksReturn.toFixed(2)),
+        lynch: Number(lynchReturn.toFixed(2)),
+      };
+    });
+  }, [navHistory]);
+
+  const handleChartModeChange = useCallback((mode: 'COMPOSITE' | 'PERSONAS') => {
+    setChartMode(mode);
+  }, []);
 
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-28 flex justify-center items-center">
-        <div className="flex items-center gap-3 text-zinc-400 font-sans text-sm">
-          <div className="w-5 h-5 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin" />
-          <span>Synchronizing benchmark telemetry...</span>
+        <div className="flex items-center gap-3 text-zinc-500 font-mono text-xs">
+          <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+          <span>Synchronizing live agent telemetry...</span>
         </div>
       </div>
     );
   }
 
-  // Filter strategies for the primary leaderboard
-  const filtered = agents.filter((a) => {
-    const isControl =
-      a.id.startsWith('baseline-') ||
-      a.id.includes('rules') ||
-      a.name.toLowerCase().includes('rules');
-    if (strategyFilter === 'LLM') return !isControl;
-    if (strategyFilter === 'RULES') return isControl;
-    return true;
-  });
-
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-12 animate-hero-entrance font-sans">
-
-      {/* 1. THE BENCHMARK EVALUATION ENVIRONMENT */}
-      <section className="cosmic-card rounded-xl p-5 sm:p-6 space-y-5">
-
-        {/* Top Header: Label on Left, Distinct Regime Window Selector on Right */}
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 pb-4 border-b border-white/[0.08]">
-          <div className="flex items-center gap-2.5">
-            <span
-              className={`w-2 h-2 rounded-full ${
-                selectedWindow === 'LIVE' ? 'bg-emerald-400 animate-pulse' : 'bg-zinc-400'
-              }`}
-            />
-            <span className="text-xs font-sans uppercase tracking-widest text-zinc-300 font-bold">
-              BENCHMARK EVALUATION ENVIRONMENT
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8 animate-hero-entrance font-sans">
+      {/* 1. LIVE MARKET REGIME & ENVIRONMENT MATRIX (100% Backend-Served) */}
+      <div>
+        <div className="border border-border-hairline bg-[#161616] rounded-lg p-1 sm:p-2 grid grid-cols-2 md:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border-hairline font-mono text-xs">
+          <div className="p-3 sm:px-4">
+            <span className="text-[10px] uppercase tracking-wider text-zinc-500 block">Market Regime</span>
+            <div className="text-sm font-semibold text-white mt-1 font-sans">
+              {marketContext?.regime && marketContext.regime !== 'UNKNOWN'
+                ? marketContext.regime.replace(/_/g, ' ')
+                : '—'}
+            </div>
+            <span className="text-[10px] text-zinc-400 mt-0.5 block">
+              {marketContext?.regime && marketContext.regime !== 'UNKNOWN' ? 'Active Framework' : '—'}
             </span>
           </div>
 
-          {/* Segmented Window Tabs: Distinct LIVE_PILOT vs BACKTEST_DERIVED Family */}
-          <div className="flex flex-wrap items-center gap-2 p-1 rounded-lg cosmic-well text-xs font-sans">
-            {/* Live Pilot Tab */}
-            <button
-              onClick={() => handleWindowChange('LIVE')}
-              className={`px-3 py-1.5 rounded transition-all cursor-pointer text-xs font-medium flex items-center gap-2 ${
-                selectedWindow === 'LIVE'
-                  ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/40 shadow-sm font-semibold'
-                  : 'text-zinc-300 hover:text-emerald-300 hover:bg-emerald-500/10 border border-emerald-500/20'
-              }`}
-              title={EVALUATION_WINDOWS[0].description}
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Live Pilot</span>
-              <span className="text-[9px] font-mono uppercase px-1 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                Live
-              </span>
-            </button>
+          <div className="p-3 sm:px-4">
+            <span className="text-[10px] uppercase tracking-wider text-zinc-500 block">India VIX</span>
+            <div className="text-sm font-semibold text-white mt-1 tabular-nums">
+              {marketContext?.indiaVix ? marketContext.indiaVix.toFixed(2) : '—'}
+            </div>
+            <span className="text-[10px] text-zinc-400 mt-0.5 block">
+              {marketContext?.indiaVix
+                ? marketContext.indiaVix < 18
+                  ? 'Normal Band (< 18.0)'
+                  : 'Elevated Band (≥ 18.0)'
+                : '—'}
+            </span>
+          </div>
 
-            <span className="w-px h-4 bg-white/10 hidden sm:block mx-0.5" />
+          <div className="p-3 sm:px-4">
+            <span className="text-[10px] uppercase tracking-wider text-zinc-500 block">Nifty 500 Trend</span>
+            <div className="text-sm font-semibold text-positive mt-1 tabular-nums">
+              {marketContext?.nifty500Trend && marketContext.nifty500Trend !== 'UNKNOWN'
+                ? marketContext.nifty500Trend
+                : '—'}
+            </div>
+            <span className="text-[10px] text-zinc-400 mt-0.5 block">
+              Advance/Decline: {marketContext?.advanceDecline != null ? `${marketContext.advanceDecline.toFixed(2)} A/D` : '—'}
+            </span>
+          </div>
 
-            {/* Backtest Walk-Forward Regimes */}
-            {EVALUATION_WINDOWS.filter((w) => w.id !== 'LIVE').map((win) => (
+          <div className="p-3 sm:px-4">
+            <span className="text-[10px] uppercase tracking-wider text-zinc-500 block">Fleet Exposure</span>
+            <div className="text-sm font-semibold text-accent mt-1 tabular-nums">
+              {seedCapitalDisplay} <span className="text-xs text-zinc-400 font-normal">/ Agent</span>
+            </div>
+            <span className="text-[10px] text-zinc-400 mt-0.5 block">
+              10 Matched Trading Agents
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. MASTER STANDINGS TABLE (Single Source of Truth) */}
+      <section className="space-y-3">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <SectionHeader
+            title="Rankings & Performance Matrix"
+            subtitle="Ranked by live mark-to-market return."
+          />
+
+          {/* Strategy Filter Tabs */}
+          <div className="flex items-center gap-1 p-0.5 rounded-md bg-[#121212] border border-border-hairline text-xs font-mono self-start sm:self-auto flex-shrink-0">
+            {(['ALL', 'LLM', 'RULES'] as const).map((filter) => (
               <button
-                key={win.id}
-                onClick={() => handleWindowChange(win.id)}
-                className={`px-3 py-1.5 rounded transition-all cursor-pointer text-xs font-medium ${
-                  selectedWindow === win.id
-                    ? 'bg-white/[0.12] text-white font-semibold border border-white/20 shadow-sm'
-                    : 'text-zinc-400 hover:text-white hover:bg-white/[0.04] border border-transparent'
-                }`}
-                title={win.description}
+                key={filter}
+                onClick={() => setStrategyFilter(filter)}
+                className={cn(
+                  'px-3 py-1.5 rounded transition-colors cursor-pointer text-xs',
+                  strategyFilter === filter
+                    ? 'bg-white/[0.1] text-accent font-medium border border-accent/30'
+                    : 'text-zinc-400 hover:text-white border border-transparent'
+                )}
               >
-                {win.name}
+                {filter === 'ALL'
+                  ? 'All Agents (10)'
+                  : filter === 'LLM'
+                  ? 'LLMs Only (5)'
+                  : 'Rules Controls (5)'}
               </button>
             ))}
           </div>
         </div>
 
-        {/* 4 Clean Metric Cards for Environment Conditions (Cosmic Pods) */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-
-          {/* Regime */}
-          <div className="cosmic-pod p-3.5 rounded-lg space-y-1">
-            <span className="text-[11px] font-sans uppercase tracking-wider text-zinc-400 font-semibold block">
-              Market Regime
-            </span>
-            <div className="font-sans text-sm sm:text-[15px] font-bold text-white tracking-tight truncate">
-              {currentWindowConfig.regime.replace(/_/g, ' ')}
-            </div>
-          </div>
-
-          {/* India VIX */}
-          <div className="cosmic-pod p-3.5 rounded-lg space-y-1">
-            <span className="text-[11px] font-sans uppercase tracking-wider text-zinc-400 font-semibold block">
-              India VIX
-            </span>
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-base font-bold text-white tabular-nums">
-                {currentWindowConfig.vix.toFixed(2)}
-              </span>
-              <span
-                className={`px-1.5 py-0.5 rounded text-[10px] font-sans font-bold uppercase tracking-wider ${currentWindowConfig.vix < 14
-                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                    : currentWindowConfig.vix <= 18
-                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
-                      : 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
-                  }`}
-              >
-                {currentWindowConfig.vix < 14 ? 'Low Vol' : currentWindowConfig.vix <= 18 ? 'Elevated' : 'High Vol'}
-              </span>
-            </div>
-          </div>
-
-          {/* Nifty 500 Benchmark */}
-          <div className="cosmic-pod p-3.5 rounded-lg space-y-1">
-            <span className="text-[11px] font-sans uppercase tracking-wider text-zinc-400 font-semibold block">
-              Nifty 500 Benchmark
-            </span>
-            <div
-              className={`font-mono text-base font-bold tabular-nums ${currentWindowConfig.benchmarkReturnPct > 0
-                  ? 'text-emerald-400'
-                  : currentWindowConfig.benchmarkReturnPct < 0
-                    ? 'text-rose-400/90'
-                    : 'text-zinc-200'
-                }`}
-            >
-              {currentWindowConfig.benchmarkReturnPct > 0
-                ? `+${currentWindowConfig.benchmarkReturnPct.toFixed(2)}%`
-                : `${currentWindowConfig.benchmarkReturnPct.toFixed(2)}%`}
-            </div>
-          </div>
-
-          {/* Seed Capital */}
-          <div className="cosmic-pod p-3.5 rounded-lg space-y-1">
-            <span className="text-[11px] font-sans uppercase tracking-wider text-zinc-400 font-semibold block">
-              Seed Capital
-            </span>
-            <div className="font-mono text-base font-bold text-[#D4AF37] tabular-nums">
-              {currentWindowConfig.seedCapitalFormatted}
-            </div>
-          </div>
-
-        </div>
-
+        <BenchmarkMatrixTable agents={filtered} navHistory={navHistory} isCompact={false} />
       </section>
 
-      {/* PODIUM TOP 3 CARDS */}
-      <PodiumCards topAgents={filtered} />
-
-      {/* 2. SECTION 1: CURRENT STANDINGS (UNIFIED WITH LANDING PAGE) */}
-      <section className="space-y-4">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-white/[0.1] pb-4">
-          <div>
-            <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-white">
-              Current Standings
-            </h1>
-          </div>
-
-          {/* Architecture Filter: All | LLMs | Rules */}
-          <div className="flex items-center gap-3">
-            {switchingWindow && (
-              <span className="text-xs font-sans text-[#D4AF37] font-semibold animate-pulse mr-2">
-                Updating benchmark data...
-              </span>
-            )}
-            <div className="flex items-center gap-1 p-1 rounded bg-black/80 border border-white/10 text-xs font-sans">
-              {(['ALL', 'LLM', 'RULES'] as const).map((filter) => (
-                <button
-                  key={filter}
-                  onClick={() => setStrategyFilter(filter)}
-                  className={`px-3 py-1.5 rounded transition-all cursor-pointer text-xs font-medium ${strategyFilter === filter
-                      ? 'bg-white/[0.16] text-[#D4AF37] font-bold border border-[#D4AF37]/40 shadow-sm'
-                      : 'text-zinc-400 hover:text-white'
-                    }`}
-                >
-                  {filter === 'ALL' ? 'All Strategies' : filter === 'LLM' ? 'LLMs Only' : 'Rules Only'}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Empirical Context Banner: Reframes all-red or flat benchmark comparisons */}
-        {currentWindowConfig.benchmarkReturnPct > 15 && (
-          <div className="flex items-center gap-2.5 text-xs text-zinc-300 bg-white/[0.02] border border-white/[0.07] rounded-lg px-4 py-2.5 font-sans">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
-            <span>
-              <strong className="text-zinc-200">Regime Observation:</strong> Nifty 500 returned +{currentWindowConfig.benchmarkReturnPct.toFixed(2)}% in this window — index rally was heavily concentrated in mega-caps; all systematic stock-picking strategies underperformed pure beta.
-            </span>
-          </div>
-        )}
-        {currentWindowConfig.benchmarkReturnPct < 0 && (
-          <div className="flex items-center gap-2.5 text-xs text-zinc-300 bg-white/[0.02] border border-white/[0.07] rounded-lg px-4 py-2.5 font-sans">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
-            <span>
-              <strong className="text-zinc-200">Regime Observation:</strong> Nifty 500 was flat/contracting ({currentWindowConfig.benchmarkReturnPct.toFixed(2)}%) in this sideways chop window — cash preservation and disciplined pruning generated positive relative alpha.
-            </span>
-          </div>
-        )}
-
-        {/* Master Standings Table */}
-        <BenchmarkMatrixTable agents={filtered} isCompact={false} />
-      </section>
-
-      {/* 3. SECTION 2: HEAD-TO-HEAD PHILOSOPHY SHOWDOWNS (COGNITION VS DETERMINISM) */}
-      <section className="pt-6 border-t border-white/[0.1]">
-        <HeadToHeadDuelsTable agents={agents} />
-      </section>
-
-      {/* 4. SECTION 3: MULTI-AGENT EQUITY GROWTH COMBAT CURVES */}
-      <section className="pt-6 border-t border-white/[0.1] space-y-4">
-        <div>
-          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-white">
-            Equity Growth Trajectories
-          </h2>
-        </div>
-
-        <EquityCurve
-          data={navHistory}
-          title={
-            selectedWindow === 'LIVE'
-              ? 'Multi-Agent Equity Growth'
-              : `${currentWindowConfig.name} — Multi-Agent Equity Growth`
-          }
-          isBacktest={selectedWindow !== 'LIVE'}
+      {/* 4. TRAJECTORY VISUALIZATION */}
+      <section className="space-y-3">
+        <SectionHeader
+          title="Observed Return Curves"
+          subtitle="Walk-forward daily equity trajectories from inception seed (₹5,00,000 per agent) against the NSE Nifty 500 index."
         />
-      </section>
 
+        <div className="border border-border-hairline bg-[#161616] rounded-lg overflow-hidden">
+          <TrajectoryChart
+            data={chartData}
+            mode={chartMode}
+            onModeChange={handleChartModeChange}
+          />
+        </div>
+      </section>
     </div>
   );
 }

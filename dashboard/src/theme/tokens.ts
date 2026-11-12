@@ -8,13 +8,13 @@
 import type { ForensicTag, EventSeverity } from '../types';
 
 export const THEME_COLORS = {
-  // Canvas & Surfaces (True Pitch Black #000000 Architecture)
-  canvas: '#000000',                          // True pitch black void
-  surface: '#0A0A0E',                         // Deep onyx surface
-  surfaceGlass: 'rgba(10, 10, 14, 0.85)',     // Translucent onyx glass
-  surfaceSubdued: '#050507',                  // Recessed data wells & headers
-  surfaceHover: '#141419',                    // Micro row/card hover
-  surfaceInset: '#030304',                    // Inset metric wells
+  // Canvas & Surfaces (Neutral Gray #141414 with 3-tier elevation)
+  canvas: '#141414',                          // True pitch black void
+  surface: '#1E1E1E',                         // Deep onyx surface
+  surfaceGlass: 'rgba(30, 30, 30, 0.85)',     // Translucent onyx glass
+  surfaceSubdued: '#181818',                  // Recessed data wells & headers
+  surfaceHover: '#262626',                    // Micro row/card hover
+  surfaceInset: '#161616',                    // Inset metric wells
 
   // Hairline Borders & Dividers
   border: 'rgba(255, 255, 255, 0.08)',       // Crisp structural micro-border
@@ -22,9 +22,9 @@ export const THEME_COLORS = {
   borderStrong: 'rgba(255, 255, 255, 0.16)',   // Active/focused borders
 
   // Typography Ink (High-legibility monochrome)
-  inkPrimary: '#FFFFFF',                      // High-contrast white
-  inkSecondary: '#A1A1AA',                    // Zinc-400 secondary
-  inkSubdued: '#71717A',                      // Zinc-500 captions & units
+  inkPrimary: '#E0E0E0',                      // High-contrast white
+  inkSecondary: '#A0A0A0',                    // Zinc-400 secondary
+  inkSubdued: '#757575',                      // Zinc-500 captions & units
 
   // Functional Signals (No neon glows)
   accent: '#2563EB',                          // Institutional cobalt

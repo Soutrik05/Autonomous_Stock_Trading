@@ -2,6 +2,7 @@ import type {
   AgentLeaderboardEntry,
   Position,
   Order,
+  OrderStatus,
   Decision,
   HeuristicMemory,
   NavHistoryPoint,
@@ -10,6 +11,9 @@ import type {
   PipelineHealthJob,
   BacktestRegimeWindow,
   AgentId,
+  AgentWatchlistItem,
+  FunnelEntry,
+  MarketContext,
 } from '../types';
 
 import { STRATEGY_THEME } from '../theme/tokens';
@@ -22,12 +26,14 @@ import {
   MOCK_HEURISTICS,
   MOCK_NAV_HISTORY,
   MOCK_BASELINE_COMPARISON,
+  MOCK_BASELINE_COMPARISONS,
   MOCK_ACTIVITY_FEED,
   MOCK_PIPELINE_HEALTH,
   MOCK_BACKTEST_WINDOWS,
+  MOCK_WATCHLISTS,
 } from './mockData';
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://16.178.137.108/api';
 
 // Helper to determine if mock mode is preferred (default: false to use real APIs)
 let isMockOverride: boolean | null = null;
@@ -66,25 +72,42 @@ function getHorizonForAgent(id: string): string {
 }
 
 function normalizeLeaderboard(raw: any[]): AgentLeaderboardEntry[] {
-  return raw.map((r) => ({
-    id: r.id as AgentId,
-    name: r.name,
-    philosophy: r.strategy_family || r.philosophy || '',
-    horizonDays: r.horizon_days || getHorizonForAgent(r.id),
-    navPaise: r.nav_paise ?? r.navPaise ?? 10000000,
-    startingCapitalPaise: r.starting_capital_paise ?? r.startingCapitalPaise ?? 10000000,
-    returnPct: r.return_pct ?? r.returnPct ?? 0,
-    alphaVsBenchmarkPct: r.alpha_vs_benchmark_pct ?? r.alphaVsBenchmarkPct ?? 0,
-    sharpeRatio: r.sharpe_ratio ?? r.sharpeRatio ?? 0,
-    maxDrawdownPct: r.max_drawdown_pct ?? r.maxDrawdownPct ?? 0,
-    winRatePct: r.win_rate_pct ?? r.winRatePct ?? 0,
-    faithfulnessRatePct: r.faithfulness_rate_pct ?? r.faithfulnessRatePct ?? 100,
-    totalTrades: r.total_trades ?? r.totalTrades ?? 0,
-    closedTrades: r.closed_trades ?? r.closedTrades ?? 0,
-    isProvisional: r.is_provisional ?? r.isProvisional ?? true,
-    activePositionsCount: r.active_positions_count ?? r.activePositionsCount ?? 0,
-    lastActiveDate: r.last_active_date || '2026-10-29',
-  }));
+  return raw.map((r) => {
+    const navPaise = r.nav_paise ?? r.navPaise ?? 50000000;
+    const startingCapitalPaise = r.starting_capital_paise ?? r.startingCapitalPaise ?? 50000000;
+    const computedReturn = startingCapitalPaise > 0
+      ? ((navPaise - startingCapitalPaise) / startingCapitalPaise) * 100
+      : 0;
+    const backendReturn = r.return_pct ?? r.returnPct ?? 0;
+    // If backend returns 0.0 but NAV actually changed from starting capital (Day 1 pilot mark-to-market),
+    // reflect the computed return so the real live PnL is visible
+    const returnPct = (backendReturn === 0 && navPaise !== startingCapitalPaise)
+      ? Number(computedReturn.toFixed(2))
+      : backendReturn;
+
+    return {
+      id: r.id as AgentId,
+      name: r.name,
+      philosophy: r.strategy_family || r.philosophy || '',
+      horizonDays: r.horizon_days || getHorizonForAgent(r.id),
+      navPaise,
+      startingCapitalPaise,
+      returnPct,
+      alphaVsBenchmarkPct: r.alpha_vs_benchmark_pct ?? r.alphaVsBenchmarkPct ?? returnPct,
+      sharpeRatio: r.sharpe_ratio ?? r.sharpeRatio ?? 0,
+      maxDrawdownPct: r.max_drawdown_pct ?? r.maxDrawdownPct ?? 0,
+      winRatePct: r.win_rate_pct ?? r.winRatePct ?? 0,
+      faithfulnessRatePct: r.faithfulness_rate_pct ?? r.faithfulnessRatePct ?? 100,
+      totalTrades: r.total_trades ?? r.totalTrades ?? 0,
+      closedTrades: r.closed_trades ?? r.closedTrades ?? 0,
+      isProvisional: r.is_provisional ?? r.isProvisional ?? true,
+      activePositionsCount: r.active_positions_count ?? r.activePositionsCount ?? 0,
+      lastActiveDate: r.last_active_date || new Date().toISOString().split('T')[0],
+      foundationModel: r.foundation_model ?? r.foundationModel ?? (r.id && !r.id.startsWith('baseline-') ? 'gemini-2.5-flash' : null),
+      evidenceLabel: r.evidence_label ?? r.evidenceLabel ?? (r.closed_trades >= 30 ? 'Statistically Significant' : 'Provisional (<30 trades)'),
+      sampleNotice: r.sample_notice ?? r.sampleNotice ?? '',
+    };
+  });
 }
 
 function normalizePosition(r: any): Position {
@@ -114,7 +137,31 @@ function normalizePosition(r: any): Position {
   };
 }
 
+
+function normalizeWatchlist(r: any): AgentWatchlistItem {
+  const today = new Date().toISOString().split('T')[0];
+  const ttl = r.ttl_days ?? r.ttlDays ?? 7;
+  const defaultExpiry = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + ttl);
+    return d.toISOString().split('T')[0];
+  })();
+
+  return {
+    agentId: r.agent_id || r.agentId,
+    ticker: r.ticker || r.symbol,
+    companyName: r.company_name || r.companyName || r.ticker || r.symbol || '',
+    sector: r.sector || 'Equities',
+    addedOn: r.added_on || r.addedOn || today,
+    ttlDays: ttl,
+    expiresOn: r.expires_on || r.expiresOn || defaultExpiry,
+    intensityScore: Number(r.intensity_score ?? r.intensityScore ?? 1.0),
+  };
+}
+
 function normalizeOrder(r: any): Order {
+  const normStatus = (r.status ? String(r.status).toUpperCase() : 'PENDING') as OrderStatus;
+  const limitPrice = r.limit_price_paise ?? r.entry_high_paise ?? r.limitPricePaise ?? 0;
   return {
     id: r.id,
     agentId: (r.agent_id || r.agentId) as AgentId,
@@ -122,13 +169,15 @@ function normalizeOrder(r: any): Order {
     side: r.side,
     orderType: r.order_type || r.orderType || 'LIMIT',
     quantity: r.quantity ?? r.shares ?? 0,
-    limitPricePaise: r.limit_price_paise ?? r.entry_high_paise ?? r.limitPricePaise ?? 0,
+    limitPricePaise: limitPrice,
+    entryLowPaise: r.entry_low_paise ?? r.entryLowPaise,
+    entryHighPaise: r.entry_high_paise ?? r.entryHighPaise ?? limitPrice,
     filledPricePaise: r.filled_price_paise ?? r.filledPricePaise,
-    status: r.status,
+    status: normStatus,
     rejectionReason: r.rejection_reason || r.rejectionReason,
     submittedAt: r.submitted_at || r.submittedAt || '',
     filledAt: r.filled_at || r.filledAt,
-    statutoryChargesPaise: r.statutory_charges_paise ?? r.statutoryChargesPaise ?? 0,
+    statutoryChargesPaise: r.statutory_charges_paise ?? r.charges_paise ?? r.statutoryChargesPaise ?? 0,
     slippagePaise: r.slippage_paise ?? r.slippagePaise ?? 0,
   };
 }
@@ -149,35 +198,66 @@ function normalizeDecision(r: any): Decision {
     allocatedPaise: r.allocated_paise ?? r.allocatedPaise,
     citedMetrics: Array.isArray(r.cited_metrics)
       ? r.cited_metrics.map((m: any) => ({
-          name: typeof m === 'string' ? m : m.name,
-          citedValue: m.cited_value ?? m.citedValue ?? 0,
-          actualSnapshotValue: m.actual_snapshot_value ?? m.actualSnapshotValue ?? 0,
-          tolerance: m.tolerance ?? 'EXACT',
-          isFaithful: m.is_faithful ?? m.isFaithful ?? true,
-        }))
+        name: typeof m === 'string' ? m : m.name,
+        citedValue: m.cited_value ?? m.citedValue ?? 0,
+        actualSnapshotValue: m.actual_snapshot_value ?? m.actualSnapshotValue ?? 0,
+        tolerance: m.tolerance ?? 'EXACT',
+        isFaithful: m.is_faithful ?? m.isFaithful ?? true,
+      }))
       : [],
   };
 }
 
+function toRupees(val: any): number {
+  if (val === undefined || val === null || isNaN(Number(val))) return 500000;
+  const num = Number(val);
+  return num > 2000000 ? Math.round(num / 100) : num;
+}
+
 function normalizeNavHistory(raw: any[]): NavHistoryPoint[] {
-  if (!Array.isArray(raw)) return MOCK_NAV_HISTORY;
-  return raw.map((r) => {
+  if (!Array.isArray(raw) || raw.length === 0) return MOCK_NAV_HISTORY;
+  const points: NavHistoryPoint[] = raw.map((r) => {
     const vals = r.values || {};
     return {
       date: r.date || '',
-      simons: vals.simons ?? 10000000,
-      baselineSimons: vals['baseline-simons-rules'] ?? 10000000,
-      lynch: vals.lynch ?? 10000000,
-      baselineLynch: vals['baseline-lynch-rules'] ?? 10000000,
-      marks: vals.marks ?? 10000000,
-      baselineMarks: vals['baseline-marks-rules'] ?? 10000000,
-      jhunjhunwala: vals.jhunjhunwala ?? 10000000,
-      baselineRj: vals['baseline-rj-rules'] ?? 10000000,
-      stockmindsCore: vals.varsity ?? vals['stockminds-core'] ?? 10000000,
-      baselineVarsity: vals['baseline-varsity-rules'] ?? 10000000,
-      nifty500: vals.nifty500 ?? 10000000,
+      simons: toRupees(vals.simons),
+      baselineSimons: toRupees(vals['baseline-simons-rules']),
+      lynch: toRupees(vals.lynch),
+      baselineLynch: toRupees(vals['baseline-lynch-rules']),
+      marks: toRupees(vals.marks),
+      baselineMarks: toRupees(vals['baseline-marks-rules']),
+      jhunjhunwala: toRupees(vals.jhunjhunwala),
+      baselineRj: toRupees(vals['baseline-rj-rules']),
+      stockmindsCore: toRupees(vals.varsity ?? vals['stockminds-core']),
+      baselineVarsity: toRupees(vals['baseline-varsity-rules']),
+      nifty500: toRupees(vals.nifty500),
     };
   });
+
+  // If live data has only 1 date (Pilot Day 1), prepend the Inception Day 0 baseline point
+  // (₹5,00,000 for each series) so that Recharts LineChart and AreaChart can render valid line segments
+  if (points.length === 1) {
+    const d = new Date(points[0].date);
+    d.setDate(d.getDate() - 1);
+    const prevDate = d.toISOString().split('T')[0];
+    const seedPoint: NavHistoryPoint = {
+      date: prevDate,
+      simons: 500000,
+      baselineSimons: 500000,
+      lynch: 500000,
+      baselineLynch: 500000,
+      marks: 500000,
+      baselineMarks: 500000,
+      jhunjhunwala: 500000,
+      baselineRj: 500000,
+      stockmindsCore: 500000,
+      baselineVarsity: 500000,
+      nifty500: 500000,
+    };
+    return [seedPoint, ...points];
+  }
+
+  return points;
 }
 
 function normalizeHeuristic(r: any): HeuristicMemory {
@@ -196,43 +276,65 @@ function normalizeHeuristic(r: any): HeuristicMemory {
   };
 }
 
-function normalizeBaselineComparison(raw: any): BaselineComparison {
-  const llm = raw.llm_agent || raw.llmSimons || {};
-  const rules = raw.rules_agent || raw.rulesSimons || {};
+function normalizeBaselineComparison(raw: any, personaId: string = 'simons'): BaselineComparison {
+  const llm = raw.llm_agent || raw.llmAgent || raw.llmSimons || {};
+  const rules = raw.rules_agent || raw.rulesAgent || raw.rulesSimons || {};
   const nifty = raw.nifty500 || {};
-  const horizons = (raw.horizon_returns || raw.horizonReturns || []).map((h: any) => ({
-    horizonDays: h.horizon_days ?? h.horizonDays ?? 1,
-    llmSimonsBuyAvgPct: h.llm_buy_avg_pct ?? h.llmSimonsBuyAvgPct ?? 0,
-    llmSimonsHoldAvgPct: h.llm_hold_avg_pct ?? h.llmSimonsHoldAvgPct ?? 0,
-    rulesSimonsBuyAvgPct: h.rules_buy_avg_pct ?? h.rulesSimonsBuyAvgPct ?? 0,
-    nifty500AvgPct: h.nifty500_avg_pct ?? h.nifty500AvgPct ?? 0,
-    selectionAlphaPct: h.selection_alpha_pct ?? h.selectionAlphaPct ?? 0,
-  }));
+  const horizons = (raw.horizon_returns || raw.horizonReturns || []).map((h: any) => {
+    const buyAvg = h.llm_buy_avg_pct ?? h.llmBuyAvgPct ?? h.llmSimonsBuyAvgPct ?? 0;
+    const holdAvg = h.llm_hold_avg_pct ?? h.llmHoldAvgPct ?? h.llmSimonsHoldAvgPct ?? 0;
+    const rulesAvg = h.rules_buy_avg_pct ?? h.rulesBuyAvgPct ?? h.rulesSimonsBuyAvgPct ?? 0;
+    const niftyAvg = h.nifty500_avg_pct ?? h.nifty500AvgPct ?? 0;
+    const alpha = h.selection_alpha_pct ?? h.selectionAlphaPct ?? (buyAvg - holdAvg);
+    return {
+      horizonDays: h.horizon_days ?? h.horizonDays ?? 1,
+      llmBuyAvgPct: buyAvg,
+      llmHoldAvgPct: holdAvg,
+      rulesBuyAvgPct: rulesAvg,
+      nifty500AvgPct: niftyAvg,
+      selectionAlphaPct: alpha,
+      llmSimonsBuyAvgPct: buyAvg,
+      llmSimonsHoldAvgPct: holdAvg,
+      rulesSimonsBuyAvgPct: rulesAvg,
+    };
+  });
+
+  const llmStats = {
+    id: llm.id || personaId,
+    name: llm.name,
+    navPaise: llm.nav_paise ?? llm.navPaise ?? 50000000,
+    returnPct: llm.return_pct ?? llm.returnPct ?? 0,
+    sharpe: llm.sharpe_ratio ?? llm.sharpe ?? 0,
+    maxDrawdownPct: llm.max_drawdown_pct ?? llm.maxDrawdownPct ?? 0,
+    winRatePct: llm.win_rate_pct ?? llm.winRatePct ?? 0,
+    faithfulnessRatePct: llm.faithfulness_rate_pct ?? llm.faithfulnessRatePct ?? 100,
+    trades: llm.trades ?? 0,
+  };
+
+  const rulesStats = {
+    id: rules.id || `baseline-${personaId}-rules`,
+    name: rules.name,
+    navPaise: rules.nav_paise ?? rules.navPaise ?? 50000000,
+    returnPct: rules.return_pct ?? rules.returnPct ?? 0,
+    sharpe: rules.sharpe_ratio ?? rules.sharpe ?? 0,
+    maxDrawdownPct: rules.max_drawdown_pct ?? rules.maxDrawdownPct ?? 0,
+    winRatePct: rules.win_rate_pct ?? rules.winRatePct ?? 0,
+    faithfulnessRatePct: 100,
+    trades: rules.trades ?? 0,
+  };
 
   return {
-    llmSimons: {
-      navPaise: llm.nav_paise ?? llm.navPaise ?? 9986622,
-      returnPct: llm.return_pct ?? llm.returnPct ?? 0,
-      sharpe: llm.sharpe_ratio ?? llm.sharpe ?? 0,
-      maxDrawdownPct: llm.max_drawdown_pct ?? llm.maxDrawdownPct ?? 0,
-      winRatePct: llm.win_rate_pct ?? llm.winRatePct ?? 0,
-      faithfulnessRatePct: llm.faithfulness_rate_pct ?? llm.faithfulnessRatePct ?? 100,
-      trades: llm.trades ?? 0,
-    },
-    rulesSimons: {
-      navPaise: rules.nav_paise ?? rules.navPaise ?? 9998310,
-      returnPct: rules.return_pct ?? rules.returnPct ?? 0,
-      sharpe: rules.sharpe_ratio ?? rules.sharpe ?? 0,
-      maxDrawdownPct: rules.max_drawdown_pct ?? rules.maxDrawdownPct ?? 0,
-      winRatePct: rules.win_rate_pct ?? rules.winRatePct ?? 0,
-      trades: rules.trades ?? 0,
-    },
+    personaId,
+    llmAgent: llmStats,
+    rulesAgent: rulesStats,
+    llmSimons: llmStats,
+    rulesSimons: rulesStats,
     nifty500: {
-      benchmarkNavPaise: nifty.benchmark_nav_paise ?? nifty.benchmarkNavPaise ?? 10000000,
+      benchmarkNavPaise: nifty.benchmark_nav_paise ?? nifty.benchmarkNavPaise ?? 50000000,
       returnPct: nifty.return_pct ?? nifty.returnPct ?? 0,
       maxDrawdownPct: nifty.max_drawdown_pct ?? nifty.maxDrawdownPct ?? 0,
     },
-    candidateSelectionAlpha: raw.deltas?.excess_alpha_pct ?? raw.candidateSelectionAlpha ?? 0,
+    candidateSelectionAlpha: raw.deltas?.excess_alpha_pct ?? raw.candidateSelectionAlpha ?? (llmStats.returnPct - rulesStats.returnPct),
     horizonReturns: horizons,
   };
 }
@@ -262,6 +364,11 @@ function normalizeHealth(r: any): PipelineHealthJob {
   };
 }
 
+function resolveBackendAgentId(agentId: string): string {
+  if (agentId === 'stockminds-core') return 'varsity';
+  return agentId;
+}
+
 export const apiService = {
   async getLeaderboard(): Promise<AgentLeaderboardEntry[]> {
     if (getIsMockMode()) return MOCK_LEADERBOARD;
@@ -273,36 +380,95 @@ export const apiService = {
     }
   },
 
-  async getAgentPositions(agentId: string): Promise<Position[]> {
+  async getAgentFunnel(agentId?: string): Promise<FunnelEntry | null> {
+    try {
+      const endpoint = agentId ? `/funnel?agent_id=${agentId}` : '/funnel';
+      const data = await fetchFromBackend<any[]>(endpoint);
+      if (Array.isArray(data) && data.length > 0) {
+        const item = data[0];
+        return {
+          agentId: item.agent_id || agentId || '',
+          runDate: item.run_date || '',
+          stages: Array.isArray(item.stages)
+            ? item.stages.map((s: any) => ({ key: s.key, count: Number(s.count) }))
+            : [],
+        };
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  },
+
+  async getFunnel(): Promise<FunnelEntry[]> {
+    try {
+      const data = await fetchFromBackend<any[]>('/funnel');
+      if (Array.isArray(data)) {
+        return data.map((item) => ({
+          agentId: item.agent_id || '',
+          runDate: item.run_date || '',
+          stages: Array.isArray(item.stages)
+            ? item.stages.map((s: any) => ({ key: s.key, count: Number(s.count) }))
+            : [],
+        }));
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  },
+
+
+  async getAgentWatchlist(agentId: string): Promise<AgentWatchlistItem[]> {
+    const safeId = resolveBackendAgentId(agentId);
+    const key = safeId.replace('baseline-', '').replace('-rules', '');
     if (getIsMockMode()) {
-      return MOCK_POSITIONS.filter((p) => p.agentId === agentId || agentId === 'all');
+      return MOCK_WATCHLISTS[key] || MOCK_WATCHLISTS['simons'] || [];
     }
     try {
-      const data = await fetchFromBackend<any[]>(`/agents/${agentId}/positions`);
+      const data = await fetchFromBackend<any[]>(`/agents/${safeId}/watchlist`);
+      if (Array.isArray(data) && data.length > 0) {
+        return data.map(normalizeWatchlist);
+      }
+      return MOCK_WATCHLISTS[key] || MOCK_WATCHLISTS['simons'] || [];
+    } catch {
+      return MOCK_WATCHLISTS[key] || MOCK_WATCHLISTS['simons'] || [];
+    }
+  },
+
+  async getAgentPositions(agentId: string): Promise<Position[]> {
+    const safeId = resolveBackendAgentId(agentId);
+    if (getIsMockMode()) {
+      return MOCK_POSITIONS.filter((p) => p.agentId === safeId || safeId === 'all');
+    }
+    try {
+      const data = await fetchFromBackend<any[]>(`/agents/${safeId}/positions`);
       return data.map(normalizePosition);
     } catch {
-      return MOCK_POSITIONS.filter((p) => p.agentId === agentId || agentId === 'all');
+      return MOCK_POSITIONS.filter((p) => p.agentId === safeId || safeId === 'all');
     }
   },
 
   async getAgentOrders(agentId: string): Promise<Order[]> {
+    const safeId = resolveBackendAgentId(agentId);
     if (getIsMockMode()) {
-      return MOCK_ORDERS.filter((o) => o.agentId === agentId || agentId === 'all');
+      return MOCK_ORDERS.filter((o) => o.agentId === safeId || safeId === 'all');
     }
     try {
-      const data = await fetchFromBackend<any[]>(`/agents/${agentId}/orders`);
+      const data = await fetchFromBackend<any[]>(`/agents/${safeId}/orders`);
       return data.map(normalizeOrder);
     } catch {
-      return MOCK_ORDERS.filter((o) => o.agentId === agentId || agentId === 'all');
+      return MOCK_ORDERS.filter((o) => o.agentId === safeId || safeId === 'all');
     }
   },
 
   async getAgentDecisions(agentId: string): Promise<Decision[]> {
+    const safeId = resolveBackendAgentId(agentId);
     if (getIsMockMode()) {
-      return MOCK_DECISIONS.filter((d) => d.agentId === agentId || agentId === 'all');
+      return MOCK_DECISIONS.filter((d) => d.agentId === safeId || safeId === 'all');
     }
     try {
-      const data = await fetchFromBackend<any[]>(`/agents/${agentId}/decisions`);
+      const data = await fetchFromBackend<any[]>(`/agents/${safeId}/decisions`);
       const normalized = data.map(normalizeDecision);
       // Prioritize decisions with preMortemRisk or BUY action so rich decisions display first
       normalized.sort((a, b) => {
@@ -312,7 +478,7 @@ export const apiService = {
       });
       return normalized;
     } catch {
-      return MOCK_DECISIONS.filter((d) => d.agentId === agentId || agentId === 'all');
+      return MOCK_DECISIONS.filter((d) => d.agentId === safeId || safeId === 'all');
     }
   },
 
@@ -327,24 +493,26 @@ export const apiService = {
   },
 
   async getAgentMemory(agentId: string): Promise<HeuristicMemory[]> {
+    const safeId = resolveBackendAgentId(agentId);
     if (getIsMockMode()) {
-      return MOCK_HEURISTICS.filter((h) => h.agentId === agentId || agentId === 'all');
+      return MOCK_HEURISTICS.filter((h) => h.agentId === safeId || safeId === 'all');
     }
     try {
-      const data = await fetchFromBackend<any[]>(`/agents/${agentId}/memory`);
+      const data = await fetchFromBackend<any[]>(`/agents/${safeId}/memory`);
       return data.map(normalizeHeuristic);
     } catch {
-      return MOCK_HEURISTICS.filter((h) => h.agentId === agentId || agentId === 'all');
+      return MOCK_HEURISTICS.filter((h) => h.agentId === safeId || safeId === 'all');
     }
   },
 
-  async getBaselineComparison(): Promise<BaselineComparison> {
-    if (getIsMockMode()) return MOCK_BASELINE_COMPARISON;
+  async getBaselineComparison(persona: string = 'simons'): Promise<BaselineComparison> {
+    const key = persona.toLowerCase().replace('stockminds-core', 'varsity');
+    if (getIsMockMode()) return MOCK_BASELINE_COMPARISONS[key] || MOCK_BASELINE_COMPARISON;
     try {
-      const data = await fetchFromBackend<any>('/baseline/comparison');
-      return normalizeBaselineComparison(data);
+      const data = await fetchFromBackend<any>(`/baseline/comparison?persona=${key}`);
+      return normalizeBaselineComparison(data, key);
     } catch {
-      return MOCK_BASELINE_COMPARISON;
+      return MOCK_BASELINE_COMPARISONS[key] || MOCK_BASELINE_COMPARISON;
     }
   },
 
@@ -453,6 +621,33 @@ export const apiService = {
       });
     } catch {
       return getMockRunNavHistory(windowId);
+    }
+  },
+
+  async getMarketContext(): Promise<MarketContext> {
+    try {
+      const data = await fetchFromBackend<any>('/market/context');
+      return {
+        tradeDate: data.trade_date || null,
+        regime: data.regime || 'UNKNOWN',
+        indiaVix: typeof data.india_vix === 'number' ? data.india_vix : (data.india_vix ? Number(data.india_vix) : 0),
+        fiiNetCr: data.fii_net_cr ?? null,
+        diiNetCr: data.dii_net_cr ?? null,
+        nifty50Trend: data.nifty50_trend || 'UNKNOWN',
+        nifty500Trend: data.nifty500_trend || 'UNKNOWN',
+        advanceDecline: data.advance_decline ?? null,
+      };
+    } catch {
+      return {
+        tradeDate: null,
+        regime: 'UNKNOWN',
+        indiaVix: 0,
+        fiiNetCr: null,
+        diiNetCr: null,
+        nifty50Trend: 'UNKNOWN',
+        nifty500Trend: 'UNKNOWN',
+        advanceDecline: null,
+      };
     }
   },
 

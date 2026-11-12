@@ -10,6 +10,7 @@ import {
   CartesianGrid,
 } from 'recharts';
 import { formatPaiseToRupees, formatPct } from '../utils/formatters';
+import { cn } from '../utils/cn';
 
 interface NavDataPoint {
   date: string;
@@ -25,36 +26,26 @@ interface PortfolioDualCurveProps {
 
 export default function PortfolioDualCurve({
   navPoints,
-  color = '#10B981', // Vivid emerald by default
+  color = '#10B981',
   height = 240,
 }: PortfolioDualCurveProps) {
   const [timeRange, setTimeRange] = useState<'1W' | '1M' | '3M' | 'ALL'>('ALL');
 
-  // Ensure at least 4-5 points for smooth curve rendering even on single-session runs
+  // Ensure at least 2 points for smooth curve rendering even on single-session runs
   const effectivePoints = (() => {
     if (!navPoints || navPoints.length === 0) return [];
-    if (navPoints.length >= 3) return navPoints;
+    if (navPoints.length >= 2) return navPoints;
 
-    // Expand single-session point with prior baseline points
     const current = navPoints[0];
-    const initialPaise = current.investedCapitalPaise || 10000000;
-    const currentPaise = current.portfolioValuePaise;
-    const diff = currentPaise - initialPaise;
+    const initialPaise = current.investedCapitalPaise || 50000000;
 
+    const d = new Date(current.date || new Date().toISOString().split('T')[0]);
+    d.setDate(d.getDate() - 1);
+    const prevDate = d.toISOString().split('T')[0];
     return [
       {
-        date: '2026-10-15',
+        date: prevDate,
         portfolioValuePaise: initialPaise,
-        investedCapitalPaise: initialPaise,
-      },
-      {
-        date: '2026-10-19',
-        portfolioValuePaise: Math.round(initialPaise + diff * 0.3),
-        investedCapitalPaise: initialPaise,
-      },
-      {
-        date: '2026-10-22',
-        portfolioValuePaise: Math.round(initialPaise + diff * 0.7),
         investedCapitalPaise: initialPaise,
       },
       current,
@@ -74,8 +65,8 @@ export default function PortfolioDualCurve({
     d.portfolioValuePaise / 100,
     d.investedCapitalPaise / 100,
   ]);
-  const rawMin = values.length > 0 ? Math.min(...values) : 100000;
-  const rawMax = values.length > 0 ? Math.max(...values) : 105000;
+  const rawMin = values.length > 0 ? Math.min(...values) : 500000;
+  const rawMax = values.length > 0 ? Math.max(...values) : 505000;
   const spread = rawMax - rawMin;
   const pad = spread < 200 ? 500 : spread * 0.15;
   const minVal = Math.floor(rawMin - pad);
@@ -83,7 +74,7 @@ export default function PortfolioDualCurve({
 
   return (
     <div className="space-y-3 font-sans">
-      {/* Chart Sub-Header with Dual Legend & Timeframe Selector (Images 1 & 2) */}
+      {/* Chart Sub-Header with Dual Legend & Timeframe Selector */}
       <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
@@ -91,22 +82,23 @@ export default function PortfolioDualCurve({
             <span className="text-zinc-300">Portfolio Value</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="w-2.5 h-0.5 border-b border-dashed border-zinc-400" />
+            <span className="w-2.5 h-0.5 border-b border-dashed border-zinc-500" />
             <span className="text-zinc-500">Invested Capital</span>
           </div>
         </div>
 
         {/* Timeframe Range Selector (1W, 1M, 3M, ALL) */}
-        <div className="flex items-center gap-1 p-0.5 rounded bg-white/[0.04] border border-white/10 text-[11px]">
+        <div className="flex items-center gap-1 p-0.5 rounded bg-[#121212] border border-border-hairline text-[11px]">
           {(['1W', '1M', '3M', 'ALL'] as const).map((r) => (
             <button
               key={r}
               onClick={() => setTimeRange(r)}
-              className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
+              className={cn(
+                "px-2 py-0.5 rounded transition-colors cursor-pointer",
                 timeRange === r
-                  ? 'bg-white/15 text-white font-semibold'
-                  : 'text-zinc-500 hover:text-zinc-300'
-              }`}
+                  ? "bg-white/15 text-white font-semibold"
+                  : "text-zinc-500 hover:text-zinc-300"
+              )}
             >
               {r}
             </button>
@@ -141,7 +133,7 @@ export default function PortfolioDualCurve({
               tickFormatter={(v) => `₹${(v / 1000).toFixed(1)}k`}
               orientation="right"
               fontFamily="JetBrains Mono"
-              width={52}
+              width={56}
             />
 
             <Tooltip
@@ -155,8 +147,8 @@ export default function PortfolioDualCurve({
                       : 0;
 
                   return (
-                    <div className="p-3 bg-[#0a0a0c] border border-white/15 shadow-2xl rounded-sm font-mono text-xs space-y-1.5 z-50">
-                      <div className="text-[10px] text-zinc-400 border-b border-white/10 pb-1 font-sans">
+                    <div className="p-3 bg-[#161616] border border-border-hairline shadow-2xl rounded font-mono text-xs space-y-1.5 z-50">
+                      <div className="text-[10px] text-zinc-400 border-b border-border-hairline pb-1 font-sans">
                         Session: {label}
                       </div>
                       <div className="flex justify-between gap-4">
@@ -171,16 +163,17 @@ export default function PortfolioDualCurve({
                           {formatPaiseToRupees(data.investedCapitalPaise)}
                         </span>
                       </div>
-                      <div className="flex justify-between gap-4 pt-1 border-t border-white/10">
+                      <div className="flex justify-between gap-4 pt-1 border-t border-border-hairline">
                         <span className="text-zinc-400">P&L Spread:</span>
                         <span
-                          className={`font-bold ${
+                          className={cn(
+                            "font-bold",
                             deltaPaise > 0
-                              ? 'text-emerald-400'
+                              ? "text-positive"
                               : deltaPaise < 0
-                              ? 'text-[#c4553f]'
-                              : 'text-zinc-400'
-                          }`}
+                              ? "text-negative"
+                              : "text-zinc-400"
+                          )}
                         >
                           {deltaPaise > 0 ? `+${formatPaiseToRupees(deltaPaise)}` : formatPaiseToRupees(deltaPaise)} ({formatPct(deltaPct)})
                         </span>
@@ -202,7 +195,7 @@ export default function PortfolioDualCurve({
               isAnimationActive={true}
             />
 
-            {/* Dashed Baseline Curve for Invested Capital (Image 2 style) */}
+            {/* Dashed Baseline Curve for Invested Capital */}
             <Line
               type="monotone"
               dataKey={(d) => d.investedCapitalPaise / 100}

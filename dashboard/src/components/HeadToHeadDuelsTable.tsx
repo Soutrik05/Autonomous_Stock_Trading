@@ -287,7 +287,7 @@ export default function HeadToHeadDuelsTable({ agents }: HeadToHeadDuelsTablePro
                 </div>
 
                 {/* Paired Two-Row Table: Generous Padding, Crisp Fonts, Zero Redundant Heavy Headers */}
-                <div className="overflow-x-auto rounded-lg border border-white/[0.06] bg-[#0A0A0B]/60">
+                <div className="overflow-x-auto rounded-lg border border-white/[0.06] bg-[#1E1E1E]">
                   <table className="w-full text-left border-collapse">
                     <tbody className="divide-y divide-white/[0.04] text-sm font-sans">
                       {/* Row 1: LLM Strategy */}

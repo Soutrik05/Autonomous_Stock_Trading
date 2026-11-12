@@ -123,7 +123,7 @@ function EquityCurveComponent({
               content={({ active, payload, label }) => {
                 if (active && payload && payload.length) {
                   return (
-                    <div className="p-3 shadow-2xl text-xs space-y-1.5 bg-[#070709] border border-white/10 font-mono">
+                    <div className="p-3 shadow-2xl text-xs space-y-1.5 bg-[#262626] border border-white/10 font-mono">
                       <p className="font-sans font-medium text-white border-b pb-1 mb-1 border-white/10">
                         Trading Date: {label}
                       </p>

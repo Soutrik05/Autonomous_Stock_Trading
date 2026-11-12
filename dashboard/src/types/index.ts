@@ -31,6 +31,9 @@ export interface AgentLeaderboardEntry {
   isProvisional: boolean; // true when closedTrades < 30
   activePositionsCount: number;
   lastActiveDate: string;
+  foundationModel?: string | null;
+  evidenceLabel?: string;
+  sampleNotice?: string;
 }
 
 export type PositionStatus = 'OPEN' | 'CLOSED';
@@ -83,6 +86,8 @@ export interface Order {
   orderType: OrderType;
   quantity: number;
   limitPricePaise: number;
+  entryLowPaise?: number;
+  entryHighPaise?: number;
   filledPricePaise?: number;
   status: OrderStatus;
   rejectionReason?: string;
@@ -145,33 +150,37 @@ export interface NavHistoryPoint {
   nifty500: number;
 }
 
+export interface AgentComparisonStats {
+  id?: string;
+  name?: string;
+  navPaise: number;
+  returnPct: number;
+  sharpe: number;
+  maxDrawdownPct: number;
+  winRatePct: number;
+  faithfulnessRatePct?: number;
+  trades: number;
+}
+
 export interface HorizonReturnComparison {
   horizonDays: number;
-  llmSimonsBuyAvgPct: number;
-  llmSimonsHoldAvgPct: number;
-  rulesSimonsBuyAvgPct: number;
+  llmBuyAvgPct: number;
+  llmHoldAvgPct: number;
+  rulesBuyAvgPct: number;
   nifty500AvgPct: number;
   selectionAlphaPct: number;
+  // Backward compatibility aliases
+  llmSimonsBuyAvgPct?: number;
+  llmSimonsHoldAvgPct?: number;
+  rulesSimonsBuyAvgPct?: number;
 }
 
 export interface BaselineComparison {
-  llmSimons: {
-    navPaise: number;
-    returnPct: number;
-    sharpe: number;
-    maxDrawdownPct: number;
-    winRatePct: number;
-    faithfulnessRatePct: number;
-    trades: number;
-  };
-  rulesSimons: {
-    navPaise: number;
-    returnPct: number;
-    sharpe: number;
-    maxDrawdownPct: number;
-    winRatePct: number;
-    trades: number;
-  };
+  personaId?: string;
+  llmAgent?: AgentComparisonStats;
+  rulesAgent?: AgentComparisonStats;
+  llmSimons: AgentComparisonStats;
+  rulesSimons: AgentComparisonStats;
   nifty500: {
     benchmarkNavPaise: number;
     returnPct: number;
@@ -205,7 +214,7 @@ export interface ActivityEvent {
 export interface PipelineHealthJob {
   jobName: string;
   cadence: string;
-  status: 'SUCCESS' | 'RUNNING' | 'FAILED' | 'PENDING';
+  status: 'SUCCESS' | 'RUNNING' | 'FAILED' | 'PENDING' | 'INTERRUPTED' | 'SKIPPED_HOLIDAY' | string;
   lastRunAt: string;
   durationSec: number;
   recordsProcessed?: number;
@@ -228,4 +237,39 @@ export interface BacktestRegimeWindow {
     maxHoldDays: number;
     resolvedCyclesCount: number;
   }[];
+}
+
+
+export interface AgentWatchlistItem {
+  agentId: string;
+  ticker: string;
+  companyName: string;
+  sector: string;
+  addedOn: string;
+  ttlDays: number;
+  expiresOn: string;
+  intensityScore: number;
+}
+
+export interface FunnelStageCount {
+  key: string;
+  count: number;
+}
+
+export interface FunnelEntry {
+  agentId: string;
+  runDate: string;
+  stages: FunnelStageCount[];
+}
+
+
+export interface MarketContext {
+  tradeDate: string | null;
+  regime: string;
+  indiaVix: number;
+  fiiNetCr: number | null;
+  diiNetCr: number | null;
+  nifty50Trend: string;
+  nifty500Trend: string;
+  advanceDecline: number | null;
 }

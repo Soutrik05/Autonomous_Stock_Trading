@@ -17,7 +17,7 @@ export default function UnifiedHoldingsSection({
   const [hoveredSymbol, setHoveredSymbol] = useState<string | null>(null);
 
   const activePositions = positions.filter((p) => p.status === 'OPEN');
-  const effectiveNav = totalNavPaise > 0 ? totalNavPaise : 10000000;
+  const effectiveNav = totalNavPaise > 0 ? totalNavPaise : 50000000;
 
   // Calculate allocation metrics
   const holdings = activePositions.map((p) => {
@@ -81,7 +81,7 @@ export default function UnifiedHoldingsSection({
         </div>
 
         {/* Allocation Mode Switcher */}
-        <div className="flex items-center gap-1 p-0.5 rounded bg-black border border-white/10 text-xs font-mono">
+        <div className="flex items-center gap-1 p-0.5 rounded bg-[#181818] border border-white/10 text-xs font-mono">
           <button
             onClick={() => setAllocationMode('STOCKS')}
             className={`px-3 py-1 rounded transition-colors cursor-pointer text-xs ${
@@ -183,7 +183,7 @@ export default function UnifiedHoldingsSection({
         </div>
       ) : (
         /* Sector Concentration Mode */
-        <div className="space-y-3 bg-black/40 border border-white/[0.08] p-4 rounded-sm">
+        <div className="space-y-3 bg-[#181818] border border-white/[0.08] p-4 rounded-sm">
           {/* Segmented bar */}
           <div className="h-3 w-full rounded-sm overflow-hidden flex bg-zinc-900 border border-white/10">
             {sectorList.map((sec, i) => {
@@ -222,7 +222,7 @@ export default function UnifiedHoldingsSection({
       )}
 
       {/* 2. COMPREHENSIVE HOLDINGS TABLE (SINGLE UNIFIED TABLE, NO DUPLICATION) */}
-      <div className="border border-white/[0.08] overflow-hidden bg-black">
+      <div className="border border-white/[0.08] overflow-hidden bg-[#1E1E1E]">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs font-mono text-zinc-300 border-collapse">
             <thead className="bg-white/[0.02] text-[11px] text-zinc-400 border-b border-white/10 uppercase tracking-wider font-sans">

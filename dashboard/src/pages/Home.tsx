@@ -1,551 +1,684 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
-import type { AgentLeaderboardEntry, Decision } from '../types';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import {
+  ShieldCheck,
+  Scale,
+  Clock,
+  Receipt,
+} from 'lucide-react';
+import type { NavHistoryPoint, AgentLeaderboardEntry, ActivityEvent } from '../types';
 import { apiService } from '../services/api';
-import { MOCK_DECISIONS } from '../services/mockData';
-import BenchmarkMatrixTable from '../components/BenchmarkMatrixTable';
+import { formatPct, formatISTDateTime } from '../utils/formatters';
+import { cn } from '../utils/cn';
+import { MetaList } from '../components/ui/MetaList';
+import { ActionLink } from '../components/ui/ActionLink';
+import { CategoryBadge } from '../components/ui/CategoryBadge';
+import { SectionHeader } from '../components/ui/SectionHeader';
+import { TrajectoryChart, type TrajectoryChartPoint } from '../components/TrajectoryChart';
 
-const PHILOSOPHIES = [
+const SCHOOLS_OF_THOUGHT = [
   {
     index: '01',
-    name: 'Quantitative Momentum',
+    name: 'Jim Simons',
+    title: 'Quantitative Momentum',
     personaId: 'simons',
     rulesId: 'baseline-simons-rules',
-    rulesDisplayName: 'Baseline: Jim Simons',
-    inspiration: 'Jim Simons (Renaissance Technologies)',
+    rulesDisplayName: 'Rules: Simons Control',
+    inspiration: 'Renaissance Technologies',
     horizon: '1–10 Days',
-    hurdle: 'Trend Efficiency > 0.6 · Vol Parity · Fast Pruning',
-    summary:
-      'Trades confirmed statistical momentum breakouts, volume surges, and volatility parity without narrative or discretionary bias. Decaying trades are pruned rapidly.',
+    mandate: 'Statistical Trend Efficiency & Volatility Parity',
+    profile: 'Identifies high-efficiency directional momentum and volume acceleration. Triggers swift exits and trailing stops immediately upon signal degradation.',
   },
   {
     index: '02',
-    name: 'Dual Confluence Swing',
+    name: 'StockMinds Core',
+    title: 'Dual Confluence Swing',
     personaId: 'varsity',
     rulesId: 'baseline-varsity-rules',
-    rulesDisplayName: 'Baseline: Varsity Core',
-    inspiration: 'Zerodha Varsity (Karthik Rangappa)',
+    rulesDisplayName: 'Rules: Varsity Control',
+    inspiration: 'Zerodha Varsity',
     horizon: '5–20 Days',
-    hurdle: 'Debt/Equity < 1.0 · Current Ratio > 1.2 · EMA 20/50 Pullback',
-    summary:
-      'Enforces balance-sheet solvency and DCF conservatism to determine what to buy, while classical EMA trend alignment dictates entry timing. Neither trades alone.',
+    mandate: 'Fundamental Solvency & Trend Pullback Confluence',
+    profile: 'Demands dual confluence: pristine balance-sheet solvency paired with technical pullback support above the 200 EMA. Rejects trades if either axis fails.',
   },
   {
     index: '03',
-    name: 'GARP Compounding',
+    name: 'Peter Lynch',
+    title: 'GARP Compounding',
     personaId: 'lynch',
     rulesId: 'baseline-lynch-rules',
-    rulesDisplayName: 'Baseline: Peter Lynch',
-    inspiration: 'Peter Lynch (Fidelity Magellan)',
+    rulesDisplayName: 'Rules: Lynch Control',
+    inspiration: 'Fidelity Magellan',
     horizon: '15–60 Days',
-    hurdle: 'PEG <= 1.0 · ROCE > 18% · Durable Margin Expansion',
-    summary:
-      'Identifies understandable growth franchises with clean cash conversion (CFO/PAT > 0.8) and sensible valuations, patiently held through market noise.',
+    mandate: 'Growth At a Reasonable Price & Capital Productivity',
+    profile: 'Selects profitable franchises compounding earnings faster than their valuation multiples, anchored by resilient cash flows and high returns on capital.',
   },
   {
     index: '04',
-    name: 'Contrarian Margin of Safety',
+    name: 'Howard Marks',
+    title: 'Contrarian Margin of Safety',
     personaId: 'marks',
     rulesId: 'baseline-marks-rules',
-    rulesDisplayName: 'Baseline: Howard Marks',
-    inspiration: 'Howard Marks (Oaktree Capital)',
+    rulesDisplayName: 'Rules: Marks Control',
+    inspiration: 'Oaktree Capital',
     horizon: '30–90 Days',
-    hurdle: 'Near 52-Week Low · Solvency Buffer · Asymmetric Risk',
-    summary:
-      'Applies second-level thinking to buy solvent, high-quality businesses experiencing extreme cyclical distress or forced selling, controlling risk via valuation buffers.',
+    mandate: 'Second-Level Value & Asymmetric Risk Buffers',
+    profile: 'Screens for cyclical distress, 52-week lows, and excessive pessimism. Enforces deep solvency buffers where downside is insulated by balance-sheet health.',
   },
   {
     index: '05',
-    name: 'Secular Domestic Growth',
+    name: 'Rakesh Jhunjhunwala',
+    title: 'Secular Domestic Growth',
     personaId: 'jhunjhunwala',
     rulesId: 'baseline-rj-rules',
-    rulesDisplayName: 'Baseline: Rakesh Jhunjhunwala',
-    inspiration: 'Rakesh Jhunjhunwala (Rare Enterprises)',
+    rulesDisplayName: 'Rules: RJ Control',
+    inspiration: 'Rare Enterprises',
     horizon: '90–180 Days',
-    hurdle: 'Promoter Holding > 50% · Sector Capex Tailwinds · Pyramiding',
-    summary:
-      'Backs ambitious promoters with substantial skin-in-the-game riding multi-year India consumption and capex tailwinds, sizing positions aggressively into winning themes.',
+    mandate: 'Structural Compounding & Capex Expansion',
+    profile: 'Focuses on secular domestic expansion, visionary promoters with substantial skin-in-the-game, and operating leverage poised for multi-year compounding.',
   },
 ];
 
-const PERSONA_LABELS: Record<string, string> = {
-  simons: 'Jim Simons · Quant Momentum',
-  lynch: 'Peter Lynch · GARP',
-  marks: 'Howard Marks · Contrarian Value',
-  jhunjhunwala: 'Rakesh Jhunjhunwala · Growth',
-  varsity: 'StockMinds Core · Dual-Confluence',
-  'stockminds-core': 'StockMinds Core · Dual-Confluence',
-  'baseline-simons-rules': 'Baseline: Jim Simons',
-  'baseline-lynch-rules': 'Baseline: Peter Lynch',
-  'baseline-marks-rules': 'Baseline: Howard Marks',
-  'baseline-rj-rules': 'Baseline: Rakesh Jhunjhunwala',
-  'baseline-varsity-rules': 'Baseline: Varsity Core',
-};
+const EXPERIMENT_STAGES = [
+  {
+    step: '01',
+    title: 'Universe Ingestion',
+    detail: 'Daily closing OHLCV, market depth, and balance-sheet filings ingested across the broad investment universe.',
+    isCore: false,
+  },
+  {
+    step: '02',
+    title: 'Point-in-Time Features',
+    detail: 'Technical indicators and fundamental solvency metrics computed at EOD. Zero lookahead bias permitted.',
+    isCore: false,
+  },
+  {
+    step: '03',
+    title: 'Candidate Screening',
+    detail: 'Quantitative screening hurdles filter universe down to 10–12 qualified candidate equities per persona.',
+    isCore: false,
+  },
+  {
+    step: '04',
+    title: 'Parallel Decision Engines',
+    subtitle: 'Core Pivot',
+    detail: 'Autonomous LLM agents and deterministic rules evaluate identical candidate data simultaneously under matched capital.',
+    isCore: true,
+  },
+  {
+    step: '05',
+    title: 'Broker Execution & Audit',
+    detail: 'Simulated fills deduct statutory STT, GST, and slippage. Metric citations audited against ground truth.',
+    isCore: false,
+  },
+];
 
-const COUNTERPART_MAP: Record<string, { rulesId: string; llmName: string; rulesName: string }> = {
-  simons: { rulesId: 'baseline-simons-rules', llmName: 'Jim Simons', rulesName: 'Baseline: Jim Simons' },
-  varsity: { rulesId: 'baseline-varsity-rules', llmName: 'StockMinds Core', rulesName: 'Baseline: Varsity Core' },
-  'stockminds-core': { rulesId: 'baseline-varsity-rules', llmName: 'StockMinds Core', rulesName: 'Baseline: Varsity Core' },
-  lynch: { rulesId: 'baseline-lynch-rules', llmName: 'Peter Lynch', rulesName: 'Baseline: Peter Lynch' },
-  marks: { rulesId: 'baseline-marks-rules', llmName: 'Howard Marks', rulesName: 'Baseline: Howard Marks' },
-  jhunjhunwala: { rulesId: 'baseline-rj-rules', llmName: 'Rakesh Jhunjhunwala', rulesName: 'Baseline: Rakesh Jhunjhunwala' },
-};
-
-const ROTATION_INTERVAL_MS = 6000;
+const TRUST_PILLARS = [
+  {
+    icon: Clock,
+    title: 'Zero Lookahead Bias',
+    detail: 'Point-in-time indicators computed on historical bars with strict EOD cutoff. Future data cannot leak into decision context.',
+  },
+  {
+    icon: Scale,
+    title: 'Matched Control Baselines',
+    detail: 'Every LLM persona is paired 1:1 against a deterministic Python rulebook receiving identical candidates and starting capital.',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Audited Metric Citations',
+    detail: 'Zero hallucination tolerance. Every metric value cited in an LLM decision memo is independently verified against raw price feeds.',
+  },
+  {
+    icon: Receipt,
+    title: 'Real Statutory Friction',
+    detail: 'Exact STT, exchange turnover fees, SEBI charges, and empirical slippage are deducted from all order fills. No friction-free illusions.',
+  },
+];
 
 export default function Home() {
-  const [previewRows, setPreviewRows] = useState<AgentLeaderboardEntry[]>([]);
-  const [isPreSeason, setIsPreSeason] = useState(false);
-  const [decisions, setDecisions] = useState<Decision[]>([]);
-  const [activeDecisionIdx, setActiveDecisionIdx] = useState(0);
-  const [progress, setProgress] = useState(0);
-  const [isFading, setIsFading] = useState(false);
+  const [navHistory, setNavHistory] = useState<NavHistoryPoint[]>([]);
+  const [leaderboard, setLeaderboard] = useState<AgentLeaderboardEntry[]>([]);
+  const [recentEvents, setRecentEvents] = useState<ActivityEvent[]>([]);
+  const [chartMode, setChartMode] = useState<'COMPOSITE' | 'PERSONAS'>('COMPOSITE');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function load() {
+    async function loadData() {
       try {
-        const [liveData, w1Data, decisionData] = await Promise.all([
+        const [navData, boardData, activityData] = await Promise.all([
+          apiService.getAgentNavHistory(),
           apiService.getLeaderboard(),
-          apiService.getRunLeaderboard('rolling_w1_vetted'),
-          apiService.getAgentDecisions('all'),
+          apiService.getActivityFeed(),
         ]);
-
-        // Filter blotter decisions: ONLY authentic BUY/SELL with genuine reasoning
-        const validDecisions = decisionData.filter((d) => {
-          const isActionValid = d.action === 'BUY' || d.action === 'SELL';
-          const text = (d.rationale || '').trim().toLowerCase();
-          const hasRationale = text.length > 15;
-          const isFallback =
-            text.includes('no decision returned') ||
-            text.includes('failed to respond') ||
-            text.includes('no_decision');
-          return isActionValid && hasRationale && !isFallback;
-        });
-
-        const finalDecisions =
-          validDecisions.length > 0
-            ? validDecisions
-            : MOCK_DECISIONS.filter((d) => d.action === 'BUY' || d.action === 'SELL');
-
-        // Check if live data is pre-season (unclosed trades, 0 return across all)
-        const liveHasClosedTrades =
-          liveData.length > 0 &&
-          liveData.some((a) => (a.closedTrades || a.totalTrades || 0) > 0 || a.returnPct !== 0);
-
-        if (liveHasClosedTrades) {
-          setIsPreSeason(false);
-          // Sort by return descending and take top 5 (mix of LLMs and Rules)
-          const sorted = [...liveData].sort((a, b) => b.returnPct - a.returnPct);
-          setPreviewRows(sorted.slice(0, 5));
-        } else {
-          // Pre-season live: Seed preview honestly from calibrated W1 walk-forward benchmark
-          setIsPreSeason(true);
-          const sourceData = w1Data.length > 0 ? w1Data : liveData;
-          const sorted = [...sourceData].sort((a, b) => b.returnPct - a.returnPct);
-          setPreviewRows(sorted.slice(0, 5));
-        }
-
-        setDecisions(finalDecisions);
+        setNavHistory(navData);
+        setLeaderboard(boardData);
+        setRecentEvents(activityData.slice(0, 4));
+      } catch (err) {
+        console.warn('Failed to load observation data:', err);
       } finally {
         setLoading(false);
       }
     }
-    load();
-    const handleSync = () => load();
-    window.addEventListener('mock_mode_changed', handleSync);
-    return () => window.removeEventListener('mock_mode_changed', handleSync);
+
+    loadData();
   }, []);
 
-  // Smooth rotation with filling progress bar (6.0s)
-  useEffect(() => {
-    if (decisions.length === 0) return;
+  // Compute percentage return trajectories from ₹5,00,000 seed (memoized)
+  const SEED_NAV = 500000;
+  const chartData: TrajectoryChartPoint[] = useMemo(() => {
+    return navHistory.map((pt) => {
+      const llmAvgNav = (pt.simons + pt.lynch + pt.marks + pt.jhunjhunwala + pt.stockmindsCore) / 5;
+      const llmCompositeReturn = ((llmAvgNav - SEED_NAV) / SEED_NAV) * 100;
 
-    const stepMs = 50;
-    const progressIncrement = (stepMs / ROTATION_INTERVAL_MS) * 100;
+      const bSimons = pt.baselineSimons ?? pt.simons;
+      const bLynch = pt.baselineLynch ?? pt.lynch;
+      const bMarks = pt.baselineMarks ?? pt.marks;
+      const bRj = pt.baselineRj ?? pt.jhunjhunwala;
+      const bVarsity = pt.baselineVarsity ?? pt.stockmindsCore;
+      const rulesAvgNav = (bSimons + bLynch + bMarks + bRj + bVarsity) / 5;
+      const rulesCompositeReturn = ((rulesAvgNav - SEED_NAV) / SEED_NAV) * 100;
 
-    const timer = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          setIsFading(true);
-          setTimeout(() => {
-            setActiveDecisionIdx((cur) => (cur + 1) % decisions.length);
-            setIsFading(false);
-          }, 350);
-          return 0;
-        }
-        return prev + progressIncrement;
-      });
-    }, stepMs);
+      const niftyReturn = ((pt.nifty500 - SEED_NAV) / SEED_NAV) * 100;
 
-    return () => clearInterval(timer);
-  }, [decisions.length]);
+      const simonsReturn = ((pt.simons - SEED_NAV) / SEED_NAV) * 100;
+      const marksReturn = ((pt.marks - SEED_NAV) / SEED_NAV) * 100;
+      const lynchReturn = ((pt.lynch - SEED_NAV) / SEED_NAV) * 100;
 
-  const currentDecision = decisions[activeDecisionIdx];
+      const dateParts = pt.date.split('-');
+      const shortDate = dateParts.length === 3 ? `${dateParts[1]}/${dateParts[2]}` : pt.date;
 
-  // Resolve counterpart rules decision on same symbol
-  const counterpart = currentDecision
-    ? COUNTERPART_MAP[currentDecision.agentId] || {
-        rulesId: 'baseline-simons-rules',
-        llmName: currentDecision.agentId,
-        rulesName: 'Baseline Rules',
-      }
-    : null;
+      return {
+        date: shortDate,
+        fullDate: pt.date,
+        llmComposite: Number(llmCompositeReturn.toFixed(2)),
+        rulesComposite: Number(rulesCompositeReturn.toFixed(2)),
+        nifty500: Number(niftyReturn.toFixed(2)),
+        simons: Number(simonsReturn.toFixed(2)),
+        marks: Number(marksReturn.toFixed(2)),
+        lynch: Number(lynchReturn.toFixed(2)),
+      };
+    });
+  }, [navHistory]);
 
-  const rulesDecision = currentDecision && counterpart
-    ? decisions.find(
-        (d) => d.agentId === counterpart.rulesId && d.symbol === currentDecision.symbol
-      )
-    : null;
+  const handleModeChange = useCallback((mode: 'COMPOSITE' | 'PERSONAS') => {
+    setChartMode(mode);
+  }, []);
 
-  const rulesAction = rulesDecision ? rulesDecision.action : 'HOLD';
+  // Top 3 agents today for live standings strip
+  const topAgents = useMemo(() => {
+    return [...leaderboard].sort((a, b) => b.returnPct - a.returnPct).slice(0, 3);
+  }, [leaderboard]);
 
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-28 flex justify-center items-center">
-        <div className="flex items-center gap-3 text-zinc-500 font-mono text-xs">
-          <div className="w-4 h-4 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin" />
-          <span>Synchronizing benchmark records...</span>
+      <div className="max-w-7xl mx-auto px-4 py-28 flex justify-center items-center font-mono text-xs text-zinc-500">
+        <div className="flex items-center gap-3">
+          <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+          <span>Synchronizing empirical observation deck...</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 space-y-20 animate-hero-entrance font-sans">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-12 sm:space-y-14 animate-hero-entrance font-sans">
 
-      {/* 1. EDITORIAL HERO & LIVE DECISION BLOTTER */}
-      <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+      {/* =========================================================================
+          SECTION 1 · PARADIGM 1: INSTITUTIONAL TERMINAL (INTEGRATED GRID CANVAS)
+          [Monolithic hairline-bordered container with zero detached floating cards]
+          [Left: Masthead thesis, narrative, 4-point protocol matrix, action links]
+          [Right: Cumulative return plot + seamlessly docked Top 3 standings strip]
+          ========================================================================= */}
+      <section className="border border-border-hairline bg-[#161616] rounded-lg overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-border-hairline">
 
-        {/* Left Column: Headline, Monograph Narrative, and KPI Telemetry */}
-        <div className="lg:col-span-7 space-y-6">
-          <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-normal tracking-tight text-white leading-[1.14]">
-            Can judgment beat <br />
-            its own rulebook?
-          </h1>
-
-          <p className="text-base sm:text-lg text-zinc-300 font-sans leading-relaxed max-w-[56ch]">
-            An empirical benchmark testing whether LLM judgment adds measurable value over matched rules-based baselines across the NSE Nifty 500 universe — tracked, scored, and shown in full.
-          </p>
-
-          <div>
-            <Link
-              to="/leaderboard"
-              className="inline-flex items-center gap-2.5 text-base text-zinc-200 hover:text-white transition-colors group cursor-pointer"
-            >
-              <span className="underline decoration-white/20 underline-offset-4 group-hover:decoration-amber-400 transition-colors font-medium">
-                Explore Benchmark Standings
-              </span>
-              <ArrowRight className="w-4 h-4 text-amber-400 group-hover:translate-x-1 transition-transform" />
-            </Link>
-          </div>
-
-          {/* Executive KPI Benchmark Stats Bar (Concrete, Time-Anchored) */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-5 border-t border-white/[0.08]">
-            <div className="space-y-0.5">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 block">
-                Mean Alpha Spread
-              </span>
-              <div className="text-xl sm:text-2xl font-mono font-bold text-emerald-400 tabular-nums">
-                +1.85%
-              </div>
-              <span className="text-[11px] font-sans text-zinc-500 block">
-                LLM excess vs. matched rules
-              </span>
-            </div>
-
-            <div className="space-y-0.5">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 block">
-                Benchmark Universe
-              </span>
-              <div className="text-base sm:text-lg font-sans font-semibold text-white">
-                NSE Nifty 500
-              </div>
-              <span className="text-[11px] font-sans text-zinc-500 block">
-                Integer paise accounting
-              </span>
-            </div>
-
-            <div className="space-y-0.5">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 block">
-                Active Heuristics
-              </span>
-              <div className="text-xl sm:text-2xl font-mono font-bold text-white tabular-nums">
-                12 Active
-              </div>
-              <span className="text-[11px] font-sans text-zinc-500 block">
-                Continuous self-reflection
-              </span>
-            </div>
-
-            <div className="space-y-0.5">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 block">
-                Decisions Logged
-              </span>
-              <div className="text-xl sm:text-2xl font-mono font-bold text-white tabular-nums">
-                {decisions.length > 0 ? decisions.length * 4 : 482}
-              </div>
-              <span className="text-[11px] font-sans text-zinc-500 block">
-                Next session close: 15:35 IST
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Live Decision Blotter with Counterpart Divergence Diff */}
-        <div className="lg:col-span-5">
-          {currentDecision ? (
-            <div className={`cosmic-card rounded-xl p-5 sm:p-6 space-y-4 transition-opacity duration-300 ${isFading ? 'opacity-30' : 'opacity-100'}`}>
-
-              {/* Blotter Header: Status + Ticker + Action */}
-              <div className="flex items-center justify-between border-b border-white/[0.08] pb-3 text-xs font-mono">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="text-[10px] uppercase tracking-wider text-zinc-400 font-semibold">
-                    Live Decision Blotter
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-white tracking-wider">
-                    NSE: {currentDecision.symbol}
-                  </span>
-                  <span
-                    className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold border ${
-                      currentDecision.action === 'BUY'
-                        ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10'
-                        : 'text-rose-400 border-rose-500/30 bg-rose-500/10'
-                    }`}
-                  >
-                    {currentDecision.action}
-                  </span>
-                </div>
-              </div>
-
-              {/* Strategy Engine Info */}
-              <div className="flex items-center justify-between text-xs font-sans">
-                <span className="text-zinc-200 font-medium truncate max-w-[210px]">
-                  {PERSONA_LABELS[currentDecision.agentId] || currentDecision.agentId}
-                </span>
-                <span className="px-1.5 py-0.5 text-[9px] font-mono border border-amber-500/30 text-amber-300 bg-amber-500/10 rounded font-medium">
-                  Gemini 3.1 Flash Lite
-                </span>
-              </div>
-
-              {/* Verbatim LLM Thesis Reasoning */}
-              <blockquote className="font-display text-base sm:text-lg text-white font-normal leading-snug tracking-tight my-2 italic border-l-2 border-amber-400/50 pl-3">
-                &ldquo;{currentDecision.rationale}&rdquo;
-              </blockquote>
-
-              {/* Counterpart Divergence: Two Minds, Same Symbol, Same Night */}
-              {counterpart && (
-                <div className="pt-3 border-t border-white/[0.08] space-y-2">
-                  <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-wider text-zinc-500">
-                    <span>Counterpart Divergence</span>
-                    <span>Same Symbol · Same Session</span>
-                  </div>
-
-                  <div className="space-y-1.5 font-mono text-xs">
-                    {/* LLM Call */}
-                    <div className="flex items-center justify-between p-2 rounded bg-white/[0.02] border border-white/[0.05]">
-                      <div className="flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                        <span className="text-zinc-200 font-medium">{counterpart.llmName}</span>
-                        <span className="text-[9px] px-1 py-0.2 rounded border border-amber-500/30 text-amber-300 bg-amber-500/10 font-sans">
-                          LLM
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-zinc-400 font-sans text-[11px] truncate max-w-[120px] hidden sm:inline">
-                          {currentDecision.symbol}
-                        </span>
-                        <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                            currentDecision.action === 'BUY'
-                              ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10'
-                              : 'text-rose-400 border-rose-500/30 bg-rose-500/10'
-                          }`}
-                        >
-                          {currentDecision.action}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Rules Baseline Call */}
-                    <div className="flex items-center justify-between p-2 rounded bg-white/[0.01] border border-white/[0.03]">
-                      <div className="flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                        <span className="text-zinc-400 font-normal">{counterpart.rulesName}</span>
-                        <span className="text-[9px] px-1 py-0.2 rounded border border-slate-600/40 text-slate-400 bg-slate-500/10 font-sans">
-                          Rules
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-zinc-500 font-sans text-[11px] truncate max-w-[120px] hidden sm:inline">
-                          {currentDecision.symbol}
-                        </span>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold border text-zinc-400 border-zinc-700 bg-zinc-800/80">
-                          {rulesAction}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Pre-Mortem Downside Risk */}
-              {currentDecision.preMortemRisk && (
-                <div className="pt-2 text-xs font-mono text-zinc-400 border-t border-white/[0.06] flex items-start gap-1.5">
-                  <span className="text-zinc-500 uppercase text-[9px] tracking-wider font-semibold flex-shrink-0 mt-0.5">
-                    Pre-Mortem Risk:
-                  </span>
-                  <span className="text-zinc-300 leading-relaxed text-[11px]">{currentDecision.preMortemRisk}</span>
-                </div>
-              )}
-
-              {/* Visual Stream Rotation Progress Bar */}
-              <div className="w-full bg-white/[0.06] h-[2px] mt-2 overflow-hidden rounded-full">
-                <div
-                  className="bg-amber-400 h-full transition-all duration-75 ease-linear"
-                  style={{ width: `${progress}%` }}
+          {/* Left Column: Editorial Thesis, Protocol Matrix & Primary CTAs */}
+          <div className="lg:col-span-5 p-6 sm:p-8 lg:p-9 flex flex-col justify-between space-y-6">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-accent flex-shrink-0" />
+                <MetaList
+                  items={[
+                    { label: 'Platform', value: 'Live Paper Trading' },
+                    { label: 'Pilot', value: 'NSE Nifty 500' },
+                  ]}
+                  className="text-[10px]"
                 />
               </div>
 
+              <h1 className="font-display text-3xl sm:text-4xl lg:text-[44px] font-medium tracking-tight text-white leading-[1.08]">
+                Can AI judgment beat its own rulebook?
+              </h1>
+
+              <p className="text-sm sm:text-base text-zinc-300 font-sans leading-relaxed pt-1">
+                Five autonomous LLM agents trade India's top equities live alongside matched deterministic rulebooks, each pair personifying a distinct investing philosophy to test whether generative reasoning creates authentic alpha.
+              </p>
             </div>
-          ) : (
-            <div className="cosmic-card rounded-xl p-8 text-zinc-500 font-mono text-xs text-center">
-              Awaiting live decision stream...
+
+            {/* 4-Point Institutional Protocol Matrix */}
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3 py-4 border-y border-white/[0.06] text-xs font-mono">
+              <div>
+                <span className="text-[10px] uppercase tracking-wider text-zinc-500 block">Universe</span>
+                <span className="text-zinc-200 font-sans font-medium mt-0.5 block">NSE Nifty 500</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase tracking-wider text-zinc-500 block">Agent Cohort</span>
+                <span className="text-zinc-200 font-sans font-medium mt-0.5 block">10 Active (1:1 Matched)</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase tracking-wider text-zinc-500 block">Lookahead Bias</span>
+                <span className="text-zinc-200 font-sans font-medium mt-0.5 block">Zero (Strict EOD Cutoff)</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase tracking-wider text-zinc-500 block">Audit Standard</span>
+                <span className="text-zinc-200 font-sans font-medium mt-0.5 block">Public Forensic Ledger</span>
+              </div>
             </div>
-          )}
+
+            {/* Navigation Action Links */}
+            <div className="pt-2 flex flex-wrap items-center gap-6 text-sm font-sans font-medium">
+              <ActionLink to="/leaderboard" variant="primary">
+                Explore Standings Table
+              </ActionLink>
+
+              <ActionLink to="/comparison" variant="secondary">
+                Inspect Head-to-Head Duels
+              </ActionLink>
+            </div>
+          </div>
+
+          {/* Right Column: Integrated Telemetry Deck (Chart + Docked Top 3 Standings) */}
+          <div className="lg:col-span-7 flex flex-col divide-y divide-border-hairline bg-[#141414]">
+
+            {/* Upper Chamber: Memoized Observed Cumulative Return Trajectories */}
+            <TrajectoryChart
+              data={chartData}
+              mode={chartMode}
+              onModeChange={handleModeChange}
+            />
+
+            {/* Lower Chamber: Docked Top 3 Standings Strip */}
+            <div className="p-5 sm:p-6 space-y-3 font-mono text-xs bg-[#121212]">
+              <div className="flex items-center justify-between border-b border-white/[0.06] pb-2 text-[11px]">
+                <span className="uppercase tracking-wider font-medium text-zinc-400">
+                  Live Standings · Top 3 Agents Today
+                </span>
+                <span className="text-zinc-500 text-[10px]">Daily MTM</span>
+              </div>
+
+              {/* Vertical Ranked Rows with Hairline Dividers */}
+              <div className="divide-y divide-white/[0.04]">
+                {topAgents.map((ag, i) => {
+                  const isPositive = ag.returnPct >= 0;
+                  const isFirst = i === 0;
+                  const cleanName = ag.name.replace(' (LLM)', '').replace('Baseline ', '');
+
+                  return (
+                    <div
+                      key={ag.id}
+                      className={cn(
+                        'flex items-center justify-between py-2 transition-colors',
+                        isFirst ? 'text-white' : 'text-zinc-300'
+                      )}
+                    >
+                      {/* Left: Rank, Agent Name, Monochrome Outline Badge */}
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span
+                          className={cn(
+                            'font-mono text-xs',
+                            isFirst ? 'text-zinc-300 font-bold' : 'text-zinc-600'
+                          )}
+                        >
+                          #{i + 1}
+                        </span>
+                        <span
+                          className={cn(
+                            'truncate font-sans',
+                            isFirst ? 'text-sm font-semibold text-white' : 'text-xs text-zinc-300'
+                          )}
+                        >
+                          {cleanName}
+                        </span>
+                        <CategoryBadge type={ag.id} />
+                      </div>
+
+                      {/* Right: Return value (only colored element in row) */}
+                      <div
+                        className={cn(
+                          'font-mono font-bold tabular-nums text-right flex-shrink-0',
+                          isFirst ? 'text-sm font-extrabold' : 'text-xs',
+                          isPositive ? 'text-positive' : 'text-negative'
+                        )}
+                      >
+                        {formatPct(ag.returnPct)}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Docked Status Footer */}
+              <div className="pt-2 border-t border-white/[0.06] flex items-center justify-between text-[10px] text-zinc-500">
+                <span>Continuous Public Benchmark</span>
+                <span className="text-zinc-400">EOD Cadence · NSE Close</span>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </section>
+
+
+      {/* =========================================================================
+          SECTION 2 · THE EXPERIMENT PIPELINE (CONNECTED RAIL TIMELINE: ZERO BOXES)
+          [No outer card, Stage 04 subtitle bounded, zero dangling lines]
+          ========================================================================= */}
+      <section className="pt-8 sm:pt-10 border-t border-border-hairline space-y-6">
+        <SectionHeader title="The Experiment Pipeline" />
+
+        {/* Connected Horizontal Timeline Rail */}
+        <div className="relative pt-2 pb-2">
+          <div className="hidden md:block absolute top-[16px] left-[5%] right-[5%] h-[1px] bg-white/10 z-0" />
+
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-8 md:gap-6 relative z-10">
+            {EXPERIMENT_STAGES.map((st) => (
+              <div key={st.step} className="space-y-3 font-mono text-xs">
+
+                {/* Node on Rail */}
+                <div className="flex items-center gap-3 md:block">
+                  {st.isCore ? (
+                    <div className="w-6 h-6 rounded-full bg-accent/20 border-2 border-accent flex items-center justify-center bg-[#121212] z-10 shadow-[0_0_12px_rgba(212,175,55,0.3)]">
+                      <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+                    </div>
+                  ) : (
+                    <div className="w-4 h-4 rounded-full bg-[#181818] border border-zinc-600 z-10 my-1 flex items-center justify-center">
+                      <div className="w-1 h-1 rounded-full bg-zinc-500" />
+                    </div>
+                  )}
+
+                  <span className="md:hidden text-zinc-500 text-[10px] uppercase font-bold">
+                    Stage {st.step}
+                  </span>
+                </div>
+
+                {/* Typography below node */}
+                <div className="space-y-1.5 pl-7 md:pl-0">
+                  <div className="hidden md:flex items-center justify-between text-zinc-500 text-[10px]">
+                    <span className="font-bold">STAGE {st.step}</span>
+                  </div>
+
+                  <h3
+                    className={cn(
+                      'font-sans text-sm font-medium',
+                      st.isCore ? 'text-white font-semibold text-base' : 'text-zinc-200'
+                    )}
+                  >
+                    {st.title}
+                  </h3>
+
+                  {st.subtitle && (
+                    <div>
+                      <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono text-accent bg-accent/10 border border-accent/20 uppercase tracking-wider">
+                        {st.subtitle}
+                      </span>
+                    </div>
+                  )}
+
+                  <p className="text-xs sm:text-sm text-zinc-400 font-sans leading-relaxed pt-0.5">
+                    {st.detail}
+                  </p>
+                </div>
+
+              </div>
+            ))}
+          </div>
+
+        </div>
+      </section>
+
+
+      {/* =========================================================================
+          SECTION 3 · BUILT FOR RIGOR (FLAT COLUMNS: APPLE PRODUCT SPEC STYLE)
+          [Zero container chrome, whitespace separated]
+          ========================================================================= */}
+      <section className="pt-8 sm:pt-10 border-t border-border-hairline space-y-6">
+        <SectionHeader title="Built for Rigor" />
+
+        {/* Flat Columns separated by whitespace */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-10">
+          {TRUST_PILLARS.map((tp) => {
+            const Icon = tp.icon;
+            return (
+              <div key={tp.title} className="space-y-2.5">
+                <div className="flex items-center gap-2.5">
+                  <Icon className="w-4 h-4 text-accent flex-shrink-0" />
+                  <h3 className="font-sans font-medium text-white text-base">
+                    {tp.title}
+                  </h3>
+                </div>
+                <p className="text-sm text-zinc-400 font-sans leading-relaxed">
+                  {tp.detail}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+
+      {/* =========================================================================
+          SECTION 4 · THE CORE RESEARCH INQUIRIES
+          [Dedicated Chapter Header, unconstrained text, clean hairline dividers, bottom-right links]
+          ========================================================================= */}
+      <section className="pt-8 sm:pt-10 border-t border-border-hairline space-y-8">
+        <SectionHeader
+          title="The Core Research Inquiries"
+          subtitle="Empirical hypotheses evaluated under strict out-of-sample discipline"
+        />
+
+        {/* Question 01 */}
+        <div className="space-y-4 pt-2">
+          <h3 className="font-display text-2xl sm:text-3xl font-medium tracking-tight text-white">
+            1. Can Autonomous Agent Personas Generate Real Equity Alpha?
+          </h3>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 text-sm sm:text-base text-zinc-300 font-sans leading-relaxed">
+            <div className="lg:col-span-6 space-y-3">
+              <p>
+                <strong className="text-white font-medium">Core Hypothesis:</strong> Testing whether autonomous LLM agents embodying distinct investment schools of thought can independently analyze market momentum, valuation filings, and corporate balance sheets to execute profitable trades without human intervention.
+              </p>
+            </div>
+            <div className="lg:col-span-6 space-y-3">
+              <p>
+                <strong className="text-white font-medium">Evaluation Protocol:</strong> Rather than relying solely on realized portfolio returns, the trial evaluates selection alpha across all active recommendations, forward-return distributions on HOLD decisions, and prompt faithfulness audited against ground-truth market data.
+              </p>
+            </div>
+          </div>
+
+          {/* Bottom-Right Navigation Link */}
+          <div className="pt-2 border-t border-white/[0.06] flex justify-end">
+            <ActionLink to="/portfolio/simons" variant="primary">
+              Inspect Persona Portfolios
+            </ActionLink>
+          </div>
+        </div>
+
+        {/* Question 02 */}
+        <div className="space-y-4 pt-4 border-t border-white/[0.06]">
+          <h3 className="font-display text-2xl sm:text-3xl font-medium tracking-tight text-white">
+            2. Does Heavy Inference Outperform Matched Rules?
+          </h3>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 text-sm sm:text-base text-zinc-300 font-sans leading-relaxed">
+            <div className="lg:col-span-6 space-y-3">
+              <p>
+                <strong className="text-white font-medium">Core Hypothesis:</strong> Evaluating whether the significant computational overhead, token expenditure, and execution latency of an LLM decision layer produce demonstrable excess return over identical, deterministic Python rules executing on the exact same market bars.
+              </p>
+            </div>
+            <div className="lg:col-span-6 space-y-3">
+              <p>
+                <strong className="text-white font-medium">Evaluation Protocol:</strong> Every LLM agent is paired symmetrically against a rules control executing through the identical simulated broker with identical starting capital (₹5,00,000 per agent) and identical statutory charges, isolating reasoning value from market drift.
+              </p>
+            </div>
+          </div>
+
+          {/* Bottom-Right Navigation Link */}
+          <div className="pt-2 border-t border-white/[0.06] flex justify-end">
+            <ActionLink to="/comparison" variant="primary">
+              Compare 5 Matched Pairs in Detail
+            </ActionLink>
+          </div>
         </div>
 
       </section>
 
-      {/* 2. THE FIVE PHILOSOPHIES (STRUCTURED DOSSIER CARDS) */}
-      <section className="space-y-6 pt-6 border-t border-white/[0.08]">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-          <div>
-            <h2 className="font-display text-2xl sm:text-3xl font-normal tracking-tight text-white">
-              The Five Philosophies
-            </h2>
-            <p className="text-xs sm:text-sm text-zinc-400 font-sans mt-1">
-              Five institutional investment frameworks evaluated symmetrically against matched Python rules baselines.
-            </p>
-          </div>
-          <span className="text-xs font-mono text-zinc-500">
-            5 Matched Strategy Pairs
-          </span>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {PHILOSOPHIES.map((phi) => (
+      {/* =========================================================================
+          SECTION 5 · THE FIVE OBSERVED PERSONAS (EDITORIAL DIRECTORY: NO CARDS)
+          [Zero formulaic rule hurdles, calibrated text lengths, bottom-baseline alignment]
+          ========================================================================= */}
+      <section className="pt-8 sm:pt-10 border-t border-border-hairline space-y-6">
+        <SectionHeader title="The Five Observed Personas" />
+
+        {/* 5-Column Typographic Directory with Uniform Height and Bottom Baseline Alignment */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-0 font-sans">
+          {SCHOOLS_OF_THOUGHT.map((phi) => (
             <div
               key={phi.personaId}
-              className="cosmic-card rounded-xl p-5 space-y-3.5 flex flex-col justify-between"
+              className="flex flex-col justify-between h-full border-b md:border-b-0 md:border-r border-border-hairline last:border-r-0 py-6 md:py-0 md:px-4 lg:px-5 first:pl-0 last:pr-0"
             >
               <div className="space-y-3">
-                {/* Index + Horizon Pill */}
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-xs text-zinc-500 font-medium">
-                    {phi.index}
-                  </span>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono border border-white/10 text-zinc-400 bg-white/[0.03]">
-                    {phi.horizon}
-                  </span>
+                <div className="flex items-center justify-between text-xs font-mono text-zinc-500">
+                  <span className="font-bold">{phi.index}</span>
+                  <span>{phi.horizon}</span>
                 </div>
 
-                {/* Title + Inspiration */}
                 <div>
-                  <Link
-                    to={`/portfolio/${phi.personaId}`}
-                    className="font-sans text-base font-semibold text-white hover:text-amber-300 transition-colors block"
-                  >
+                  <h3 className="font-display text-lg font-medium text-white">
                     {phi.name}
-                  </Link>
-                  <div className="text-xs font-sans text-zinc-400 mt-0.5">
-                    {phi.inspiration}
+                  </h3>
+                  <div className="text-xs text-zinc-400 mt-0.5">
+                    Inspired by {phi.inspiration}
                   </div>
                 </div>
 
-                {/* Quantitative Screening Hurdle */}
-                <div className="text-[11px] font-mono text-zinc-400 bg-[#0F0F12] border border-white/[0.05] rounded px-2.5 py-1.5">
-                  <span className="text-zinc-500 uppercase text-[9px] tracking-wider block font-semibold mb-0.5">
-                    Screening Hurdle:
-                  </span>
-                  <span className="text-zinc-300">{phi.hurdle}</span>
+                <div className="text-xs font-mono text-accent min-h-[32px] flex items-center">
+                  {phi.mandate}
                 </div>
 
-                {/* Core Thesis Summary */}
-                <p className="text-xs text-zinc-400 font-sans leading-relaxed">
-                  {phi.summary}
+                <p className="text-xs sm:text-sm text-zinc-400 font-sans leading-relaxed">
+                  {phi.profile}
                 </p>
               </div>
 
-              {/* Card Footer: Direct Links without redundant labels */}
-              <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs font-mono">
-                <Link
-                  to={`/portfolio/${phi.rulesId}`}
-                  className="text-zinc-400 hover:text-white transition-colors"
-                >
-                  {phi.rulesDisplayName} &rarr;
-                </Link>
-                <Link
-                  to={`/portfolio/${phi.personaId}`}
-                  className="inline-flex items-center gap-1 font-sans text-xs text-zinc-400 hover:text-amber-300 transition-colors"
-                >
-                  <span>Dossier</span>
-                  <ArrowRight className="w-3 h-3" />
-                </Link>
+              <div className="pt-4 mt-auto">
+                <ActionLink to={`/portfolio/${phi.personaId}`} variant="subdued">
+                  Portfolio & Dossier
+                </ActionLink>
               </div>
             </div>
           ))}
         </div>
+
+        {/* Bottom-Right Navigation Link */}
+        <div className="flex justify-end pt-3 border-t border-white/[0.06]">
+          <ActionLink to="/comparison" variant="primary">
+            Compare All 5 Schools of Thought
+          </ActionLink>
+        </div>
       </section>
 
-      {/* 3. CURRENT STANDINGS (BENCHMARK PREVIEW WITH PROPER SELECTION LOGIC) */}
-      <section className="space-y-5 pt-6 border-t border-white/[0.08]">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-          <div>
-            <h2 className="font-display text-2xl sm:text-3xl font-normal tracking-tight text-white">
-              Current Standings
-            </h2>
-            <p className="text-xs sm:text-sm text-zinc-400 font-sans mt-0.5">
-              Live leaderboard snapshot comparing LLM cognition directly against deterministic Python control baselines.
-            </p>
-          </div>
-          <span className="text-xs font-mono text-zinc-500">
-            Top 5 Benchmark Leaders
-          </span>
+
+      {/* =========================================================================
+          SECTION 6 · LIVE ACTIVITY FEED (MINIMALIST TERMINAL LOG STREAM)
+          [Clean divided rows without box, bottom-right link]
+          ========================================================================= */}
+      <section className="pt-8 sm:pt-10 border-t border-border-hairline space-y-6">
+        <SectionHeader title="Latest Live Activity" />
+
+        {/* Minimalist Log Stream */}
+        <div className="divide-y divide-white/[0.06] border-y border-border-hairline font-mono text-xs">
+          {recentEvents.length === 0 ? (
+            <div className="py-6 text-center text-zinc-500">
+              No recent execution events recorded today.
+            </div>
+          ) : (
+            recentEvents.map((evt) => (
+              <div
+                key={evt.id}
+                className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-white/[0.02] transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <span
+                    className={cn(
+                      'px-1.5 py-0.5 rounded text-[10px] font-semibold tracking-wider border',
+                      evt.eventType.includes('FILL')
+                        ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10'
+                        : evt.eventType.includes('EXPIRED')
+                          ? 'border-zinc-500/30 text-zinc-400 bg-white/[0.02]'
+                          : 'border-accent/30 text-accent bg-accent/10'
+                    )}
+                  >
+                    {evt.eventType}
+                  </span>
+                  <span className="font-bold text-white">
+                    {(evt.agentId || 'SYSTEM').replace('baseline-', '').toUpperCase()}
+                  </span>
+                  {evt.symbol && (
+                    <span className="px-1.5 py-0.2 rounded bg-white/[0.04] text-zinc-300 border border-white/5 font-sans">
+                      {evt.symbol}
+                    </span>
+                  )}
+                  <span className="text-zinc-400 font-sans truncate max-w-[500px]">
+                    {evt.message}
+                  </span>
+                </div>
+
+                <div className="text-[11px] text-zinc-500 flex-shrink-0">
+                  {formatISTDateTime(evt.timestamp)}
+                </div>
+              </div>
+            ))
+          )}
         </div>
 
-        {/* Pre-Season Calibration Context Banner */}
-        {isPreSeason && (
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 px-3.5 py-2.5 rounded-lg bg-white/[0.02] border border-white/[0.06] text-xs font-mono">
-            <div className="flex items-center gap-2 text-zinc-300">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-              <span>Calibrated Benchmark Preview · Walk-Forward Window 1 (180 sessions)</span>
-            </div>
-            <span className="text-zinc-500 text-[11px]">
-              First live pilot session close: 15:35 IST
-            </span>
+        {/* Bottom-Right Navigation Link */}
+        <div className="flex justify-end pt-1">
+          <ActionLink to="/pulse" variant="primary">
+            Full Activity Ledger
+          </ActionLink>
+        </div>
+      </section>
+
+
+      {/* =========================================================================
+          SECTION 7 · CLOSING VERDICT & PROTOCOL STANDING
+          [Editorial callout with left accent bar, generous whitespace]
+          ========================================================================= */}
+      <section className="pt-8 sm:pt-10 border-t border-border-hairline">
+        <div className="border-l-2 border-accent pl-6 sm:pl-8 space-y-4 font-sans">
+          <h3 className="font-display text-2xl sm:text-3xl font-medium text-white tracking-tight leading-tight">
+            The empirical observation trial is actively underway.
+          </h3>
+
+          <p className="text-sm sm:text-base text-zinc-300 leading-relaxed max-w-4xl">
+            Statistical conclusions require a rigorous threshold of approximately 30 closed round-trip trades per agent across contrasting market regimes. While initial pilot mark-to-market positions are live, we do not declare premature alpha superiority. Daily order execution, prompt adherence, and thesis forensics remain continuously audited and open for inspection.
+          </p>
+
+          <div className="pt-3 flex flex-wrap items-center gap-6 text-sm font-sans font-medium">
+            <ActionLink to="/leaderboard" variant="primary">
+              Full Leaderboard Standings
+            </ActionLink>
+
+            <ActionLink to="/comparison" variant="secondary">
+              Inspect Head-to-Head Duels
+            </ActionLink>
+
+            <ActionLink to="/pulse" variant="secondary">
+              System Telemetry & Health
+            </ActionLink>
           </div>
-        )}
-
-        {/* Benchmark Matrix Evaluation Table */}
-        <BenchmarkMatrixTable agents={previewRows} isCompact={true} />
-
-        {/* Clean Link to Full Leaderboard */}
-        <div className="pt-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs font-mono text-zinc-500">
-          <span>Figures update nightly upon session close.</span>
-          <Link
-            to="/leaderboard"
-            className="inline-flex items-center gap-1.5 text-zinc-300 hover:text-white transition-colors group cursor-pointer"
-          >
-            <span className="underline decoration-white/20 underline-offset-4 group-hover:decoration-amber-400 transition-colors">
-              View all 10 strategies in Current Standings
-            </span>
-            <ArrowRight className="w-3.5 h-3.5 text-amber-400 group-hover:translate-x-1 transition-transform" />
-          </Link>
         </div>
       </section>
 

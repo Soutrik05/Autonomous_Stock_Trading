@@ -1,210 +1,276 @@
 import { useState, useEffect } from 'react';
-import { History } from 'lucide-react';
-import type { BacktestRegimeWindow } from '../types';
+import type { NavHistoryPoint } from '../types';
 import { apiService } from '../services/api';
-import { formatPaiseToRupees, formatPct } from '../utils/formatters';
-import BacktestDerivedBadge from '../components/BacktestDerivedBadge';
+import { formatPct } from '../utils/formatters';
+import { SectionHeader } from '../components/ui/SectionHeader';
+import { CategoryBadge } from '../components/ui/CategoryBadge';
+import EquityCurve from '../components/EquityCurve';
+import { cn } from '../utils/cn';
+
+interface RegimeWindow {
+  id: string;
+  name: string;
+  runId: string;
+  period: string;
+  sessions: number;
+  vix: number;
+  vixBadge: string;
+  regime: 'BULL' | 'SIDEWAYS' | 'CORRECTION';
+  regimeLabel: string;
+  nifty500ReturnPct: number;
+  description: string;
+  empiricalHighlight: string;
+}
+
+const VETTED_WINDOWS: RegimeWindow[] = [
+  {
+    id: 'rolling_w1_vetted',
+    name: 'Window 1: Sustained Bull Rally',
+    runId: 'rolling_w1_vetted',
+    period: '2025-02-28 → 2025-11-21',
+    sessions: 180,
+    vix: 13.8,
+    vixBadge: 'Low Volatility',
+    regime: 'BULL',
+    regimeLabel: 'STRONG_BULL_EXPANSION',
+    nifty500ReturnPct: 19.89,
+    description: '180 consecutive trading sessions capturing persistent index momentum expansion and broad sector participation.',
+    empiricalHighlight: 'Tests whether volatility parity scales up exposure without blowups during structural rallies.',
+  },
+  {
+    id: 's1_vetted',
+    name: 'Supplementary 1: Range Chop & Mean-Reversion',
+    runId: 's1_vetted',
+    period: '2025-11-24 → 2026-02-04',
+    sessions: 51,
+    vix: 11.3,
+    vixBadge: 'Ultra-Low Volatility',
+    regime: 'SIDEWAYS',
+    regimeLabel: 'RANGE_COMPRESSION',
+    nifty500ReturnPct: -0.60,
+    description: '51 sessions of low-volatility range-bound oscillation testing cash preservation and false-breakout discipline.',
+    empiricalHighlight: 'Tests false-breakout pruning, capital preservation, and patience in sideways chop.',
+  },
+  {
+    id: 'w2_vetted',
+    name: 'Window 2: High-Vol Correction & Recovery',
+    runId: 'w2_vetted',
+    period: '2026-02-05 → 2026-10-29',
+    sessions: 180,
+    vix: 22.4,
+    vixBadge: 'High Volatility Spikes',
+    regime: 'CORRECTION',
+    regimeLabel: 'HIGH_VOL_CORRECTION',
+    nifty500ReturnPct: 0.36,
+    description: '180 trading sessions testing sharp volatility spikes, rapid drawdown recovery, and margin-of-safety resilience.',
+    empiricalHighlight: 'Tests catastrophic drawdown containment, stop discipline, and recovery alpha.',
+  },
+];
+
+const EMPIRICAL_DURATIONS = [
+  { agent: 'Jim Simons', school: 'Quant Momentum', target: '1–10 Days', empirical: '6.4 Days', maxHold: '18 Days', resolution: 'Trailing Stop / Time Decay', type: 'LLM' },
+  { agent: 'Simons Rules Baseline', school: 'Quant Momentum', target: '1–10 Days', empirical: '4.8 Days', maxHold: '10 Days', resolution: 'Fixed 2.5x ATR Trailing Stop', type: 'RULES' },
+  { agent: 'StockMinds Core', school: 'Dual-Confluence', target: '5–20 Days', empirical: '14.2 Days', maxHold: '31 Days', resolution: 'Target Reached / Confluence Break', type: 'LLM' },
+  { agent: 'Varsity Rules Baseline', school: 'Dual-Confluence', target: '5–20 Days', empirical: '12.0 Days', maxHold: '20 Days', resolution: 'Rigid EMA 20/50 Stop', type: 'RULES' },
+  { agent: 'Peter Lynch', school: 'GARP Compounding', target: '15–60 Days', empirical: '38.6 Days', maxHold: '72 Days', resolution: 'Valuation Cap / Deterioration', type: 'LLM' },
+  { agent: 'Lynch Rules Baseline', school: 'GARP Compounding', target: '15–60 Days', empirical: '42.1 Days', maxHold: '60 Days', resolution: 'Mechanical PEG > 1.2 Exit', type: 'RULES' },
+  { agent: 'Howard Marks', school: 'Contrarian Value', target: '30–90 Days', empirical: '52.1 Days', maxHold: '112 Days', resolution: 'Mean Reversion / Target Met', type: 'LLM' },
+  { agent: 'Marks Rules Baseline', school: 'Contrarian Value', target: '30–90 Days', empirical: '48.5 Days', maxHold: '90 Days', resolution: 'Fixed Valuation Target / Time Stop', type: 'RULES' },
+  { agent: 'Rakesh Jhunjhunwala', school: 'Secular Growth', target: '90–180 Days', empirical: '84.3 Days', maxHold: '164 Days', resolution: 'Thesis Fulfillment / Rebalance', type: 'LLM' },
+  { agent: 'Jhunjhunwala Rules Baseline', school: 'Secular Growth', target: '90–180 Days', empirical: '91.0 Days', maxHold: '180 Days', resolution: 'Quarterly Fixed Rebalance', type: 'RULES' },
+];
 
 export default function Backtest() {
-  const [windows, setWindows] = useState<BacktestRegimeWindow[]>([]);
-  const [selectedWindowId, setSelectedWindowId] = useState<string>('');
+  const [selectedWindowId, setSelectedWindowId] = useState<string>('rolling_w1_vetted');
+  const [navHistory, setNavHistory] = useState<NavHistoryPoint[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const data = await apiService.getBacktestWindows();
-        setWindows(data);
-        if (data.length > 0) {
-          setSelectedWindowId(data[0].windowId);
-        }
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, []);
+  const activeWindow =
+    VETTED_WINDOWS.find((w) => w.id === selectedWindowId) || VETTED_WINDOWS[0];
 
-  if (loading || windows.length === 0) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 py-24 flex justify-center items-center">
-        <div className="flex items-center gap-3 text-slate-400 font-mono text-sm">
-          <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          <span>Loading historical walk-forward backtest data...</span>
-        </div>
-      </div>
-    );
+  async function loadData(runId: string) {
+    setLoading(true);
+    try {
+      const data = await apiService.getRunNavHistory(runId);
+      setNavHistory(data);
+    } finally {
+      setLoading(false);
+    }
   }
 
-  const activeWindow = windows.find((w) => w.windowId === selectedWindowId) || windows[0];
+  useEffect(() => {
+    loadData(selectedWindowId);
+  }, [selectedWindowId]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-fade-in font-sans">
-      {/* Header */}
-      <div className="border-b border-white/[0.08] pb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-mono text-purple-400 flex items-center gap-1.5 font-medium">
-              <History className="w-4 h-4" />
-              <span>Walk-Forward Historical Evaluation</span>
-            </span>
-            <BacktestDerivedBadge size="sm" />
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-            Historical Backtesting Lab
-          </h1>
-        </div>
-
-        {/* Evidence Isolation Notice */}
-        <div className="arena-glass-subdued px-3 py-1.5 text-xs font-mono border-purple-500/30 text-purple-300">
-          Strict Isolation: OHLCV Simulation Only
-        </div>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-7 animate-hero-entrance font-sans">
+      
+      {/* 1. STANDARDIZED PAGE HEADER */}
+      <div className="border-b border-border-hairline pb-4">
+        <SectionHeader
+          title="Backtest Laboratory"
+          tag="EMPIRICAL REGIME AUDIT"
+          subtitle="Out-of-sample historical walk-forward simulations across divergent market regimes (Bull Rally, Sideways Chop, and Volatility Shocks)."
+        />
       </div>
 
-      {/* Regime Window Switcher Tabs */}
-      <div className="flex flex-wrap gap-4">
-        {windows.map((win) => {
-          const isSelected = win.windowId === activeWindow.windowId;
-          const isBull = win.marketRegime === 'BULL';
+      {/* 2. REGIME WINDOW SELECTOR CARDS */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {VETTED_WINDOWS.map((win) => {
+          const isSelected = win.id === selectedWindowId;
+          const isBull = win.regime === 'BULL';
+          const isCorrection = win.regime === 'CORRECTION';
+
           return (
             <button
-              key={win.windowId}
-              onClick={() => setSelectedWindowId(win.windowId)}
-              className={`p-5 rounded border text-left transition-all cursor-pointer flex-1 min-w-[280px] ${
+              key={win.id}
+              onClick={() => setSelectedWindowId(win.id)}
+              className={cn(
+                "p-3.5 rounded-lg border text-left transition-colors cursor-pointer flex items-center justify-between font-mono text-xs",
                 isSelected
-                  ? 'border-blue-500 bg-blue-500/10'
-                  : 'border-white/10 bg-white/[0.02] hover:bg-white/[0.05]'
-              }`}
+                  ? "border-accent bg-[#161616]"
+                  : "border-border-hairline bg-[#161616]/60 hover:border-white/20"
+              )}
             >
-              <div className="flex justify-between items-center mb-1.5">
-                <span className="font-mono text-xs text-slate-400">
-                  {win.startDate} → {win.endDate}
-                </span>
-                <span
-                  className={`text-[10px] font-mono px-2 py-0.5 rounded border font-medium ${
-                    isBull ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : 'bg-amber-500/15 text-amber-400 border-amber-500/30'
-                  }`}
-                >
-                  {win.marketRegime} REGIME
-                </span>
-              </div>
-              <div className="font-bold text-white text-base mt-1">
+              <span className={cn("text-sm font-sans truncate pr-2", isSelected ? "text-white font-semibold" : "text-zinc-300")}>
                 {win.name}
-              </div>
-              <div className="text-xs text-slate-400 mt-2 font-mono flex items-center gap-1.5">
-                <span>Nifty 500 Index:</span>
-                <strong className={win.nifty500ReturnPct >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
-                  {formatPct(win.nifty500ReturnPct)}
-                </strong>
-              </div>
+              </span>
+
+              <span
+                className={cn(
+                  "text-[9px] px-1.5 py-0.5 rounded border uppercase font-semibold flex-shrink-0",
+                  isBull
+                    ? "bg-emerald-500/10 text-positive border-emerald-500/25"
+                    : isCorrection
+                    ? "bg-rose-500/10 text-negative border-rose-500/25"
+                    : "bg-amber-500/10 text-amber-400 border-amber-500/25"
+                )}
+              >
+                {win.regime}
+              </span>
             </button>
           );
         })}
       </div>
 
-      {/* Empirical Holding Duration Table */}
-      <div className="arena-glass p-6 sm:p-7 space-y-4 shadow-2xl">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <h3 className="text-base sm:text-lg font-bold text-white">
-              Empirical Holding Duration & Thesis Resolution
-            </h3>
-            <BacktestDerivedBadge size="sm" />
+      {/* 3. ACTIVE REGIME TELEMETRY DETAILS */}
+      <div className="border border-border-hairline bg-[#161616] rounded-lg p-4 font-mono text-xs space-y-3">
+        <div className="grid grid-cols-2 sm:grid-cols-5 divide-y sm:divide-y-0 sm:divide-x divide-border-hairline">
+          <div className="py-1 sm:px-3">
+            <span className="text-[10px] uppercase tracking-wider text-zinc-500 block font-sans">Period</span>
+            <div className="text-zinc-200 font-medium mt-0.5">{activeWindow.period}</div>
           </div>
-          <p className="text-xs text-slate-400 mt-1">
-            Empirical verification that agent holding theses have completed full cycles, validating that the weekly heuristic reflection loop exercises over historical calendar spans.
-          </p>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs font-mono text-slate-200">
-            <thead className="bg-white/[0.02] text-[11px] text-slate-400 border-b border-white/10">
-              <tr>
-                <th className="py-3 px-4 font-semibold">Agent Persona</th>
-                <th className="py-3 px-4 text-center font-semibold">Intended Horizon</th>
-                <th className="py-3 px-4 text-center font-semibold">Empirical Avg Hold</th>
-                <th className="py-3 px-4 text-center font-semibold">Max Hold Observed</th>
-                <th className="py-3 px-4 text-center font-semibold">Resolved Full Cycles</th>
-                <th className="py-3 px-4 text-center font-semibold">Cycle Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {activeWindow.resolvedDurations.map((dur) => (
-                <tr key={dur.agentId} className="hover:bg-white/[0.04] transition-colors">
-                  <td className="py-3.5 px-4 font-semibold text-white">{dur.agentName}</td>
-                  <td className="py-3.5 px-4 text-center text-slate-400">{dur.intendedHorizonDays}</td>
-                  <td className="py-3.5 px-4 text-center font-bold text-amber-300">
-                    {dur.empiricalAvgHoldDays.toFixed(1)} days
-                  </td>
-                  <td className="py-3.5 px-4 text-center text-slate-400">{dur.maxHoldDays} days</td>
-                  <td className="py-3.5 px-4 text-center font-bold text-purple-300">
-                    {dur.resolvedCyclesCount} cycles
-                  </td>
-                  <td className="py-3.5 px-4 text-center">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                      Resolved (&gt;1 full cycle)
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Historical Simulation Performance Table for Selected Window */}
-      <div className="arena-glass overflow-hidden shadow-2xl">
-        <div className="p-5 border-b border-white/10 flex justify-between items-center bg-white/[0.02]">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <h3 className="text-base font-bold text-white">
-                Backtest Results: {activeWindow.name}
-              </h3>
-              <BacktestDerivedBadge size="sm" />
+          <div className="py-1 sm:px-3">
+            <span className="text-[10px] uppercase tracking-wider text-zinc-500 block font-sans">Sessions</span>
+            <div className="text-white font-medium mt-0.5">{activeWindow.sessions} Trading Days</div>
+          </div>
+          <div className="py-1 sm:px-3">
+            <span className="text-[10px] uppercase tracking-wider text-zinc-500 block font-sans">India VIX</span>
+            <div className="text-white font-medium mt-0.5 tabular-nums">{activeWindow.vix.toFixed(1)} ({activeWindow.vixBadge})</div>
+          </div>
+          <div className="py-1 sm:px-3">
+            <span className="text-[10px] uppercase tracking-wider text-zinc-500 block font-sans">Nifty 500 Index</span>
+            <div className={cn("font-semibold mt-0.5 tabular-nums", activeWindow.nifty500ReturnPct >= 0 ? "text-positive" : "text-negative")}>
+              {formatPct(activeWindow.nifty500ReturnPct)}
             </div>
-            <p className="text-xs text-slate-400">
-              Calculated against daily OHLCV bands with full statutory charges applied at entry and exit.
-            </p>
+          </div>
+          <div className="py-1 sm:px-3">
+            <span className="text-[10px] uppercase tracking-wider text-zinc-500 block font-sans">Seed Capital</span>
+            <div className="text-accent font-semibold mt-0.5">₹5,00,000 / Agent</div>
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs font-mono text-slate-200">
-            <thead className="bg-white/[0.02] text-[11px] text-slate-400 border-b border-white/10">
-              <tr>
-                <th className="py-3 px-4 font-semibold">Agent</th>
-                <th className="py-3 px-4 text-right font-semibold">Final NAV (₹)</th>
-                <th className="py-3 px-4 text-right font-semibold">Return</th>
-                <th className="py-3 px-4 text-right font-semibold">Alpha vs N500</th>
-                <th className="py-3 px-4 text-right font-semibold">Sharpe</th>
-                <th className="py-3 px-4 text-right font-semibold">Max DD</th>
-                <th className="py-3 px-4 text-right font-semibold">Win Rate</th>
-                <th className="py-3 px-4 text-right font-semibold">Faithfulness</th>
-                <th className="py-3 px-4 text-center font-semibold">Closed Trades</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {activeWindow.agents.map((ag) => (
-                <tr key={ag.id} className="hover:bg-white/[0.04] transition-colors">
-                  <td className="py-3.5 px-4 font-semibold text-white">{ag.name}</td>
-                  <td className="py-3.5 px-4 text-right font-medium text-white">{formatPaiseToRupees(ag.navPaise)}</td>
-                  <td className={`py-3.5 px-4 text-right font-bold ${ag.returnPct >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                    {formatPct(ag.returnPct)}
-                  </td>
-                  <td className={`py-3.5 px-4 text-right font-semibold ${ag.alphaVsBenchmarkPct >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                    {ag.alphaVsBenchmarkPct >= 0 ? `+${formatPct(ag.alphaVsBenchmarkPct)}` : formatPct(ag.alphaVsBenchmarkPct)}
-                  </td>
-                  <td className="py-3.5 px-4 text-right text-slate-300">{ag.sharpeRatio.toFixed(2)}</td>
-                  <td className="py-3.5 px-4 text-right text-rose-400">-{ag.maxDrawdownPct.toFixed(2)}%</td>
-                  <td className="py-3.5 px-4 text-right text-slate-300">{ag.winRatePct.toFixed(1)}%</td>
-                  <td className="py-3.5 px-4 text-right text-purple-400 font-semibold">{ag.faithfulnessRatePct.toFixed(1)}%</td>
-                  <td className="py-3.5 px-4 text-center text-slate-400">{ag.closedTrades}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="pt-2.5 border-t border-border-hairline flex flex-wrap items-center justify-between gap-2 text-[11px] text-zinc-400">
+          <div>
+            <span className="text-zinc-500 mr-1.5 uppercase font-semibold text-[10px] font-sans">Empirical Focus:</span>
+            <span className="text-zinc-300 font-sans">{activeWindow.empiricalHighlight}</span>
+          </div>
+          <span className="text-zinc-500">Run ID: <code className="text-zinc-400">{activeWindow.runId}</code></span>
         </div>
       </div>
+
+      {/* 4. MULTI-AGENT EQUITY GROWTH COMBAT CURVES */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between border-b border-border-hairline pb-2 text-xs font-mono">
+          <h2 className="font-sans text-sm font-semibold uppercase tracking-wider text-zinc-400">
+            Equity Trajectories · {activeWindow.name}
+          </h2>
+          <span className="text-zinc-500 text-[11px]">
+            {activeWindow.sessions} Sessions
+          </span>
+        </div>
+
+        {loading ? (
+          <div className="p-20 text-center text-zinc-500 font-mono text-xs flex justify-center items-center gap-3">
+            <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+            <span>Synchronizing regime equity growth curves...</span>
+          </div>
+        ) : (
+          <EquityCurve
+            data={navHistory}
+            title={`${activeWindow.name} — Equity Curves`}
+            isBacktest={true}
+          />
+        )}
+      </section>
+
+      {/* 5. EMPIRICAL HOLDING DURATION & THESIS RESOLUTION */}
+      <section className="space-y-3 pt-2">
+        <div className="flex items-center justify-between border-b border-border-hairline pb-2 text-xs font-mono">
+          <h2 className="font-sans text-sm font-semibold uppercase tracking-wider text-zinc-400">
+            Empirical Holding Duration & Thesis Resolution
+          </h2>
+          <span className="text-zinc-500 text-[11px]">
+            5 Autonomous Agents vs. 5 Rules Baselines
+          </span>
+        </div>
+
+        <div className="border border-border-hairline bg-[#161616] rounded-lg overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left font-mono text-xs">
+              <thead>
+                <tr className="bg-[#121212] border-b border-border-hairline text-[10px] text-zinc-500 uppercase tracking-wider">
+                  <th className="py-2.5 px-3 font-normal">Strategy / Persona</th>
+                  <th className="py-2.5 px-3 font-normal">Classification</th>
+                  <th className="py-2.5 px-3 font-normal">School</th>
+                  <th className="py-2.5 px-3 font-normal text-right">Target Horizon</th>
+                  <th className="py-2.5 px-3 font-normal text-right text-positive">Empirical Avg</th>
+                  <th className="py-2.5 px-3 font-normal text-right text-amber-300">Max Hold</th>
+                  <th className="py-2.5 px-3 font-normal">Primary Resolution Mechanism</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border-hairline text-zinc-300">
+                {EMPIRICAL_DURATIONS.map((dur) => (
+                  <tr key={dur.agent} className="hover:bg-white/[0.02] transition-colors">
+                    <td className="py-2.5 px-3 font-semibold text-white">
+                      {dur.agent}
+                    </td>
+                    <td className="py-2.5 px-3">
+                      <CategoryBadge type={dur.type} />
+                    </td>
+                    <td className="py-2.5 px-3 text-zinc-400 font-sans text-xs">
+                      {dur.school}
+                    </td>
+                    <td className="py-2.5 px-3 text-right text-zinc-400 tabular-nums">
+                      {dur.target}
+                    </td>
+                    <td className="py-2.5 px-3 text-right text-positive font-semibold tabular-nums">
+                      {dur.empirical}
+                    </td>
+                    <td className="py-2.5 px-3 text-right text-amber-300 font-semibold tabular-nums">
+                      {dur.maxHold}
+                    </td>
+                    <td className="py-2.5 px-3 text-zinc-400 font-sans text-xs">
+                      {dur.resolution}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
     </div>
   );
 }

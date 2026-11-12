@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 
 export default function Footer() {
   return (
-    <footer className="border-t border-white/[0.08] bg-[#0A0A0B] text-zinc-400 font-sans mt-28 pt-12 pb-14">
+    <footer className="border-t border-border-hairline bg-[#141414] text-zinc-400 font-sans mt-28 pt-12 pb-14">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
 
         {/* Top Grid: Masthead & Navigation */}
@@ -31,9 +31,9 @@ export default function Footer() {
             </div>
             <div className="grid grid-cols-2 gap-2 text-xs font-mono">
               <Link to="/" className="text-zinc-400 hover:text-white transition-colors">Overview</Link>
-              <Link to="/leaderboard" className="text-zinc-400 hover:text-white transition-colors">Current Standings (10 Strategies)</Link>
+              <Link to="/leaderboard" className="text-zinc-400 hover:text-white transition-colors">Master Standings (10 Agents)</Link>
               <Link to="/portfolio/simons" className="text-zinc-400 hover:text-white transition-colors">Strategy Dossiers & Blotter</Link>
-              <Link to="/comparison" className="text-zinc-400 hover:text-white transition-colors">LLM vs Rules Comparisons</Link>
+              <Link to="/comparison" className="text-zinc-400 hover:text-white transition-colors">Cognitive Alpha Duels</Link>
               <Link to="/backtest" className="text-zinc-400 hover:text-white transition-colors">Walk-Forward Backtest Lab</Link>
               <Link to="/pulse" className="text-zinc-400 hover:text-white transition-colors">Telemetry Pulse</Link>
             </div>
@@ -42,7 +42,7 @@ export default function Footer() {
         </div>
 
         {/* Bottom Cardless Advisory & Copyright */}
-        <div className="border-t border-white/[0.08] pt-6 space-y-3">
+        <div className="border-t border-border-hairline pt-6 space-y-3">
           <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-widest text-zinc-500">
             <span>Research Disclaimer</span>
             <span className="text-amber-400/90 font-medium">Paper Trading Only</span>
