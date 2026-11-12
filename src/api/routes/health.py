@@ -1,3 +1,4 @@
+from core.config import settings
 """
 GET /api/health: latest pipeline_runs status for each nightly/intraday job.
 See Plan_v3 Part IV.
@@ -16,17 +17,21 @@ router = APIRouter(prefix="/api", tags=["health"])
 # schedule) -- this is a static lookup of scheduler.py's actual cron registration, keyed by the
 # JOB_NAME constants each module writes to pipeline_runs.job. A job name not in this map still
 # appears (the job list itself always comes from the table), just with cadence=None.
-_CADENCE = {
-    "ingestion": "Daily 22:00 IST (Mon-Fri)",
-    "features": "Daily 22:00 IST (Mon-Fri)",
-    "watchlist": "Daily 22:00 IST (Mon-Fri)",
-    "agents": "Daily 23:00 IST (Mon-Fri)",
-    "expiry": "Daily 15:30 IST (Mon-Fri)",
-    "settlement": "Daily 15:35 IST (Mon-Fri)",
-    "heuristic_nightly": "Daily 23:30 IST (Mon-Fri)",
-    "weekly_reflection": "Sunday 10:00 IST",
-    "sync_fundamentals": "Periodic (fundamental refetch)",
-}
+def get_cadence_map() -> dict[str, str]:
+    return {
+        "ingestion": f"Daily {settings.INGESTION_TIME} IST (Mon-Fri)",
+        "features": f"Daily {settings.INGESTION_TIME} IST (Mon-Fri)",
+        "watchlist": f"Daily {settings.INGESTION_TIME} IST (Mon-Fri)",
+        "agents": f"Daily {settings.AGENT_RUN_TIME} IST (Mon-Fri)",
+        "expiry": f"Daily {settings.EXPIRY_TIME} IST (Mon-Fri)",
+        "settlement": f"Daily {settings.SETTLEMENT_TIME} IST (Mon-Fri)",
+        "heuristic_nightly": f"Daily {settings.HEURISTIC_TIME} IST (Mon-Fri)",
+        "weekly_reflection": f"{settings.REFLECTION_DAY} {settings.REFLECTION_TIME} IST",
+        "sync_fundamentals": "Periodic (fundamental refetch)",
+    }
+
+# Backward compatibility alias
+_CADENCE = get_cadence_map()
 
 
 @router.get("/health", response_model=HealthResponse)
@@ -72,7 +77,7 @@ def get_health(conn: sqlite3.Connection = Depends(portfolio_conn)) -> HealthResp
         jobs.append(
             HealthJob(
                 job_name=r["job"],
-                cadence=_CADENCE.get(r["job"]),
+                cadence=get_cadence_map().get(r["job"]),
                 status=job_status,
                 last_run_at=to_ist_iso(r["finished_at"] or r["started_at"]),
                 duration_sec=duration_seconds(r["started_at"], r["finished_at"]),

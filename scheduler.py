@@ -1,3 +1,8 @@
+def _parse_time(time_str: str) -> tuple[int, int]:
+    parts = time_str.split(":")
+    return int(parts[0]), int(parts[1])
+
+
 """
 APScheduler process that calls the one-shot job entry points on their nightly/intraday schedule.
 All schedule timings are in IST (Asia/Kolkata).
@@ -332,7 +337,7 @@ def check_and_run_startup_catchup(clock: Clock, conn: sqlite3.Connection) -> Non
         needs_initial_ingest = True
 
     now_dt = clock.now()
-    if needs_initial_ingest or (now_dt.hour >= 22 and not is_nightly_pipeline_complete(conn, run_date)):
+    if needs_initial_ingest or (now_dt.hour >= _parse_time(settings.INGESTION_TIME)[0] and not is_nightly_pipeline_complete(conn, run_date)):
         logger.info(
             "Startup catch-up: Executing ingestion and pipeline pass for %s (needs_initial=%s)...",
             run_date,
@@ -511,82 +516,90 @@ def build_scheduler() -> BlockingScheduler:
         id="intraday_monitor_afternoon",
     )
 
-    # 2. Expiry at 15:30 IST Mon-Fri
+    # 2. Expiry at EXPIRY_TIME IST Mon-Fri
+    exp_h, exp_m = _parse_time(settings.EXPIRY_TIME)
     scheduler.add_job(
         job_order_expiry,
         "cron",
         day_of_week="mon-fri",
-        hour=15,
-        minute=30,
+        hour=exp_h,
+        minute=exp_m,
         id="order_expiry",
     )
 
-    # 3. Settlement and Daily NAV at 15:35 IST Mon-Fri
+    # 3. Settlement and Daily NAV at SETTLEMENT_TIME IST Mon-Fri
+    set_h, set_m = _parse_time(settings.SETTLEMENT_TIME)
     scheduler.add_job(
         job_settlement,
         "cron",
         day_of_week="mon-fri",
-        hour=15,
-        minute=35,
+        hour=set_h,
+        minute=set_m,
         id="settlement",
     )
 
-    # 4. Ingestion, features, watchlist at 22:00 IST Mon-Fri
+    # 4. Ingestion, features, watchlist at INGESTION_TIME IST Mon-Fri
+    ing_h, ing_m = _parse_time(settings.INGESTION_TIME)
     scheduler.add_job(
         job_nightly_ingestion_and_features,
         "cron",
         day_of_week="mon-fri",
-        hour=22,
-        minute=0,
+        hour=ing_h,
+        minute=ing_m,
         id="nightly_ingestion",
     )
 
-    # 4b. Pipeline retry checkpoint (single & final) at 22:30 IST Mon-Fri
+    # 4b. Pipeline retry checkpoint at RETRY_TIME IST Mon-Fri
+    ret_h, ret_m = _parse_time(settings.RETRY_TIME)
     scheduler.add_job(
         job_retry_2230,
         "cron",
         day_of_week="mon-fri",
-        hour=22,
-        minute=30,
+        hour=ret_h,
+        minute=ret_m,
         id="nightly_pipeline_retry_2230",
     )
 
-    # 5. Agent decision runner at 23:00 IST Mon-Fri
+    # 5. Agent decision runner at AGENT_RUN_TIME IST Mon-Fri
+    agent_h, agent_m = _parse_time(settings.AGENT_RUN_TIME)
     scheduler.add_job(
         job_agent_runner,
         "cron",
         day_of_week="mon-fri",
-        hour=23,
-        minute=0,
+        hour=agent_h,
+        minute=agent_m,
         id="agent_runner",
     )
 
-    # 6. Nightly heuristic trigger evaluation at 23:30 IST Mon-Fri, after the agent runner
+    # 6. Nightly heuristic trigger evaluation at HEURISTIC_TIME IST Mon-Fri
+    heur_h, heur_m = _parse_time(settings.HEURISTIC_TIME)
     scheduler.add_job(
         job_heuristic_nightly,
         "cron",
         day_of_week="mon-fri",
-        hour=23,
-        minute=30,
+        hour=heur_h,
+        minute=heur_m,
         id="heuristic_nightly",
     )
 
-    # 7. Backup at 23:45 IST daily (captures all daily settlement, decisions, and heuristics)
+    # 7. Backup at BACKUP_TIME IST daily
+    bak_h, bak_m = _parse_time(settings.BACKUP_TIME)
     scheduler.add_job(
         job_nightly_backup,
         "cron",
-        hour=23,
-        minute=45,
+        hour=bak_h,
+        minute=bak_m,
         id="nightly_backup",
     )
 
-    # 8. Weekly reflection (heuristic generation) at 10:00 IST on Sunday
+    # 8. Weekly reflection at REFLECTION_TIME IST on REFLECTION_DAY
+    ref_h, ref_m = _parse_time(settings.REFLECTION_TIME)
     scheduler.add_job(
         job_weekly_reflection,
         "cron",
-        day_of_week="sun",
-        hour=10,
-        minute=0,
+        day_of_week=settings.REFLECTION_DAY[:3].lower(),
+        hour=ref_h,
+        minute=ref_m,
         id="weekly_reflection",
     )
 

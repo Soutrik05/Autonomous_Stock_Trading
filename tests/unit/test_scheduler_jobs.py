@@ -1,32 +1,45 @@
 """
-Unit tests for scheduler.py's build_scheduler(): confirms the two new Week-3 jobs
+Unit tests for scheduler.py's build_scheduler(): confirms the two Week-3 jobs
 (heuristic_nightly, weekly_reflection) are registered with the right schedule, and that every
-pre-existing job's own schedule is unchanged. Also covers job_heuristic_nightly's two
-independently-isolated steps (heuristic evaluation, then forensics post-exit enrichment). No
-scheduler is started; no network calls.
+pre-existing job's own schedule matches the centralized configuration in core.config.settings.
+Also covers job_heuristic_nightly's two independently-isolated steps (heuristic evaluation, then
+forensics post-exit enrichment). No scheduler is started; no network calls.
 See Plan_v3 §1.4, §5.4-§5.5.
 """
 
 import scheduler
+from core.config import settings
 from scheduler import build_scheduler, job_heuristic_nightly
 
-# (job_id, day_of_week, hour, minute) for every job that existed before this task.
-_PRE_EXISTING_JOBS = [
-    ("intraday_monitor_morning", "mon-fri", "9", "20,30,40,50"),
-    ("intraday_monitor_midday", "mon-fri", "10-14", "*/10"),
-    ("intraday_monitor_afternoon", "mon-fri", "15", "0,10,20"),
-    ("order_expiry", "mon-fri", "15", "30"),
-    ("settlement", "mon-fri", "15", "35"),
-    ("nightly_ingestion", "mon-fri", "20", "0"),
-    ("nightly_pipeline_retry_2030", "mon-fri", "20", "30"),
-    ("nightly_pipeline_retry_2100", "mon-fri", "21", "0"),
-    ("nightly_backup", "*", "21", "45"),  # no day_of_week filter -- runs daily
-    ("agent_runner", "mon-fri", "22", "0"),
-]
+
+def _time_parts(time_str: str) -> tuple[str, str]:
+    h, m = time_str.split(":")
+    return str(int(h)), str(int(m))
 
 
-def _jobs_by_id(scheduler):
-    return {job.id: job for job in scheduler.get_jobs()}
+def _get_pre_existing_jobs():
+    exp_h, exp_m = _time_parts(settings.EXPIRY_TIME)
+    set_h, set_m = _time_parts(settings.SETTLEMENT_TIME)
+    ing_h, ing_m = _time_parts(settings.INGESTION_TIME)
+    ret_h, ret_m = _time_parts(settings.RETRY_TIME)
+    agent_h, agent_m = _time_parts(settings.AGENT_RUN_TIME)
+    bak_h, bak_m = _time_parts(settings.BACKUP_TIME)
+
+    return [
+        ("intraday_monitor_morning", "mon-fri", "9", "20,30,40,50"),
+        ("intraday_monitor_midday", "mon-fri", "10-14", "*/10"),
+        ("intraday_monitor_afternoon", "mon-fri", "15", "0,10,20"),
+        ("order_expiry", "mon-fri", exp_h, exp_m),
+        ("settlement", "mon-fri", set_h, set_m),
+        ("nightly_ingestion", "mon-fri", ing_h, ing_m),
+        ("nightly_pipeline_retry_2230", "mon-fri", ret_h, ret_m),
+        ("agent_runner", "mon-fri", agent_h, agent_m),
+        ("nightly_backup", "*", bak_h, bak_m),
+    ]
+
+
+def _jobs_by_id(sched):
+    return {job.id: job for job in sched.get_jobs()}
 
 
 def _field_value(trigger, field_name: str) -> str:
@@ -38,7 +51,7 @@ def _field_value(trigger, field_name: str) -> str:
 
 def test_pre_existing_jobs_are_unchanged():
     jobs = _jobs_by_id(build_scheduler())
-    for job_id, day_of_week, hour, minute in _PRE_EXISTING_JOBS:
+    for job_id, day_of_week, hour, minute in _get_pre_existing_jobs():
         assert job_id in jobs, f"missing pre-existing job {job_id!r}"
         trigger = jobs[job_id].trigger
         if day_of_week != "*":
@@ -52,22 +65,24 @@ def test_heuristic_nightly_job_is_registered_at_2230_after_agent_runner():
     assert "heuristic_nightly" in jobs
     trigger = jobs["heuristic_nightly"].trigger
     assert _field_value(trigger, "day_of_week") == "mon-fri"
-    assert _field_value(trigger, "hour") == "22"
-    assert _field_value(trigger, "minute") == "30"
+    heur_h, heur_m = _time_parts(settings.HEURISTIC_TIME)
+    assert _field_value(trigger, "hour") == heur_h
+    assert _field_value(trigger, "minute") == heur_m
 
 
 def test_weekly_reflection_job_is_registered_sunday_1000():
     jobs = _jobs_by_id(build_scheduler())
     assert "weekly_reflection" in jobs
     trigger = jobs["weekly_reflection"].trigger
-    assert _field_value(trigger, "day_of_week") == "sun"
-    assert _field_value(trigger, "hour") == "10"
-    assert _field_value(trigger, "minute") == "0"
+    ref_h, ref_m = _time_parts(settings.REFLECTION_TIME)
+    assert _field_value(trigger, "day_of_week") == settings.REFLECTION_DAY[:3].lower()
+    assert _field_value(trigger, "hour") == ref_h
+    assert _field_value(trigger, "minute") == ref_m
 
 
 def test_build_scheduler_has_exactly_the_expected_job_count():
     jobs = _jobs_by_id(build_scheduler())
-    expected_ids = {job_id for job_id, *_ in _PRE_EXISTING_JOBS} | {"heuristic_nightly", "weekly_reflection"}
+    expected_ids = {job_id for job_id, *_ in _get_pre_existing_jobs()} | {"heuristic_nightly", "weekly_reflection"}
     assert set(jobs.keys()) == expected_ids
 
 
