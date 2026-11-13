@@ -87,6 +87,8 @@ class Position(BaseModel):
     quantity: int
     entry_price_paise: int
     current_price_paise: int
+    day_change_paise: Optional[int] = None
+    day_change_pct: Optional[float] = None
     exit_price_paise: Optional[int] = None
     stop_loss_paise: int
     target_price_paise: int

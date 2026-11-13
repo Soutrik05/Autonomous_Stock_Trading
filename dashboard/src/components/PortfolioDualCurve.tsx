@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import {
   ResponsiveContainer,
-  AreaChart,
-  Area,
+  LineChart,
   Line,
   XAxis,
   YAxis,
@@ -26,10 +25,10 @@ interface PortfolioDualCurveProps {
 
 export default function PortfolioDualCurve({
   navPoints,
-  color = '#10B981',
+  color = '#818CF8', // Modern Indigo from reference design
   height = 240,
 }: PortfolioDualCurveProps) {
-  const [timeRange, setTimeRange] = useState<'1W' | '1M' | '3M' | 'ALL'>('ALL');
+  const [timeRange, setTimeRange] = useState<'1W' | '1M' | '6M' | '1Y' | 'ALL'>('ALL');
 
   // Ensure at least 2 points for smooth curve rendering even on single-session runs
   const effectivePoints = (() => {
@@ -56,11 +55,11 @@ export default function PortfolioDualCurve({
   const filteredData = (() => {
     if (effectivePoints.length === 0) return [];
     if (timeRange === 'ALL' || effectivePoints.length <= 5) return effectivePoints;
-    const count = timeRange === '1W' ? 5 : timeRange === '1M' ? 12 : 25;
+    const count = timeRange === '1W' ? 5 : timeRange === '1M' ? 12 : timeRange === '6M' ? 30 : 60;
     return effectivePoints.slice(-Math.min(count, effectivePoints.length));
   })();
 
-  // Chart domain bounds
+  // Chart domain bounds: Padded Y-axis so small moves don't clip or look flat
   const values = filteredData.flatMap((d) => [
     d.portfolioValuePaise / 100,
     d.investedCapitalPaise / 100,
@@ -68,55 +67,81 @@ export default function PortfolioDualCurve({
   const rawMin = values.length > 0 ? Math.min(...values) : 500000;
   const rawMax = values.length > 0 ? Math.max(...values) : 505000;
   const spread = rawMax - rawMin;
-  const pad = spread < 200 ? 500 : spread * 0.15;
+  // Ensure at least ₹15,000 minimum vertical spread so minor daily ticks have natural, graceful amplitude
+  const minSpread = Math.max((rawMax || 500000) * 0.03, 15000);
+  const effectiveSpread = Math.max(spread, minSpread);
+  const pad = effectiveSpread * 0.25;
   const minVal = Math.floor(rawMin - pad);
   const maxVal = Math.ceil(rawMax + pad);
 
+  // Latest snapshot metrics for reference header
+  const latestPoint = filteredData.length > 0 ? filteredData[filteredData.length - 1] : null;
+  const currentNav = latestPoint ? latestPoint.portfolioValuePaise : 50000000;
+  const investedNav = latestPoint ? latestPoint.investedCapitalPaise : 50000000;
+  const pnlPaise = currentNav - investedNav;
+  const pnlPct = investedNav > 0 ? (pnlPaise / investedNav) * 100 : 0;
+
   return (
-    <div className="space-y-3 font-sans">
-      {/* Chart Sub-Header with Dual Legend & Timeframe Selector */}
-      <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-0.5 rounded-full" style={{ backgroundColor: color }} />
-            <span className="text-zinc-300">Portfolio Value</span>
+    <div className="space-y-4 font-sans">
+      {/* Portfolio Analysis Header Strip (Modeled after Reference Image) */}
+      <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-border-hairline">
+        {/* Left: Current Valuation with Indigo indicator */}
+        <div className="space-y-0.5">
+          <div className="flex items-center gap-1.5 text-xs text-zinc-400 font-sans">
+            <span className="w-2.5 h-2.5 rounded-sm bg-[#818CF8]" />
+            <span>Current NAV</span>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-0.5 border-b border-dashed border-zinc-500" />
-            <span className="text-zinc-500">Invested Capital</span>
+          <div className="flex items-baseline gap-2.5">
+            <span className="text-xl sm:text-2xl font-bold font-mono text-white tabular-nums">
+              {formatPaiseToRupees(currentNav)}
+            </span>
+            <span
+              className={cn(
+                "text-xs font-mono font-medium tabular-nums",
+                pnlPaise >= 0 ? "text-positive" : "text-negative"
+              )}
+            >
+              {pnlPaise >= 0 ? '+' : ''}{formatPaiseToRupees(pnlPaise)} ({formatPct(pnlPct)})
+            </span>
           </div>
         </div>
 
-        {/* Timeframe Range Selector (1W, 1M, 3M, ALL) */}
-        <div className="flex items-center gap-1 p-0.5 rounded bg-[#121212] border border-border-hairline text-[11px]">
-          {(['1W', '1M', '3M', 'ALL'] as const).map((r) => (
-            <button
-              key={r}
-              onClick={() => setTimeRange(r)}
-              className={cn(
-                "px-2 py-0.5 rounded transition-colors cursor-pointer",
-                timeRange === r
-                  ? "bg-white/15 text-white font-semibold"
-                  : "text-zinc-500 hover:text-zinc-300"
-              )}
-            >
-              {r}
-            </button>
-          ))}
+        {/* Right: Seed Capital & Timeframe Controls */}
+        <div className="flex flex-wrap items-center gap-6">
+          <div className="text-right space-y-0.5">
+            <div className="flex items-center justify-end gap-1.5 text-xs text-zinc-400 font-sans">
+              <span className="w-2.5 h-2.5 rounded-sm bg-zinc-500 border border-zinc-400" />
+              <span>Initial Seed Capital</span>
+            </div>
+            <div className="text-base sm:text-lg font-medium font-mono text-zinc-300 tabular-nums">
+              {formatPaiseToRupees(investedNav)}
+            </div>
+          </div>
+
+          {/* Timeframe Range Selector (1W, 1M, 6M, 1Y, ALL) */}
+          <div className="flex items-center gap-1 p-0.5 rounded-md bg-[#121212] border border-border-hairline text-xs font-mono">
+            {(['1W', '1M', '6M', '1Y', 'ALL'] as const).map((r) => (
+              <button
+                key={r}
+                onClick={() => setTimeRange(r)}
+                className={cn(
+                  "px-2.5 py-1 rounded transition-colors cursor-pointer text-xs",
+                  timeRange === r
+                    ? "bg-white/15 text-white font-semibold"
+                    : "text-zinc-400 hover:text-white"
+                )}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Main Interactive Dual Chart */}
+      {/* Main Pure-Line Chart (No Area Fill Gradient) */}
       <div style={{ width: '100%', height }} className="relative">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={filteredData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-            <defs>
-              <linearGradient id="valueFillGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={color} stopOpacity={0.25} />
-                <stop offset="95%" stopColor={color} stopOpacity={0.0} />
-              </linearGradient>
-            </defs>
-
+          <LineChart data={filteredData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
 
             <XAxis
@@ -130,7 +155,7 @@ export default function PortfolioDualCurve({
               domain={[minVal, maxVal]}
               stroke="#52525b"
               fontSize={10}
-              tickFormatter={(v) => `₹${(v / 1000).toFixed(1)}k`}
+              tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`}
               orientation="right"
               fontFamily="JetBrains Mono"
               width={56}
@@ -164,7 +189,7 @@ export default function PortfolioDualCurve({
                         </span>
                       </div>
                       <div className="flex justify-between gap-4 pt-1 border-t border-border-hairline">
-                        <span className="text-zinc-400">P&L Spread:</span>
+                        <span className="text-zinc-400">Net Return:</span>
                         <span
                           className={cn(
                             "font-bold",
@@ -185,13 +210,13 @@ export default function PortfolioDualCurve({
               }}
             />
 
-            {/* Shaded Area Under Portfolio Value Curve */}
-            <Area
+            {/* Line Only: Modern Indigo Line with Clean Curve */}
+            <Line
               type="monotone"
               dataKey={(d) => d.portfolioValuePaise / 100}
               stroke={color}
-              strokeWidth={2}
-              fill="url(#valueFillGradient)"
+              strokeWidth={2.5}
+              dot={false}
               isAnimationActive={true}
             />
 
@@ -199,13 +224,13 @@ export default function PortfolioDualCurve({
             <Line
               type="monotone"
               dataKey={(d) => d.investedCapitalPaise / 100}
-              stroke="#71717a"
+              stroke="#64748b"
               strokeWidth={1.5}
               strokeDasharray="4 4"
               dot={false}
               isAnimationActive={true}
             />
-          </AreaChart>
+          </LineChart>
         </ResponsiveContainer>
       </div>
     </div>

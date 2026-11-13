@@ -135,17 +135,33 @@ def calculate_agent_performance(
     cash_drag_pct = 100.0
 
     if nav_rows:
-        first_nav = nav_rows[0]["total_paise"]
-        initial_nav = first_nav if first_nav > 0 else initial_nav
+        # In backtests, baseline is Day 1 initial NAV (nav_rows[0]["total_paise"]).
+        # In live trading, inception baseline is explicit initial seed capital (e.g. 50,000,000 paise / ₹5L).
+        if is_backtest:
+            seed_baseline = nav_rows[0]["total_paise"] if nav_rows[0]["total_paise"] > 0 else settings.INITIAL_CASH_PER_AGENT_PAISE
+        else:
+            seed_baseline = initial_nav if initial_nav > 0 else (nav_rows[0]["total_paise"] if nav_rows[0]["total_paise"] > 0 else settings.INITIAL_CASH_PER_AGENT_PAISE)
         current_nav = nav_rows[-1]["total_paise"]
-        total_return_pct = ((current_nav - initial_nav) / initial_nav) * 100.0
+        total_return_pct = ((current_nav - seed_baseline) / seed_baseline) * 100.0
 
-        # Benchmark return
+        # Benchmark return against first recorded benchmark close
         b_first = nav_rows[0]["nifty500_close"]
         b_last = nav_rows[-1]["nifty500_close"]
         if b_first and b_first > 0:
             benchmark_return_pct = ((b_last - b_first) / b_first) * 100.0
         alpha_pct = total_return_pct - benchmark_return_pct
+
+        # For live trading, calculate true live NAV (current unallocated cash + live MTM of open positions)
+        if not is_backtest and agent_row and "cash_paise" in agent_row.keys() and agent_row["cash_paise"] is not None:
+            open_inv_row = conn.execute(
+                "SELECT COALESCE(SUM(shares * COALESCE(last_price_paise, avg_entry_price_paise)), 0) AS total "
+                "FROM positions WHERE agent_id = ? AND status = 'OPEN'",
+                (agent_id,),
+            ).fetchone()
+            live_invested = open_inv_row["total"] if open_inv_row else 0
+            current_nav = agent_row["cash_paise"] + live_invested
+            total_return_pct = ((current_nav - seed_baseline) / seed_baseline) * 100.0
+            alpha_pct = total_return_pct - benchmark_return_pct
 
         # Daily returns for Sharpe and Sortino
         totals = [r["total_paise"] for r in nav_rows]

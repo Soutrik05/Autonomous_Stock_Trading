@@ -6,7 +6,7 @@ import {
   Receipt,
 } from 'lucide-react';
 import type { NavHistoryPoint, AgentLeaderboardEntry, ActivityEvent } from '../types';
-import { apiService } from '../services/api';
+import { apiService, TELEMETRY_POLL_INTERVAL_MS } from '../services/api';
 import { formatPct, formatISTDateTime } from '../utils/formatters';
 import { cn } from '../utils/cn';
 import { MetaList } from '../components/ui/MetaList';
@@ -143,7 +143,8 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function loadData() {
+    async function loadData(isBackground = false) {
+      if (!isBackground) setLoading(true);
       try {
         const [navData, boardData, activityData] = await Promise.all([
           apiService.getAgentNavHistory(),
@@ -156,11 +157,18 @@ export default function Home() {
       } catch (err) {
         console.warn('Failed to load observation data:', err);
       } finally {
-        setLoading(false);
+        if (!isBackground) setLoading(false);
       }
     }
 
-    loadData();
+    loadData(false);
+
+    // Dynamic background polling on synchronized cadence (10 min)
+    const pollInterval = setInterval(() => {
+      loadData(true);
+    }, TELEMETRY_POLL_INTERVAL_MS);
+
+    return () => clearInterval(pollInterval);
   }, []);
 
   // Compute percentage return trajectories from ₹5,00,000 seed (memoized)

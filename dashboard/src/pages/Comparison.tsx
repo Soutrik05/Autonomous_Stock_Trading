@@ -17,7 +17,7 @@ import {
   CartesianGrid,
 } from 'recharts';
 import type { BaselineComparison, AgentLeaderboardEntry } from '../types';
-import { apiService, getIsMockMode } from '../services/api';
+import { apiService, getIsMockMode, TELEMETRY_POLL_INTERVAL_MS } from '../services/api';
 import { formatPaiseToRupees, formatPct } from '../utils/formatters';
 import { SectionHeader } from '../components/ui/SectionHeader';
 import { CategoryBadge } from '../components/ui/CategoryBadge';
@@ -113,23 +113,36 @@ export default function Comparison() {
     PHILOSOPHY_PAIRS.find((p) => p.id === selectedPairId) || PHILOSOPHY_PAIRS[0];
 
   useEffect(() => {
-    async function fetchComparisonData() {
-      setLoading(true);
+    let isSubscribed = true;
+    async function fetchComparisonData(isBackground = false) {
+      if (!isBackground) setLoading(true);
       try {
         const [compData, boardData] = await Promise.all([
           apiService.getBaselineComparison(currentPair.id),
           apiService.getLeaderboard(),
         ]);
-        setData(compData);
-        setLiveLeaderboard(boardData);
+        if (isSubscribed) {
+          setData(compData);
+          setLiveLeaderboard(boardData);
+        }
       } catch (err) {
         console.warn('Failed to load baseline comparison:', err);
       } finally {
-        setLoading(false);
+        if (isSubscribed && !isBackground) setLoading(false);
       }
     }
 
-    fetchComparisonData();
+    fetchComparisonData(false);
+
+    // Dynamic background polling on synchronized cadence (10 min)
+    const pollInterval = setInterval(() => {
+      fetchComparisonData(true);
+    }, TELEMETRY_POLL_INTERVAL_MS);
+
+    return () => {
+      isSubscribed = false;
+      clearInterval(pollInterval);
+    };
   }, [currentPair.id, isMock]);
 
   if (loading || !data) {

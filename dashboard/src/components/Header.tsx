@@ -76,7 +76,7 @@ export default function Header() {
   const navItems = [
     { to: '/', label: 'Overview', end: true },
     { to: '/leaderboard', label: 'Leaderboard' },
-    { to: '/portfolio/simons', label: 'Portfolio' },
+    { to: '/portfolio/simons', label: 'Agents Terminal' },
     { to: '/comparison', label: 'Comparison' },
     { to: '/backtest', label: 'Backtest' },
     { to: '/pulse', label: 'Pulse' },

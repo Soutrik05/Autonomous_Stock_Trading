@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Filter, CheckCircle2 } from 'lucide-react';
+import { ChevronRight, CheckCircle2 } from 'lucide-react';
 import { apiService } from '../services/api';
 import type { FunnelEntry } from '../types';
+import { cn } from '../utils/cn';
 
 interface FunnelStage {
   step: number;
@@ -26,29 +27,29 @@ const DEFAULT_FUNNEL_DATA: Record<string, PersonaFunnelDef> = {
         step: 0,
         name: 'Universe Ingestion',
         count: 221,
-        subtitle: 'NSE Universe & Technical Features',
+        subtitle: 'NSE Universe & Features',
         criteria: 'Daily EOD OHLCV + technical indicators computed point-in-time',
         droppedCount: 0,
         sampleDropped: [],
       },
       {
         step: 1,
-        name: 'Liquidity & Volatility Filter',
+        name: 'Liquidity & Volatility',
         count: 9,
-        subtitle: 'Volume Bounds & Kaufman Efficiency',
-        criteria: '20-day median turnover >= ₹5 Cr AND close >= ₹20 AND Kaufman ER > 0.40',
+        subtitle: 'Volume & Kaufman Bounds',
+        criteria: 'Turnover >= ₹5 Cr AND close >= ₹20 AND Kaufman ER > 0.40',
         droppedCount: 212,
         sampleDropped: [
-          { symbol: 'RELIANCE', reason: 'Kaufman ER is 0.38 (below 0.40 hurdle - choppy regime)' },
-          { symbol: 'TCS', reason: 'ADX is 18.2 (insufficient directional trend strength)' },
+          { symbol: 'RELIANCE', reason: 'Kaufman ER is 0.38 (below 0.40 hurdle)' },
+          { symbol: 'TCS', reason: 'ADX is 18.2 (insufficient trend strength)' },
         ],
       },
       {
         step: 2,
-        name: 'Directional Momentum Ranking',
+        name: 'Momentum Ranking',
         count: 12,
-        subtitle: 'Watchlist Candidates (TTL Locked)',
-        criteria: 'Kaufman ER, ADX 14 >= 25, positive skew_60, and sector-capped allocation',
+        subtitle: 'Watchlist Candidates',
+        criteria: 'Kaufman ER, ADX 14 >= 25, positive skew_60, sector cap',
         droppedCount: 0,
         sampleDropped: [
           { symbol: 'SUZLON', reason: 'Turnover volatility spike exceeded risk budget' },
@@ -56,13 +57,13 @@ const DEFAULT_FUNNEL_DATA: Record<string, PersonaFunnelDef> = {
       },
       {
         step: 3,
-        name: 'Autonomous Sized Orders',
+        name: 'Sized Orders',
         count: 2,
-        subtitle: 'Active Portfolio Allocations',
-        criteria: 'Volatility parity sizing, ATR trailing stop, and LLM sizing fidelity check',
+        subtitle: 'Portfolio Allocations',
+        criteria: 'Volatility parity sizing, ATR trailing stop, LLM fidelity',
         droppedCount: 10,
         sampleDropped: [
-          { symbol: 'HINDPETRO', reason: 'Order queued for market execution at 09:15 IST' },
+          { symbol: 'HINDPETRO', reason: 'Queued for market open at 09:15 IST' },
         ],
       },
     ],
@@ -75,7 +76,7 @@ const DEFAULT_FUNNEL_DATA: Record<string, PersonaFunnelDef> = {
         name: 'Universe Ingestion',
         count: 499,
         subtitle: 'NSE Nifty 500 Constituents',
-        criteria: 'Daily technicals + balance-sheet solvency ratios ingested point-in-time',
+        criteria: 'Daily technicals + balance-sheet solvency ratios point-in-time',
         droppedCount: 0,
         sampleDropped: [],
       },
@@ -83,82 +84,82 @@ const DEFAULT_FUNNEL_DATA: Record<string, PersonaFunnelDef> = {
         step: 1,
         name: 'Dual Confluence Screen',
         count: 40,
-        subtitle: 'Solvency DCF + Trend Alignment',
+        subtitle: 'Solvency DCF + Trend',
         criteria: 'Debt/Equity <= 1.5 AND ROCE >= 12% AND Close > 200 EMA AND RSI 45–68',
         droppedCount: 459,
         sampleDropped: [
-          { symbol: 'TATACHEM', reason: 'Debt/Equity 1.8x exceeds 1.5 balance-sheet hurdle' },
-          { symbol: 'WIPRO', reason: 'Trading below 200 EMA (The Mothership) in primary downtrend' },
+          { symbol: 'TATACHEM', reason: 'Debt/Equity 1.8x exceeds 1.5 hurdle' },
+          { symbol: 'WIPRO', reason: 'Trading below 200 EMA in primary downtrend' },
         ],
       },
       {
         step: 2,
-        name: 'Relative Valuation & Quality Rank',
+        name: 'Quality & Valuation',
         count: 10,
-        subtitle: 'Watchlist Candidates (TTL Locked)',
-        criteria: 'Strict 1:1.5 Risk-Reward minimum, volume surge >= 1.0x, sector diversification',
+        subtitle: 'Watchlist Candidates',
+        criteria: 'Strict 1:1.5 Risk-Reward minimum, volume surge >= 1.0x',
         droppedCount: 30,
         sampleDropped: [
-          { symbol: 'BHARTIARTL', reason: 'Risk-to-reward ratio 1.2 falls below 1.5 hurdle' },
+          { symbol: 'INFY', reason: 'Risk/Reward ratio 1:1.1 is below 1:1.5 threshold' },
         ],
       },
       {
         step: 3,
-        name: 'Autonomous Sized Orders',
-        count: 1,
-        subtitle: 'High-Confluence Swings',
-        criteria: 'Disciplined swing trade sizing with ATR trailing stop and patience protocol',
-        droppedCount: 9,
+        name: 'Sized Orders',
+        count: 4,
+        subtitle: 'Target Buys Sized',
+        criteria: 'Max 10% risk per position, sector exposure <= 25%',
+        droppedCount: 6,
         sampleDropped: [
-          { symbol: 'INFY', reason: 'Setup intact; held in reserve awaiting pullback to support' },
+          { symbol: 'COALINDIA', reason: 'Sector exposure cap (25% Energy) reached' },
         ],
       },
     ],
   },
   lynch: {
-    personaName: 'Peter Lynch (GARP & Growth)',
+    personaName: 'Peter Lynch (GARP)',
     stages: [
       {
         step: 0,
         name: 'Universe Ingestion',
         count: 499,
         subtitle: 'NSE Nifty 500 Constituents',
-        criteria: 'Quarterly fundamentals, operating cash flows, and PEG matrices ingested',
+        criteria: 'Financial statements, quarterly earnings, PEG, CFO/PAT ratios',
         droppedCount: 0,
         sampleDropped: [],
       },
       {
         step: 1,
-        name: 'GARP Valuation & Quality Filter',
-        count: 26,
-        subtitle: 'PEG Bounds & Capital Productivity',
-        criteria: 'PEG <= 1.0 AND ROCE >= 15% AND CFO/PAT >= 0.80 AND Market Cap > ₹1,000 Cr',
-        droppedCount: 473,
+        name: 'GARP Fundamentals',
+        count: 28,
+        subtitle: 'P/E to Growth Screen',
+        criteria: 'PEG <= 1.2 AND CFO/PAT >= 0.8 AND Debt/Equity <= 1.0 AND ROCE >= 15%',
+        droppedCount: 471,
         sampleDropped: [
-          { symbol: 'INFY', reason: 'PEG ratio 2.1 exceeds 1.0 hurdle' },
-          { symbol: 'PAYTM', reason: 'CFO/PAT negative; zero operating cash flow conversion' },
+          { symbol: 'ADANIENT', reason: 'PEG 2.8x exceeds 1.2 hurdle' },
+          { symbol: 'VEDL', reason: 'Debt/Equity 1.9x exceeds 1.0 threshold' },
         ],
       },
       {
         step: 2,
-        name: 'Earnings Quality & Sector Diversification',
-        count: 10,
-        subtitle: 'Watchlist Candidates (TTL Locked)',
-        criteria: 'Multi-quarter earnings compounding, balance-sheet safety, and sector capping',
-        droppedCount: 16,
+        name: 'Cash Conversion Rank',
+        count: 8,
+        subtitle: 'Watchlist Candidates',
+        criteria: 'Free cash flow margin, inventory turnover trend, insider ownership',
+        droppedCount: 20,
         sampleDropped: [
-          { symbol: 'HCLTECH', reason: 'Sub-hurdle free cash flow yield vs peers' },
+          { symbol: 'HCLTECH', reason: 'Stagnant operating cash flow margin' },
         ],
       },
       {
         step: 3,
-        name: 'Autonomous Sized Orders',
-        count: 2,
-        subtitle: 'High-Conviction Compounders',
-        criteria: 'Equal-weight risk budget with operational margin check and multi-month horizon',
-        droppedCount: 8,
+        name: 'Sized Orders',
+        count: 3,
+        subtitle: 'Conviction Positions',
+        criteria: 'Equal-weight compounding allocation, maximum 8 holdings',
+        droppedCount: 5,
         sampleDropped: [
-          { symbol: 'PAGEIND', reason: 'Valuation near upper quartile boundary; awaiting entry pullback' },
+          { symbol: 'LICI', reason: 'Position deferred due to margin pressure' },
         ],
       },
     ],
@@ -171,102 +172,93 @@ const DEFAULT_FUNNEL_DATA: Record<string, PersonaFunnelDef> = {
         name: 'Universe Ingestion',
         count: 499,
         subtitle: 'NSE Nifty 500 Constituents',
-        criteria: 'Cyclical indicators, balance sheets, and 52-week drawdown scans',
+        criteria: 'Price-to-Book, historical drawdown, interest coverage, solvency',
         droppedCount: 0,
         sampleDropped: [],
       },
       {
         step: 1,
-        name: 'Solvency & Asymmetric Safety Screen',
-        count: 9,
-        subtitle: 'Solvency Buffer & Debt Coverage',
-        criteria: 'Net debt/EBITDA < 3.0x AND interest coverage >= 2.5x AND deep cyclical value',
-        droppedCount: 490,
+        name: 'Distress & Solvency',
+        count: 18,
+        subtitle: 'Cyclical Despair Screen',
+        criteria: 'Close within 20% of 52-week low AND Interest Coverage >= 3.0x',
+        droppedCount: 481,
         sampleDropped: [
-          { symbol: 'VEDL', reason: 'Debt/EBITDA 3.8x exceeds solvency boundary' },
-          { symbol: 'TITAN', reason: 'Trading at 92nd percentile valuation; zero safety margin' },
+          { symbol: 'ZEEL', reason: 'Interest coverage 1.4x indicates solvency risk' },
         ],
       },
       {
         step: 2,
-        name: 'Margin of Safety Ranking',
-        count: 11,
-        subtitle: 'Watchlist Candidates (TTL Locked)',
-        criteria: 'Price within 15% of 52-week low or bottom decile P/E with unencumbered assets',
-        droppedCount: 0,
+        name: 'Second-Level Margin',
+        count: 6,
+        subtitle: 'Watchlist Candidates',
+        criteria: 'Tangible book value discount, depressed cyclical margins',
+        droppedCount: 12,
         sampleDropped: [
-          { symbol: 'ZEEL', reason: 'Governance risk flagged in secondary qualitative audit' },
+          { symbol: 'BHEL', reason: 'Working capital cycle extended beyond limit' },
         ],
       },
       {
         step: 3,
-        name: 'Autonomous Sized Orders',
+        name: 'Sized Orders',
         count: 2,
-        subtitle: 'Second-Level Asymmetric Allocations',
-        criteria: 'Contrarian allocation with thesis autopsy and multi-quarter holding patience',
-        droppedCount: 9,
+        subtitle: 'Deep Value Entries',
+        criteria: 'Wide sizing buffers, no mechanical stops, patience horizon',
+        droppedCount: 4,
         sampleDropped: [
-          { symbol: 'IOC', reason: 'Awaiting cyclical bottom confirmation before allocation' },
+          { symbol: 'SAIL', reason: 'Waiting for margin stabilization confirmation' },
         ],
       },
     ],
   },
   jhunjhunwala: {
-    personaName: 'Rakesh Jhunjhunwala (Domestic Capex & Compounding)',
+    personaName: 'Rakesh Jhunjhunwala (Structural Growth)',
     stages: [
       {
         step: 0,
         name: 'Universe Ingestion',
-        count: 221,
-        subtitle: 'NSE Universe & Corporate Fundamentals',
-        criteria: 'Promoter holdings, capex cycles, and multi-year ROCE statements ingested',
+        count: 499,
+        subtitle: 'NSE Nifty 500 Constituents',
+        criteria: 'Capex intensity, promoter holding, revenue growth, sectoral TAM',
         droppedCount: 0,
         sampleDropped: [],
       },
       {
         step: 1,
-        name: 'Structural Compounding Filter',
-        count: 3,
-        subtitle: 'Promoter Quality & Operating Leverage',
-        criteria: 'Promoter holding >= 50% AND ROCE >= 18% AND Sector Capex Tailwinds',
-        droppedCount: 218,
+        name: 'High-Growth Promoters',
+        count: 32,
+        subtitle: 'Capex & Moat Screen',
+        criteria: 'Promoter pledge = 0% AND Promoter Holding >= 50% AND 3Y Sales CAGR >= 15%',
+        droppedCount: 467,
         sampleDropped: [
-          { symbol: 'YESBANK', reason: 'Promoter skin-in-the-game boundary violated' },
-          { symbol: 'SAIL', reason: 'Cyclical commoditization without structural pricing moat' },
+          { symbol: 'GMRINFRA', reason: 'Promoter pledge 14.5% breaches zero-pledge rule' },
         ],
       },
       {
         step: 2,
-        name: 'High-Conviction Compounders',
-        count: 4,
-        subtitle: 'Watchlist Candidates (TTL Locked)',
-        criteria: 'Structural compounding narrative, sector leadership, and long-term moat',
-        droppedCount: 0,
+        name: 'Conviction Ranking',
+        count: 9,
+        subtitle: 'Watchlist Candidates',
+        criteria: 'Return on invested capital, operating leverage, capex cycle phase',
+        droppedCount: 23,
         sampleDropped: [
-          { symbol: 'DLF', reason: 'Sub-hurdle balance sheet leverage vs peers' },
+          { symbol: 'POLYCAB', reason: 'Valuation multiples exceed ceiling' },
         ],
       },
       {
         step: 3,
-        name: 'Autonomous Sized Orders',
-        count: 2,
-        subtitle: 'Secular Growth Positions',
-        criteria: 'Pyramiding into high-conviction winners with multi-quarter patience protocol',
-        droppedCount: 2,
+        name: 'Sized Orders',
+        count: 4,
+        subtitle: 'Pyramided Holdings',
+        criteria: 'High-conviction sizing, 15-20% portfolio weight per position',
+        droppedCount: 5,
         sampleDropped: [
-          { symbol: 'TATAMOTORS', reason: 'Held in core portfolio; no incremental tranche required' },
+          { symbol: 'TATACOMM', reason: 'Awaiting pullback to pyramiding support' },
         ],
       },
     ],
   },
 };
-
-const WIDTH_CLASSES = [
-  'w-full max-w-2xl',
-  'w-full max-w-xl',
-  'w-full max-w-md',
-  'w-full max-w-xs',
-];
 
 interface WatchlistFunnelProps {
   initialAgentId?: string;
@@ -285,7 +277,7 @@ export default function WatchlistFunnel({ initialAgentId }: WatchlistFunnelProps
   };
 
   const [selectedPersona, setSelectedPersona] = useState<string>(() => normalizeKey(initialAgentId));
-  const [activeStep, setActiveStep] = useState<number | null>(null);
+  const [activeStep, setActiveStep] = useState<number>(1);
   const [liveFunnels, setLiveFunnels] = useState<Record<string, FunnelEntry>>({});
   const [isLiveLoaded, setIsLiveLoaded] = useState<boolean>(false);
 
@@ -309,7 +301,7 @@ export default function WatchlistFunnel({ initialAgentId }: WatchlistFunnelProps
           setIsLiveLoaded(true);
         }
       } catch {
-        // Fallback gracefully to default configurations
+        // Fallback gracefully
       }
     }
     fetchFunnelData();
@@ -318,7 +310,7 @@ export default function WatchlistFunnel({ initialAgentId }: WatchlistFunnelProps
   const defaultData = DEFAULT_FUNNEL_DATA[selectedPersona] || DEFAULT_FUNNEL_DATA.simons;
   const liveEntry = liveFunnels[selectedPersona];
 
-  // Synthesize live API stage counts with qualitative stage definitions
+  // Synthesize live stage counts
   const effectiveStages = defaultData.stages.map((st, idx) => {
     if (!liveEntry || !liveEntry.stages) return st;
 
@@ -340,36 +332,31 @@ export default function WatchlistFunnel({ initialAgentId }: WatchlistFunnelProps
     };
   });
 
-  // Recompute drop counts dynamically
   for (let i = 1; i < effectiveStages.length; i++) {
     const prev = effectiveStages[i - 1].count;
     const curr = effectiveStages[i].count;
     effectiveStages[i].droppedCount = Math.max(0, prev - curr);
   }
 
+  const selectedStage = effectiveStages[activeStep] || effectiveStages[1];
+
   return (
-    <div className="bg-[#161616] border border-border-hairline p-5 sm:p-6 rounded-lg space-y-6 font-sans">
-      {/* Header & Persona Selector */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-border-hairline pb-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h3 className="font-serif text-lg sm:text-xl font-medium tracking-tight text-white flex items-center gap-2">
-              <Filter className="w-4 h-4 text-accent" />
-              <span>Active Watchlist Candidate Elimination Funnel</span>
-            </h3>
-            {isLiveLoaded && liveEntry && (
-              <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-positive border border-emerald-500/20">
-                <CheckCircle2 className="w-3 h-3" />
-                <span>Live Pipeline {liveEntry.runDate || new Date().toISOString().split('T')[0]}</span>
-              </span>
-            )}
-          </div>
-          <p className="text-xs text-zinc-400 font-mono mt-0.5">
-            Stage-by-stage quantitative attrition from broad universe to final sized orders
-          </p>
+    <div className="bg-[#161616] border border-border-hairline rounded-lg font-sans overflow-hidden">
+      {/* 1. Header with Persona Switcher */}
+      <div className="p-4 sm:p-5 border-b border-border-hairline flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 font-mono text-xs">
+        <div className="flex items-center gap-2">
+          <h3 className="font-serif text-lg font-medium text-white tracking-tight">
+            Screening Pipeline
+          </h3>
+          {isLiveLoaded && liveEntry && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-positive border border-emerald-500/20">
+              <CheckCircle2 className="w-3 h-3" />
+              <span>{liveEntry.runDate || 'Live'}</span>
+            </span>
+          )}
         </div>
 
-        {/* Persona Selector Tabs for all 5 strategies */}
+        {/* Persona Tabs */}
         <div className="flex items-center p-0.5 rounded bg-[#121212] border border-border-hairline text-xs font-mono overflow-x-auto max-w-full">
           {[
             { id: 'simons', label: 'Simons' },
@@ -380,15 +367,13 @@ export default function WatchlistFunnel({ initialAgentId }: WatchlistFunnelProps
           ].map((p) => (
             <button
               key={p.id}
-              onClick={() => {
-                setSelectedPersona(p.id);
-                setActiveStep(null);
-              }}
-              className={`px-3 py-1 rounded transition-colors cursor-pointer whitespace-nowrap ${
+              onClick={() => setSelectedPersona(p.id)}
+              className={cn(
+                "px-2.5 py-1 rounded transition-colors cursor-pointer whitespace-nowrap",
                 selectedPersona === p.id
-                  ? 'bg-white/[0.12] text-accent font-semibold border border-accent/30'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
+                  ? "bg-white/10 text-white font-medium"
+                  : "text-zinc-400 hover:text-white"
+              )}
             >
               {p.label}
             </button>
@@ -396,83 +381,95 @@ export default function WatchlistFunnel({ initialAgentId }: WatchlistFunnelProps
         </div>
       </div>
 
-      {/* True Visually Tapered Funnel Geometry */}
-      <div className="flex flex-col items-center space-y-3 py-2">
-        {effectiveStages.map((st, idx) => {
-          const isSelected = activeStep === st.step;
-          const widthClass = WIDTH_CLASSES[idx] || 'w-full max-w-sm';
+      {/* 2. Horizontal Pipeline Stepper (Option A) */}
+      <div className="p-4 sm:p-5 border-b border-border-hairline bg-white/[0.01]">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {effectiveStages.map((st, idx) => {
+            const isSelected = activeStep === st.step;
 
-          return (
-            <div key={st.step} className="w-full flex flex-col items-center">
-              {/* Elimination Dropoff Bridge between stages */}
-              {idx > 0 && (
-                <div className="flex items-center gap-2 text-[10px] font-mono text-zinc-500 py-1">
-                  <span>↓</span>
-                  <span className="text-negative font-medium">
-                    {st.droppedCount} eliminated
-                  </span>
-                  <span>·</span>
-                  <span className="truncate max-w-[260px] text-zinc-500">{st.subtitle}</span>
-                </div>
-              )}
-
-              {/* Tapered Funnel Block */}
-              <div
-                onClick={() => setActiveStep(isSelected ? null : st.step)}
-                className={`${widthClass} p-3.5 sm:p-4 rounded border transition-all cursor-pointer font-mono text-xs ${
+            return (
+              <button
+                key={st.step}
+                onClick={() => setActiveStep(st.step)}
+                className={cn(
+                  "p-3.5 rounded-lg border text-left font-mono transition-all cursor-pointer relative",
                   isSelected
-                    ? 'border-accent bg-accent/10'
-                    : 'border-border-hairline bg-[#121212] hover:border-white/20 hover:bg-white/[0.03]'
-                }`}
+                    ? "bg-white/[0.06] border-white/30 ring-1 ring-white/20"
+                    : "bg-[#141414] border-border-hairline hover:border-white/15 hover:bg-white/[0.02]"
+                )}
               >
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-zinc-500 font-semibold">STAGE {st.step}</span>
-                  <span className="font-bold text-white text-sm sm:text-base tabular-nums">
-                    {st.count} <span className="text-xs font-normal text-zinc-400">stocks</span>
+                <div className="flex items-center justify-between text-[10px] text-zinc-500">
+                  <span className="font-semibold uppercase tracking-wider">
+                    Stage {st.step}
                   </span>
+                  {idx > 0 && st.droppedCount > 0 && (
+                    <span className="text-negative font-medium">
+                      -{st.droppedCount}
+                    </span>
+                  )}
                 </div>
 
-                <div className="text-sm font-semibold text-white mt-1 font-sans">{st.name}</div>
-                <div className="text-xs text-zinc-400 font-sans mt-0.5">{st.criteria}</div>
-              </div>
-            </div>
-          );
-        })}
+                <div className="text-xl sm:text-2xl font-bold text-white mt-1 tabular-nums">
+                  {st.count}
+                </div>
+
+                <div className="text-xs text-zinc-300 font-sans mt-0.5 font-medium truncate">
+                  {st.name}
+                </div>
+
+                {/* Step Connector Arrow Indicator */}
+                {idx < effectiveStages.length - 1 && (
+                  <div className="hidden lg:block absolute -right-2 top-1/2 -translate-y-1/2 z-10 text-zinc-600 pointer-events-none">
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Interactive Step Detail Drawer */}
-      {activeStep !== null && effectiveStages[activeStep] && (
-        <div className="p-4 sm:p-5 rounded border border-border-hairline bg-[#121212] text-xs font-mono space-y-3 animate-hero-entrance">
-          <div className="flex items-center justify-between text-white font-semibold border-b border-border-hairline pb-2">
-            <span>
-              Stage {activeStep}: {effectiveStages[activeStep].name} Inspection
+      {/* 3. Stage Inspection Details (Flat, Zero Inner Cards) */}
+      <div className="p-4 sm:p-5 space-y-3 font-mono text-xs">
+        {/* Stage Hurdle Summary Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 pb-2.5 border-b border-border-hairline">
+          <div className="space-y-0.5">
+            <span className="text-[10px] uppercase text-zinc-500 font-sans tracking-wider block">
+              Stage {selectedStage.step} Hurdle · {selectedStage.name}
             </span>
-            <span className="text-xs text-negative font-mono">
-              {effectiveStages[activeStep].droppedCount} stocks eliminated at this hurdle
-            </span>
+            <code className="text-xs text-zinc-200 font-mono">
+              {selectedStage.criteria}
+            </code>
           </div>
 
-          <p className="text-xs text-zinc-300 font-sans">
-            <strong>Rule applied:</strong> {effectiveStages[activeStep].criteria}
-          </p>
-
-          {effectiveStages[activeStep].sampleDropped.length > 0 && (
-            <div className="space-y-2 pt-1">
-              <span className="text-[10px] uppercase text-zinc-500 font-mono tracking-wider block">
-                Sample elimination reasons:
-              </span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {effectiveStages[activeStep].sampleDropped.map((sd, i) => (
-                  <div key={i} className="p-2.5 rounded bg-[#161616] border border-border-hairline text-xs">
-                    <span className="font-bold text-white mr-2">{sd.symbol}:</span>
-                    <span className="text-zinc-400">{sd.reason}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+          {selectedStage.droppedCount > 0 && (
+            <span className="text-negative text-xs font-semibold tabular-nums whitespace-nowrap">
+              -{selectedStage.droppedCount} eliminated
+            </span>
           )}
         </div>
-      )}
+
+        {/* Flat Eliminated Candidates List (Hairline Separated, No Boxed Cards) */}
+        {selectedStage.sampleDropped.length > 0 && (
+          <div className="space-y-1.5 pt-1">
+            <span className="text-[10px] uppercase text-zinc-500 block font-sans tracking-wider">
+              Sample Elimination Telemetry
+            </span>
+            <div className="divide-y divide-border-hairline border-t border-b border-border-hairline">
+              {selectedStage.sampleDropped.map((sd, i) => (
+                <div key={i} className="py-2 flex items-baseline justify-between gap-4 font-mono text-xs">
+                  <span className="font-bold text-white flex-shrink-0">
+                    {sd.symbol}
+                  </span>
+                  <span className="text-zinc-400 font-sans text-xs text-right">
+                    {sd.reason}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

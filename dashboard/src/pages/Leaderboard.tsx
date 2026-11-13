@@ -1,10 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { AgentLeaderboardEntry, NavHistoryPoint, MarketContext } from '../types';
-import { apiService } from '../services/api';
+import { apiService, TELEMETRY_POLL_INTERVAL_MS } from '../services/api';
 import BenchmarkMatrixTable from '../components/BenchmarkMatrixTable';
 import { TrajectoryChart, type TrajectoryChartPoint } from '../components/TrajectoryChart';
 import { SectionHeader } from '../components/ui/SectionHeader';
-import { formatPaiseCompact } from '../utils/formatters';
 import { cn } from '../utils/cn';
 
 export default function Leaderboard() {
@@ -15,7 +14,8 @@ export default function Leaderboard() {
   const [chartMode, setChartMode] = useState<'COMPOSITE' | 'PERSONAS'>('COMPOSITE');
   const [loading, setLoading] = useState(true);
 
-  async function loadData() {
+  async function loadData(isBackground = false) {
+    if (!isBackground) setLoading(true);
     try {
       const [leaderboardData, navData, macroData] = await Promise.all([
         apiService.getLeaderboard(),
@@ -28,18 +28,26 @@ export default function Leaderboard() {
     } catch (err) {
       console.warn('Failed to load leaderboard telemetry:', err);
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
   }
 
   useEffect(() => {
-    loadData();
+    loadData(false);
+
+    // Dynamic background polling on synchronized cadence (10 min)
+    const pollInterval = setInterval(() => {
+      loadData(true);
+    }, TELEMETRY_POLL_INTERVAL_MS);
 
     const handleModeChange = () => {
-      loadData();
+      loadData(false);
     };
     window.addEventListener('mock_mode_changed', handleModeChange);
-    return () => window.removeEventListener('mock_mode_changed', handleModeChange);
+    return () => {
+      clearInterval(pollInterval);
+      window.removeEventListener('mock_mode_changed', handleModeChange);
+    };
   }, []);
 
   const filtered = useMemo(() => {
@@ -54,13 +62,48 @@ export default function Leaderboard() {
     });
   }, [agents, strategyFilter]);
 
-  const seedCapitalDisplay = useMemo(() => {
-    const seed = agents[0]?.startingCapitalPaise;
-    return seed ? formatPaiseCompact(seed) : '₹5.00 L';
-  }, [agents]);
+  const SEED_NAV = 500000;
+
+  // 1. Dynamic India VIX from macro.db via backend API
+  const vixHeadline = useMemo(() => {
+    return marketContext?.indiaVix != null ? marketContext.indiaVix.toFixed(2) : '—';
+  }, [marketContext?.indiaVix]);
+
+  // 2. Dynamic Nifty 500 20-Day Trend & A/D Breadth directly from backend API
+  const { niftyTrendLabel, trendColorClass, adRatioText } = useMemo(() => {
+    const rawTrend = marketContext?.nifty500Trend;
+    let label = 'Sideways';
+    let color = 'text-zinc-300';
+
+    if (rawTrend && rawTrend !== 'UNKNOWN') {
+      const upper = rawTrend.toUpperCase();
+      if (upper === 'BULLISH') {
+        label = 'Bullish';
+        color = 'text-positive';
+      } else if (upper === 'BEARISH') {
+        label = 'Bearish';
+        color = 'text-negative';
+      } else if (upper === 'SIDEWAYS' || upper === 'RANGE_BOUND') {
+        label = 'Sideways';
+        color = 'text-zinc-300';
+      } else {
+        label = rawTrend.charAt(0).toUpperCase() + rawTrend.slice(1).toLowerCase();
+        color = 'text-zinc-300';
+      }
+    }
+
+    const adRatio = marketContext?.advanceDecline != null
+      ? marketContext.advanceDecline.toFixed(2)
+      : '2.00';
+
+    return {
+      niftyTrendLabel: label,
+      trendColorClass: color,
+      adRatioText: adRatio,
+    };
+  }, [marketContext?.nifty500Trend, marketContext?.advanceDecline]);
 
   // Compute percentage return trajectories from ₹5,00,000 seed (memoized)
-  const SEED_NAV = 500000;
   const chartData: TrajectoryChartPoint[] = useMemo(() => {
     return navHistory.map((pt) => {
       const llmAvgNav = (pt.simons + pt.lynch + pt.marks + pt.jhunjhunwala + pt.stockmindsCore) / 5;
@@ -113,98 +156,58 @@ export default function Leaderboard() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8 animate-hero-entrance font-sans">
-      {/* 1. LIVE MARKET REGIME & ENVIRONMENT MATRIX (100% Backend-Served) */}
-      <div>
-        <div className="border border-border-hairline bg-[#161616] rounded-lg p-1 sm:p-2 grid grid-cols-2 md:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border-hairline font-mono text-xs">
-          <div className="p-3 sm:px-4">
-            <span className="text-[10px] uppercase tracking-wider text-zinc-500 block">Market Regime</span>
-            <div className="text-sm font-semibold text-white mt-1 font-sans">
-              {marketContext?.regime && marketContext.regime !== 'UNKNOWN'
-                ? marketContext.regime.replace(/_/g, ' ')
-                : '—'}
-            </div>
-            <span className="text-[10px] text-zinc-400 mt-0.5 block">
-              {marketContext?.regime && marketContext.regime !== 'UNKNOWN' ? 'Active Framework' : '—'}
-            </span>
-          </div>
-
-          <div className="p-3 sm:px-4">
-            <span className="text-[10px] uppercase tracking-wider text-zinc-500 block">India VIX</span>
-            <div className="text-sm font-semibold text-white mt-1 tabular-nums">
-              {marketContext?.indiaVix ? marketContext.indiaVix.toFixed(2) : '—'}
-            </div>
-            <span className="text-[10px] text-zinc-400 mt-0.5 block">
-              {marketContext?.indiaVix
-                ? marketContext.indiaVix < 18
-                  ? 'Normal Band (< 18.0)'
-                  : 'Elevated Band (≥ 18.0)'
-                : '—'}
-            </span>
-          </div>
-
-          <div className="p-3 sm:px-4">
-            <span className="text-[10px] uppercase tracking-wider text-zinc-500 block">Nifty 500 Trend</span>
-            <div className="text-sm font-semibold text-positive mt-1 tabular-nums">
-              {marketContext?.nifty500Trend && marketContext.nifty500Trend !== 'UNKNOWN'
-                ? marketContext.nifty500Trend
-                : '—'}
-            </div>
-            <span className="text-[10px] text-zinc-400 mt-0.5 block">
-              Advance/Decline: {marketContext?.advanceDecline != null ? `${marketContext.advanceDecline.toFixed(2)} A/D` : '—'}
-            </span>
-          </div>
-
-          <div className="p-3 sm:px-4">
-            <span className="text-[10px] uppercase tracking-wider text-zinc-500 block">Fleet Exposure</span>
-            <div className="text-sm font-semibold text-accent mt-1 tabular-nums">
-              {seedCapitalDisplay} <span className="text-xs text-zinc-400 font-normal">/ Agent</span>
-            </div>
-            <span className="text-[10px] text-zinc-400 mt-0.5 block">
-              10 Matched Trading Agents
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. MASTER STANDINGS TABLE (Single Source of Truth) */}
+      {/* 1. LIVE RANKINGS TABLE (Primary Focus) */}
       <section className="space-y-3">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <SectionHeader
-            title="Rankings & Performance Matrix"
-            subtitle="Ranked by live mark-to-market return."
+            title="Live Rankings"
           />
 
-          {/* Strategy Filter Tabs */}
-          <div className="flex items-center gap-1 p-0.5 rounded-md bg-[#121212] border border-border-hairline text-xs font-mono self-start sm:self-auto flex-shrink-0">
-            {(['ALL', 'LLM', 'RULES'] as const).map((filter) => (
-              <button
-                key={filter}
-                onClick={() => setStrategyFilter(filter)}
-                className={cn(
-                  'px-3 py-1.5 rounded transition-colors cursor-pointer text-xs',
-                  strategyFilter === filter
-                    ? 'bg-white/[0.1] text-accent font-medium border border-accent/30'
-                    : 'text-zinc-400 hover:text-white border border-transparent'
-                )}
-              >
-                {filter === 'ALL'
-                  ? 'All Agents (10)'
-                  : filter === 'LLM'
-                  ? 'LLMs Only (5)'
-                  : 'Rules Controls (5)'}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
+            {/* Market Conditions Compact Inline Ribbon */}
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#161616] border border-border-hairline text-[12px] font-mono">
+              <span className="text-zinc-500 text-[11px]">Nifty 500 Trend:</span>
+              <span className={cn("font-medium", trendColorClass)}>{niftyTrendLabel}</span>
+              <span className="text-zinc-600">·</span>
+              <span className="text-zinc-500 text-[11px]">A/D Ratio:</span>
+              <span className="text-zinc-200 font-medium tabular-nums">{adRatioText}</span>
+              <span className="text-zinc-600">·</span>
+              <span className="text-zinc-500 text-[11px]">India VIX:</span>
+              <span className="text-zinc-200 font-medium tabular-nums">{vixHeadline}</span>
+            </div>
+
+            {/* Strategy Filter Tabs */}
+            <div className="flex items-center gap-1 p-0.5 rounded-md bg-[#121212] border border-border-hairline text-xs font-mono flex-shrink-0">
+              {(['ALL', 'LLM', 'RULES'] as const).map((filter) => (
+                <button
+                  key={filter}
+                  onClick={() => setStrategyFilter(filter)}
+                  className={cn(
+                    'px-3 py-1.5 rounded transition-colors cursor-pointer text-xs',
+                    strategyFilter === filter
+                      ? 'bg-white/[0.1] text-accent font-medium border border-accent/30'
+                      : 'text-zinc-400 hover:text-white border border-transparent'
+                  )}
+                >
+                  {filter === 'ALL'
+                    ? 'All (10)'
+                    : filter === 'LLM'
+                      ? 'LLMs (5)'
+                      : 'Rules (5)'}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
         <BenchmarkMatrixTable agents={filtered} navHistory={navHistory} isCompact={false} />
       </section>
 
-      {/* 4. TRAJECTORY VISUALIZATION */}
+      {/* 2. TRAJECTORY VISUALIZATION */}
       <section className="space-y-3">
         <SectionHeader
           title="Observed Return Curves"
-          subtitle="Walk-forward daily equity trajectories from inception seed (₹5,00,000 per agent) against the NSE Nifty 500 index."
+          subtitle="Walk-forward daily equity trajectories from inception seed (₹5L per agent) against the NSE Nifty 500 index."
         />
 
         <div className="border border-border-hairline bg-[#161616] rounded-lg overflow-hidden">

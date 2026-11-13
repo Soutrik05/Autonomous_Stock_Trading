@@ -35,6 +35,13 @@ import {
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://16.178.137.108/api';
 
+/**
+ * Cadence for dynamic telemetry polling across all pages.
+ * Synchronized with the 10-minute backend monitor poll (600,000 ms)
+ * to maintain strict data consistency and eliminate SQLite lock contention.
+ */
+export const TELEMETRY_POLL_INTERVAL_MS = 10 * 60 * 1000;
+
 // Helper to determine if mock mode is preferred (default: false to use real APIs)
 let isMockOverride: boolean | null = null;
 
@@ -75,15 +82,10 @@ function normalizeLeaderboard(raw: any[]): AgentLeaderboardEntry[] {
   return raw.map((r) => {
     const navPaise = r.nav_paise ?? r.navPaise ?? 50000000;
     const startingCapitalPaise = r.starting_capital_paise ?? r.startingCapitalPaise ?? 50000000;
-    const computedReturn = startingCapitalPaise > 0
-      ? ((navPaise - startingCapitalPaise) / startingCapitalPaise) * 100
+    // Always compute return from NAV vs Starting Seed so percentages mathematically reconcile with rupees
+    const returnPct = startingCapitalPaise > 0
+      ? Number((((navPaise - startingCapitalPaise) / startingCapitalPaise) * 100).toFixed(2))
       : 0;
-    const backendReturn = r.return_pct ?? r.returnPct ?? 0;
-    // If backend returns 0.0 but NAV actually changed from starting capital (Day 1 pilot mark-to-market),
-    // reflect the computed return so the real live PnL is visible
-    const returnPct = (backendReturn === 0 && navPaise !== startingCapitalPaise)
-      ? Number(computedReturn.toFixed(2))
-      : backendReturn;
 
     return {
       id: r.id as AgentId,
@@ -120,6 +122,16 @@ function normalizePosition(r: any): Position {
     quantity: r.quantity ?? r.shares ?? 0,
     entryPricePaise: r.entry_price_paise ?? r.entryPricePaise ?? 0,
     currentPricePaise: r.current_price_paise ?? r.currentPricePaise ?? r.entry_price_paise ?? 0,
+    dayChangePaise: r.day_change_paise ?? r.dayChangePaise ?? (
+      r.current_price_paise && r.entry_price_paise
+        ? r.current_price_paise - r.entry_price_paise
+        : undefined
+    ),
+    dayChangePct: r.day_change_pct ?? r.dayChangePct ?? (
+      r.current_price_paise && r.entry_price_paise
+        ? Number((((r.current_price_paise - r.entry_price_paise) / r.entry_price_paise) * 100).toFixed(2))
+        : undefined
+    ),
     exitPricePaise: r.exit_price_paise ?? r.exitPricePaise,
     stopLossPaise: r.stop_loss_paise ?? r.stopLossPaise ?? r.stop_paise ?? 0,
     targetPricePaise: r.target_price_paise ?? r.targetPricePaise ?? r.target_paise,

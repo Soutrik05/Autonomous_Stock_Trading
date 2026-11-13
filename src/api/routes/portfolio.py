@@ -5,6 +5,7 @@ See Plan_v3 Part IV.
 """
 
 import json
+from pathlib import Path
 import sqlite3
 from typing import Optional
 
@@ -12,6 +13,7 @@ from fastapi import APIRouter, Depends, Query
 
 from api.deps import portfolio_conn, require_agent, to_ist_iso
 from api.schemas import CitedMetric, Decision, Order, Position, WatchlistItem
+from core.config import settings
 
 router = APIRouter(prefix="/api/agents", tags=["portfolio"])
 
@@ -46,6 +48,43 @@ def get_agent_positions(
     query += " ORDER BY p.id DESC"
 
     rows = conn.execute(query, params).fetchall()
+
+    # Query 1-day change from OHLCV store for all tickers
+    day_changes: dict[str, tuple[Optional[int], Optional[float]]] = {}
+    tickers = list({r["ticker"] for r in rows if r["ticker"]})
+    if tickers:
+        ohlcv_path = Path(settings.OHLCV_DB_PATH).resolve()
+        if ohlcv_path.exists():
+            try:
+                m_conn = sqlite3.connect(f"file:{ohlcv_path.as_posix()}?mode=ro", uri=True)
+                placeholders = ",".join("?" for _ in tickers)
+                c_rows = m_conn.execute(
+                    f"""
+                    WITH ranked AS (
+                        SELECT ticker, close, ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY trade_date DESC) as rn
+                        FROM ohlcv
+                        WHERE ticker IN ({placeholders})
+                    )
+                    SELECT 
+                        c1.ticker,
+                        c1.close as latest_close,
+                        c2.close as prev_close
+                    FROM ranked c1
+                    JOIN ranked c2 ON c1.ticker = c2.ticker AND c2.rn = 2
+                    WHERE c1.rn = 1
+                    """,
+                    tickers,
+                ).fetchall()
+                for cr in c_rows:
+                    t, curr, prev = cr[0], cr[1], cr[2]
+                    if prev and prev > 0:
+                        diff_paise = round((curr - prev) * 100)
+                        diff_pct = round(((curr - prev) / prev) * 100.0, 2)
+                        day_changes[t] = (diff_paise, diff_pct)
+                m_conn.close()
+            except Exception:
+                pass
+
     positions = []
     for r in rows:
         is_open = r["status"] == "OPEN"
@@ -56,6 +95,9 @@ def get_agent_positions(
         else:
             unrealized_pnl_paise = 0
             unrealized_pnl_pct = 0.0
+
+        d_paise, d_pct = day_changes.get(r["ticker"], (None, None))
+
         positions.append(
             Position(
                 id=r["id"],
@@ -66,6 +108,8 @@ def get_agent_positions(
                 quantity=r["shares"],
                 entry_price_paise=r["avg_entry_price_paise"],
                 current_price_paise=r["last_price_paise"],
+                day_change_paise=d_paise,
+                day_change_pct=d_pct,
                 exit_price_paise=r["exit_price_paise"],
                 stop_loss_paise=r["stop_paise"],
                 target_price_paise=r["target_paise"],

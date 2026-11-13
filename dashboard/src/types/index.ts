@@ -58,6 +58,8 @@ export interface Position {
   quantity: number;
   entryPricePaise: number;
   currentPricePaise: number;
+  dayChangePaise?: number;
+  dayChangePct?: number;
   exitPricePaise?: number;
   stopLossPaise: number;
   targetPricePaise?: number;
