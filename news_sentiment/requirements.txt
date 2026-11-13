@@ -1,8 +1,0 @@
-feedparser
-rapidfuzz
-pandas
-numpy
-requests
-transformers
-torch
-openpyxl
