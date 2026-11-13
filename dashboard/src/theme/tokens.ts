@@ -56,7 +56,7 @@ export const THEME_COLORS = {
 } as const;
 
 export const FONT_STACKS = {
-  sans: "'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+  sans: "'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   mono: "'JetBrains Mono', 'SF Mono', Consolas, Menlo, monospace",
 } as const;
 

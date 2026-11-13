@@ -24,9 +24,9 @@ export default function SmallSampleNotice({ closedTradesCount, threshold = 30, i
   }
 
   return (
-    <div className="border-l-2 border-[#D4AF37] pl-4 py-1 text-xs font-mono text-zinc-400 space-y-1">
+    <div className="border-l-2 border-accent pl-4 py-1 text-xs font-mono text-zinc-400 space-y-1">
       <div className="flex items-center gap-2">
-        <span className="text-[#D4AF37] font-semibold uppercase tracking-wider text-[11px]">
+        <span className="text-accent font-semibold text-[11px]">
           Provisional Sample Notice
         </span>
         <span className="text-zinc-600">·</span>

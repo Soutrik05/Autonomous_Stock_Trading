@@ -87,7 +87,7 @@ function BenchmarkMatrixTableComponent({
       <table className="w-full text-left border-collapse">
         {/* Table Header: whitespace-nowrap prevents two-row wrap */}
         <thead>
-          <tr className="border-b border-border-hairline text-zinc-400 text-[11px] font-mono uppercase tracking-wider bg-[#121212] whitespace-nowrap">
+          <tr className="border-b border-border-hairline text-zinc-400 text-[11px] font-mono bg-[#121212] whitespace-nowrap">
             <th className="py-2.5 px-2 font-normal w-10 text-center text-zinc-500 whitespace-nowrap">Rank</th>
             <th className="py-2.5 px-3 font-normal min-w-[150px] text-left whitespace-nowrap">Agents</th>
             <th className="py-2.5 px-2 text-center font-normal min-w-[70px] whitespace-nowrap">Trajectory</th>

@@ -525,7 +525,7 @@ export default function Portfolio() {
         <button
           onClick={() => setActiveTab('holdings')}
           className={cn(
-            "px-4 py-2 rounded-md font-medium transition-colors cursor-pointer flex items-center gap-2 whitespace-nowrap",
+            "px-4 py-2 rounded font-medium transition-colors cursor-pointer flex items-center gap-2 whitespace-nowrap",
             currentTab === 'holdings'
               ? "bg-white/10 text-white border border-white/15"
               : "text-zinc-400 hover:text-white hover:bg-white/[0.03] border border-transparent"
@@ -540,7 +540,7 @@ export default function Portfolio() {
         <button
           onClick={() => setActiveTab('performance')}
           className={cn(
-            "px-4 py-2 rounded-md font-medium transition-colors cursor-pointer flex items-center gap-2 whitespace-nowrap",
+            "px-4 py-2 rounded font-medium transition-colors cursor-pointer flex items-center gap-2 whitespace-nowrap",
             currentTab === 'performance'
               ? "bg-white/10 text-white border border-white/15"
               : "text-zinc-400 hover:text-white hover:bg-white/[0.03] border border-transparent"
@@ -555,7 +555,7 @@ export default function Portfolio() {
         <button
           onClick={() => setActiveTab('watchlist')}
           className={cn(
-            "px-4 py-2 rounded-md font-medium transition-colors cursor-pointer flex items-center gap-2 whitespace-nowrap",
+            "px-4 py-2 rounded font-medium transition-colors cursor-pointer flex items-center gap-2 whitespace-nowrap",
             currentTab === 'watchlist'
               ? "bg-white/10 text-white border border-white/15"
               : "text-zinc-400 hover:text-white hover:bg-white/[0.03] border border-transparent"
@@ -570,7 +570,7 @@ export default function Portfolio() {
         <button
           onClick={() => setActiveTab('intel')}
           className={cn(
-            "px-4 py-2 rounded-md font-medium transition-colors cursor-pointer flex items-center gap-2 whitespace-nowrap",
+            "px-4 py-2 rounded font-medium transition-colors cursor-pointer flex items-center gap-2 whitespace-nowrap",
             currentTab === 'intel'
               ? "bg-white/10 text-white border border-white/15"
               : "text-zinc-400 hover:text-white hover:bg-white/[0.03] border border-transparent"

@@ -150,12 +150,10 @@ code, kbd, samp, pre, .font-mono {
 
 /* Terminal & Ledger Panels */
 .arena-glass {
-  background-color: var(--surface-glass);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background-color: #1E1E1E;
   border: 1px solid var(--border-primary);
   border-radius: 0.25rem;
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.8);
 }
 
 .arena-glass-subdued {
@@ -232,4 +230,11 @@ select:focus-visible {
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(212, 175, 55, 0.5);
+}
+
+/* Micro-interaction Transitions */
+a, button, [role="button"] {
+  transition-property: color, background-color, border-color, opacity;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }

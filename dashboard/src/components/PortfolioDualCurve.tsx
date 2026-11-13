@@ -25,7 +25,7 @@ interface PortfolioDualCurveProps {
 
 export default function PortfolioDualCurve({
   navPoints,
-  color = '#818CF8', // Modern Indigo from reference design
+  color = 'var(--color-indigo)',
   height = 240,
 }: PortfolioDualCurveProps) {
   const [timeRange, setTimeRange] = useState<'1W' | '1M' | '6M' | '1Y' | 'ALL'>('ALL');
@@ -88,7 +88,7 @@ export default function PortfolioDualCurve({
         {/* Left: Current Valuation with Indigo indicator */}
         <div className="space-y-0.5">
           <div className="flex items-center gap-1.5 text-xs text-zinc-400 font-sans">
-            <span className="w-2.5 h-2.5 rounded-sm bg-[#818CF8]" />
+            <span className="w-2.5 h-2.5 rounded-sm bg-indigo" />
             <span>Current NAV</span>
           </div>
           <div className="flex items-baseline gap-2.5">

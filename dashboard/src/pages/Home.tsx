@@ -396,8 +396,8 @@ export default function Home() {
                 {/* Node on Rail */}
                 <div className="flex items-center gap-3 md:block">
                   {st.isCore ? (
-                    <div className="w-6 h-6 rounded-full bg-accent/20 border-2 border-accent flex items-center justify-center bg-[#121212] z-10 shadow-[0_0_12px_rgba(212,175,55,0.3)]">
-                      <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+                    <div className="w-6 h-6 rounded-full bg-accent/20 border-2 border-accent flex items-center justify-center bg-[#121212] z-10">
+                      <div className="w-2 h-2 rounded-full bg-accent" />
                     </div>
                   ) : (
                     <div className="w-4 h-4 rounded-full bg-[#181818] border border-zinc-600 z-10 my-1 flex items-center justify-center">
@@ -405,15 +405,15 @@ export default function Home() {
                     </div>
                   )}
 
-                  <span className="md:hidden text-zinc-500 text-[10px] uppercase font-bold">
-                    Stage {st.step}
+                  <span className="md:hidden text-zinc-500 text-[10px] font-mono">
+                    {st.step}
                   </span>
                 </div>
 
                 {/* Typography below node */}
                 <div className="space-y-1.5 pl-7 md:pl-0">
-                  <div className="hidden md:flex items-center justify-between text-zinc-500 text-[10px]">
-                    <span className="font-bold">STAGE {st.step}</span>
+                  <div className="hidden md:flex items-center justify-between text-zinc-500 text-[10px] font-mono">
+                    <span>{st.step}</span>
                   </div>
 
                   <h3
@@ -453,24 +453,17 @@ export default function Home() {
       <section className="pt-8 sm:pt-10 border-t border-border-hairline space-y-6">
         <SectionHeader title="Built for Rigor" />
 
-        {/* Flat Columns separated by whitespace */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-10">
-          {TRUST_PILLARS.map((tp) => {
-            const Icon = tp.icon;
-            return (
-              <div key={tp.title} className="space-y-2.5">
-                <div className="flex items-center gap-2.5">
-                  <Icon className="w-4 h-4 text-accent flex-shrink-0" />
-                  <h3 className="font-sans font-medium text-white text-base">
-                    {tp.title}
-                  </h3>
-                </div>
-                <p className="text-sm text-zinc-400 font-sans leading-relaxed">
-                  {tp.detail}
-                </p>
+        {/* Numbered definition list in 2-column grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-6">
+          {TRUST_PILLARS.map((tp, i) => (
+            <div key={tp.title} className="flex gap-5">
+              <span className="font-mono text-xs text-zinc-500 pt-0.5 flex-shrink-0 w-5">0{i+1}</span>
+              <div>
+                <h3 className="font-sans text-sm font-medium text-white mb-1">{tp.title}</h3>
+                <p className="text-xs text-zinc-400 leading-relaxed">{tp.detail}</p>
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       </section>
 
@@ -662,13 +655,16 @@ export default function Home() {
 
       {/* =========================================================================
           SECTION 7 · CLOSING VERDICT & PROTOCOL STANDING
-          [Editorial callout with left accent bar, generous whitespace]
+          [Editorial callout with clean whitespace and typographic detail]
           ========================================================================= */}
       <section className="pt-8 sm:pt-10 border-t border-border-hairline">
-        <div className="border-l-2 border-accent pl-6 sm:pl-8 space-y-4 font-sans">
-          <h3 className="font-display text-2xl sm:text-3xl font-medium text-white tracking-tight leading-tight">
-            The empirical observation trial is actively underway.
-          </h3>
+        <div className="pt-4 space-y-4 font-sans">
+          <div className="flex items-center gap-3">
+            <span className="text-accent font-mono">·</span>
+            <h3 className="font-display text-2xl sm:text-3xl font-medium text-white tracking-tight leading-tight">
+              The empirical observation trial is actively underway.
+            </h3>
+          </div>
 
           <p className="text-sm sm:text-base text-zinc-300 leading-relaxed max-w-4xl">
             Statistical conclusions require a rigorous threshold of approximately 30 closed round-trip trades per agent across contrasting market regimes. While initial pilot mark-to-market positions are live, we do not declare premature alpha superiority. Daily order execution, prompt adherence, and thesis forensics remain continuously audited and open for inspection.
