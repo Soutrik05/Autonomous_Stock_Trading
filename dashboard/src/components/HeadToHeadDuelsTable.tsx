@@ -276,10 +276,10 @@ export default function HeadToHeadDuelsTable({ agents }: HeadToHeadDuelsTablePro
                 </div>
 
                 {/* Seamless Empirical Hypothesis Line (No Jarring Background Box) */}
-                <div className="text-xs sm:text-[13px] text-zinc-300 font-sans leading-relaxed flex items-baseline gap-2">
+                <div className="text-sm sm:text-base text-zinc-300 font-sans leading-relaxed flex items-baseline gap-2">
                   <Target className="w-3.5 h-3.5 text-zinc-500 self-center flex-shrink-0" />
                   <span>
-                    <strong className="text-zinc-400 font-mono text-[11px] mr-1.5 font-medium">
+                    <strong className="text-zinc-400 font-mono text-xs mr-1.5 font-medium">
                       Hypothesis:
                     </strong>
                     {pair.coreHypothesis}

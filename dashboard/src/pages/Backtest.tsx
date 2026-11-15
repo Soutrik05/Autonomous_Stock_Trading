@@ -112,7 +112,7 @@ export default function Backtest() {
           tag="EMPIRICAL REGIME AUDIT"
           subtitle="Out-of-sample historical walk-forward simulations across divergent market regimes (Bull Rally, Sideways Chop, and Volatility Shocks)."
         />
-        <p className="text-sm sm:text-base text-zinc-400 font-sans leading-relaxed max-w-3xl">
+        <p className="text-base sm:text-lg text-zinc-300 font-sans leading-relaxed max-w-3xl">
           Three non-overlapping historical windows evaluate agent resilience. All strategies start with matched ₹5,00,000 seed capital and undergo identical statutory charges and slippage under strict point-in-time constraints.
         </p>
       </div>

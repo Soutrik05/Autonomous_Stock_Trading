@@ -30,7 +30,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
         {children}
       </div>
       {subtitle && (
-        <p className="text-sm font-mono text-zinc-400">
+        <p className="text-sm sm:text-base font-mono text-zinc-400">
           {subtitle}
         </p>
       )}

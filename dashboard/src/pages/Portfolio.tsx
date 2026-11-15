@@ -331,7 +331,7 @@ export default function Portfolio() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-border-hairline pb-4">
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl sm:text-3xl font-serif font-medium tracking-tight text-white">
+            <h1 className="text-2xl sm:text-3xl font-display font-medium tracking-tight text-white">
               {cleanAgentName}
             </h1>
             <CategoryBadge type={isRulesControl ? 'RULES' : 'LLM'} />
@@ -340,7 +340,7 @@ export default function Portfolio() {
               Horizon: <strong className="text-zinc-200 font-normal">{personaProfile.horizon}</strong>
             </span>
           </div>
-          <p className="text-xs text-zinc-400 font-sans">
+          <p className="text-sm text-zinc-400 font-sans">
             {personaProfile.school}
           </p>
         </div>
@@ -449,8 +449,8 @@ export default function Portfolio() {
         </div>
       </div>
 
-      {/* Persona Mandate Prose (Increased Font Size for Optimal Readability) */}
-      <p className="text-sm sm:text-base font-sans text-zinc-300 leading-relaxed max-w-4xl -mt-1">
+      {/* Persona Mandate Prose (Optimal Web Readability) */}
+      <p className="text-base sm:text-lg font-sans text-zinc-200 leading-relaxed max-w-4xl -mt-1">
         {personaProfile.description}
       </p>
 
@@ -540,7 +540,7 @@ export default function Portfolio() {
           )}
         >
           <span>Holdings</span>
-          <span className="px-1.5 py-0.2 rounded bg-white/10 text-[10px] text-zinc-300">
+          <span className="px-1.5 py-0.5 rounded bg-white/10 text-[10px] text-zinc-300">
             {openPositionsCount}
           </span>
         </button>
@@ -557,7 +557,7 @@ export default function Portfolio() {
           )}
         >
           <span>Performance & Past Trades</span>
-          <span className="px-1.5 py-0.2 rounded bg-white/10 text-[10px] text-zinc-300">
+          <span className="px-1.5 py-0.5 rounded bg-white/10 text-[10px] text-zinc-300">
             {closedPositionsCount} Closed
           </span>
         </button>
@@ -574,7 +574,7 @@ export default function Portfolio() {
           )}
         >
           <span>Watchlist</span>
-          <span className="px-1.5 py-0.2 rounded bg-white/10 text-[10px] text-zinc-300">
+          <span className="px-1.5 py-0.5 rounded bg-white/10 text-[10px] text-zinc-300">
             {watchlist.length}
           </span>
         </button>
@@ -591,7 +591,7 @@ export default function Portfolio() {
           )}
         >
           <span>Methodology & Memory</span>
-          <span className="px-1.5 py-0.2 rounded bg-white/10 text-[10px] text-zinc-300">
+          <span className="px-1.5 py-0.5 rounded bg-white/10 text-[10px] text-zinc-300">
             {heuristics.length} Rules
           </span>
         </button>
