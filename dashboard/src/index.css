@@ -644,6 +644,29 @@ select:focus-visible {
   }
 }
 
+/* Cursor bubble background (BubbleBackground.tsx) -- Home and Agents Terminal only */
+.bubble-background {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Frosted-glass big panels that sit above the bubble field (Home hero, Agents Terminal
+   main panels). Same border/radius as before; only the background becomes translucent
+   and blurred so the bubbles read as softer/blurrier behind it than outside it. */
+.frosted-glass {
+  background: rgba(22, 22, 22, 0.8);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .frosted-glass {
+    background: rgba(22, 22, 22, 0.96);
+  }
+}
+
 /* Micro-interaction Transitions */
 a, button, [role="button"] {
   transition-property: color, background-color, border-color, opacity;

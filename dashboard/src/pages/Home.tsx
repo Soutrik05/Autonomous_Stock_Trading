@@ -16,6 +16,7 @@ import { TrajectoryChart, type TrajectoryChartPoint } from '../components/Trajec
 import PersonaCard from '../components/PersonaCard';
 import TopAgentRow from '../components/TopAgentRow';
 import Reveal from '../components/Reveal';
+import BubbleBackground from '../components/BubbleBackground';
 
 const SCHOOLS_OF_THOUGHT = [
   {
@@ -231,7 +232,9 @@ export default function Home() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-12 sm:space-y-14 animate-hero-entrance font-sans">
+    <>
+      <BubbleBackground />
+      <div className="relative z-[1] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-12 sm:space-y-14 animate-hero-entrance font-sans">
 
       {/* =========================================================================
           SECTION 1 · PARADIGM 1: INSTITUTIONAL TERMINAL (INTEGRATED GRID CANVAS)
@@ -239,7 +242,7 @@ export default function Home() {
           [Left: Masthead thesis, narrative, 4-point protocol matrix, action links]
           [Right: Cumulative return plot + seamlessly docked Top 3 standings strip]
           ========================================================================= */}
-      <section className="border border-border-hairline bg-surface-inset rounded-lg overflow-hidden">
+      <section className="frosted-glass border border-border-hairline rounded-lg overflow-hidden">
         <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-border-hairline">
 
           {/* Left Column: Editorial Thesis, Protocol Matrix & Primary CTAs */}
@@ -294,7 +297,7 @@ export default function Home() {
           </Reveal>
 
           {/* Right Column: Integrated Telemetry Deck (Chart + Docked Top 3 Standings) */}
-          <Reveal mode="immediate" delayMs={150} className="lg:col-span-7 flex flex-col divide-y divide-border-hairline bg-[#141414]">
+          <Reveal mode="immediate" delayMs={150} className="lg:col-span-7 flex flex-col divide-y divide-border-hairline bg-transparent">
 
             {/* Upper Chamber: Memoized Observed Cumulative Return Trajectories */}
             <TrajectoryChart
@@ -304,7 +307,7 @@ export default function Home() {
             />
 
             {/* Lower Chamber: Docked Top 3 Standings Strip */}
-            <div className="p-5 sm:p-6 space-y-3 font-mono text-xs bg-surface-well">
+            <div className="p-5 sm:p-6 space-y-3 font-mono text-xs bg-transparent">
               <div className="flex items-center justify-between border-b border-white/[0.06] pb-2 text-[11px]">
                 <span className="font-medium text-zinc-400">
                   Live Standings · Top 3 Agents Today
@@ -617,6 +620,7 @@ export default function Home() {
         </div>
       </section>
 
-    </div>
+      </div>
+    </>
   );
 }
