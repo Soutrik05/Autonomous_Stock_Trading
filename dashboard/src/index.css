@@ -355,7 +355,9 @@ select:focus-visible {
   left: 0;
   right: 0;
   z-index: 40;
-  background-color: #141414;
+  background-color: rgba(22, 22, 22, 0.6);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   transform: translateY(0);
   transition:
@@ -366,15 +368,18 @@ select:focus-visible {
 }
 
 .site-header--scrolled {
-  background-color: rgba(22, 22, 22, 0.55);
-  backdrop-filter: blur(14px) saturate(140%);
-  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  background-color: rgba(22, 22, 22, 0.75);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
   border-bottom-color: rgba(255, 255, 255, 0.07);
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .site-header--scrolled {
+  .site-header {
     background-color: rgba(22, 22, 22, 0.92);
+  }
+  .site-header--scrolled {
+    background-color: rgba(22, 22, 22, 0.96);
   }
 }
 
