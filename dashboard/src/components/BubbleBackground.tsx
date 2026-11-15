@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
 
-/** All tunable numbers in one place. Colors/sizes/repel/decay are unchanged from the
- * first version; the alpha/count values here are ~1.5x the original, still subtle. */
+/** All tunable numbers in one place. Colors, sizes, repel force and bubble count are
+ * unchanged. Alpha values here are 0.8x the "slightly stronger" pass (i.e. ~1.2x the
+ * very first version); the cursor trail is lighter, shorter-lived, and sparser. */
 const CONFIG = {
   palette: [
     [79, 143, 224],
@@ -17,25 +18,25 @@ const CONFIG = {
   ambientCountDesktop: 22,
   ambientCountTouch: 8,
   ambientRadius: [8, 30] as [number, number],
-  ambientAlpha: [0.05, 0.11] as [number, number],
+  ambientAlpha: [0.04, 0.088] as [number, number],
   ambientDrift: [-0.08, 0.08] as [number, number],
 
   twinkleCount: 60,
   twinkleRadius: [0.6, 1.6] as [number, number],
-  twinkleBaseAlpha: 0.14,
-  twinkleAmplitude: 0.16,
+  twinkleBaseAlpha: 0.112,
+  twinkleAmplitude: 0.128,
   twinkleSpeed: 1.5,
 
-  trailSpawnDistance: 16,
-  trailMaxPerMove: 2,
+  trailSpawnDistance: 24,
+  trailMaxPerMove: 1,
   trailRadius: [2.5, 9] as [number, number],
   trailVy: [-0.6, -0.2] as [number, number],
-  trailDecay: [0.022, 0.034] as [number, number],
-  trailAlphaScale: 0.3,
+  trailDecay: [0.0253, 0.0391] as [number, number],
+  trailAlphaScale: 0.24,
   trailRingMinRadius: 5,
 
   cursorGlowRadius: 60,
-  cursorGlowAlpha: 0.1,
+  cursorGlowAlpha: 0.08,
   cursorGlowColor: [0, 63, 136] as [number, number, number],
 };
 
@@ -159,7 +160,7 @@ export default function BubbleBackground() {
       if (Math.hypot(dx, dy) < CONFIG.trailSpawnDistance) return;
       lastSpawn = { x: mouse.x, y: mouse.y };
 
-      const spawnCount = Math.min(CONFIG.trailMaxPerMove, 1 + Math.floor(Math.random() * 2));
+      const spawnCount = Math.min(CONFIG.trailMaxPerMove, 1 + Math.floor(Math.random() * CONFIG.trailMaxPerMove));
       for (let i = 0; i < spawnCount; i++) {
         trail.push({
           x: mouse.x + rand(-4, 4),
