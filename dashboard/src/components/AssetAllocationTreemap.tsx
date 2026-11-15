@@ -94,7 +94,7 @@ export default function AssetAllocationTreemap({
             onClick={() => setViewMode('STOCKS')}
             className={`px-2.5 py-1 rounded transition-colors cursor-pointer text-xs ${
               viewMode === 'STOCKS'
-                ? 'bg-white/[0.14] text-[#D4AF37] font-semibold border border-[#D4AF37]/40'
+                ? 'bg-brand-blue-soft text-brand-blue-text font-semibold border border-brand-blue'
                 : 'text-zinc-400 hover:text-white'
             }`}
           >
@@ -104,7 +104,7 @@ export default function AssetAllocationTreemap({
             onClick={() => setViewMode('SECTORS')}
             className={`px-2.5 py-1 rounded transition-colors cursor-pointer text-xs ${
               viewMode === 'SECTORS'
-                ? 'bg-white/[0.14] text-[#D4AF37] font-semibold border border-[#D4AF37]/40'
+                ? 'bg-brand-blue-soft text-brand-blue-text font-semibold border border-brand-blue'
                 : 'text-zinc-400 hover:text-white'
             }`}
           >
@@ -174,27 +174,27 @@ export default function AssetAllocationTreemap({
             {/* Liquid Cash Buffer Tile */}
             <div
               style={{ minHeight: '95px' }}
-              className="p-3.5 rounded-sm border bg-[#D4AF37]/[0.04] border-[#D4AF37]/25 hover:border-[#D4AF37]/50 transition-all flex flex-col justify-between"
+              className="p-3.5 rounded-sm border bg-brand-blue/[0.04] border-brand-blue/25 hover:border-brand-blue/50 transition-all flex flex-col justify-between"
             >
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <span className="font-semibold text-[#D4AF37] text-sm tracking-tight font-sans block">
+                  <span className="font-semibold text-brand-blue-text text-sm tracking-tight font-sans block">
                     Cash Reserve
                   </span>
                   <span className="text-[10px] font-mono text-zinc-400 block">
                     Unallocated Buffer
                   </span>
                 </div>
-                <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-[#D4AF37]/15 text-[#D4AF37] border border-[#D4AF37]/30">
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-brand-blue-soft text-brand-blue-text border border-brand-blue">
                   LIQUID
                 </span>
               </div>
 
-              <div className="flex items-baseline justify-between gap-2 pt-2 border-t border-[#D4AF37]/10 font-mono">
+              <div className="flex items-baseline justify-between gap-2 pt-2 border-t border-brand-blue/10 font-mono">
                 <span className="text-base font-bold text-zinc-100 tabular-nums">
                   {cashWeightPct.toFixed(1)}%
                 </span>
-                <span className="text-[11px] text-[#D4AF37] tabular-nums font-medium">
+                <span className="text-[11px] text-brand-blue-text tabular-nums font-medium">
                   {formatPaiseToRupees(cashPaise)}
                 </span>
               </div>
@@ -215,7 +215,7 @@ export default function AssetAllocationTreemap({
                 'bg-rose-500',
                 'bg-cyan-500',
               ];
-              const c = sec.sector.includes('Cash') ? 'bg-[#D4AF37]' : colors[i % colors.length];
+              const c = sec.sector.includes('Cash') ? 'bg-brand-blue' : colors[i % colors.length];
               return (
                 <div
                   key={sec.sector}
@@ -238,7 +238,7 @@ export default function AssetAllocationTreemap({
                 'bg-rose-400',
                 'bg-cyan-400',
               ];
-              const dotColor = sec.sector.includes('Cash') ? 'bg-[#D4AF37]' : colors[i % colors.length];
+              const dotColor = sec.sector.includes('Cash') ? 'bg-brand-blue' : colors[i % colors.length];
 
               return (
                 <div
@@ -311,12 +311,12 @@ export default function AssetAllocationTreemap({
                 </tr>
               ))}
               {/* Cash Buffer Line */}
-              <tr className="bg-[#D4AF37]/[0.02]">
-                <td className="py-2 px-2 font-sans font-medium text-[#D4AF37]">
+              <tr className="bg-brand-blue/[0.02]">
+                <td className="py-2 px-2 font-sans font-medium text-brand-blue-text">
                   Liquid Cash
                 </td>
                 <td className="py-2 px-3 text-right text-zinc-500 tabular-nums">-</td>
-                <td className="py-2 px-3 text-right font-semibold text-[#D4AF37] tabular-nums">
+                <td className="py-2 px-3 text-right font-semibold text-brand-blue-text tabular-nums">
                   {cashWeightPct.toFixed(1)}%
                 </td>
                 <td className="py-2 px-3 text-right text-zinc-300 tabular-nums">

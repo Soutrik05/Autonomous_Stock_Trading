@@ -75,7 +75,7 @@ function EquityCurveComponent({
               className={cn(
                 "px-3 py-1.5 rounded transition-colors cursor-pointer text-xs font-mono",
                 activeCohort === cohort
-                  ? "bg-white/[0.1] text-accent font-semibold border border-accent/30"
+                  ? "bg-brand-blue-soft text-brand-blue-text font-semibold border border-brand-blue/40"
                   : "text-zinc-400 hover:text-white border border-transparent"
               )}
             >

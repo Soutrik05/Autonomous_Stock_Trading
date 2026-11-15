@@ -148,7 +148,7 @@ export default function Comparison() {
     return (
       <div className="max-w-7xl mx-auto px-4 py-28 flex justify-center items-center">
         <div className="flex items-center gap-3 text-zinc-500 font-mono text-xs sm:text-sm">
-          <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+          <div className="w-4 h-4 border-2 border-brand-blue border-t-transparent rounded-full animate-spin" />
           <span>Synchronizing symmetric benchmark telemetry...</span>
         </div>
       </div>
@@ -239,7 +239,7 @@ export default function Comparison() {
                 className={cn(
                   "px-3 py-1.5 rounded transition-colors cursor-pointer text-xs sm:text-sm",
                   selectedPairId === pair.id
-                    ? "bg-white/[0.1] text-accent font-semibold border border-accent/30"
+                    ? "bg-brand-blue-soft text-brand-blue-text font-semibold border border-brand-blue/40"
                     : "text-zinc-400 hover:text-white border border-transparent"
                 )}
               >
@@ -291,8 +291,8 @@ export default function Comparison() {
                     <span>Nifty 500</span>
                   </div>
                 </th>
-                {/* Visual Hero Column: Gold Highlighted Header with Left Divider */}
-                <th className="py-3 px-5 font-semibold text-right text-accent border-l border-border-hairline bg-accent/[0.04]">
+                {/* Visual Hero Column: Brand Blue Highlighted Header with Left Divider */}
+                <th className="py-3 px-5 font-semibold text-right text-brand-blue-text border-l border-border-hairline bg-brand-blue-soft/20">
                   Cognitive Delta
                 </th>
               </tr>
@@ -311,7 +311,7 @@ export default function Comparison() {
                 <td className="py-3.5 px-5 text-right text-zinc-400 font-medium text-sm sm:text-base tabular-nums">
                   {formatPct(data?.nifty500?.returnPct ?? 0)}
                 </td>
-                <td className="py-3.5 px-5 text-right font-bold text-base sm:text-lg tabular-nums text-accent border-l border-border-hairline bg-accent/[0.04]">
+                <td className="py-3.5 px-5 text-right font-bold text-base sm:text-lg tabular-nums text-brand-blue-text border-l border-border-hairline bg-brand-blue-soft/20">
                   {alphaSpreadPct >= 0 ? '+' : ''}{alphaSpreadPct.toFixed(2)}%
                 </td>
               </tr>
@@ -328,7 +328,7 @@ export default function Comparison() {
                 <td className="py-3.5 px-5 text-right text-zinc-400 font-medium text-sm sm:text-base tabular-nums">
                   {formatPaiseToRupees(niftyNav)}
                 </td>
-                <td className="py-3.5 px-5 text-right font-bold text-base sm:text-lg tabular-nums text-accent border-l border-border-hairline bg-accent/[0.04]">
+                <td className="py-3.5 px-5 text-right font-bold text-base sm:text-lg tabular-nums text-brand-blue-text border-l border-border-hairline bg-brand-blue-soft/20">
                   {llmNav >= rulesNav ? '+' : ''}{formatPaiseToRupees(llmNav - rulesNav)}
                 </td>
               </tr>
@@ -343,7 +343,7 @@ export default function Comparison() {
                   {rulesSharpe.toFixed(2)}
                 </td>
                 <td className="py-3.5 px-5 text-right text-zinc-500 font-normal text-sm sm:text-base tabular-nums">—</td>
-                <td className="py-3.5 px-5 text-right font-bold text-base sm:text-lg tabular-nums text-accent border-l border-border-hairline bg-accent/[0.04]">
+                <td className="py-3.5 px-5 text-right font-bold text-base sm:text-lg tabular-nums text-brand-blue-text border-l border-border-hairline bg-brand-blue-soft/20">
                   {llmSharpe >= rulesSharpe ? '+' : ''}{(llmSharpe - rulesSharpe).toFixed(2)}
                 </td>
               </tr>
@@ -360,7 +360,7 @@ export default function Comparison() {
                 <td className="py-3.5 px-5 text-right text-zinc-400 font-medium text-sm sm:text-base tabular-nums">
                   -{Math.abs(niftyMaxDd).toFixed(2)}%
                 </td>
-                <td className="py-3.5 px-5 text-right font-bold text-base sm:text-lg tabular-nums text-accent border-l border-border-hairline bg-accent/[0.04]">
+                <td className="py-3.5 px-5 text-right font-bold text-base sm:text-lg tabular-nums text-brand-blue-text border-l border-border-hairline bg-brand-blue-soft/20">
                   {llmMaxDd <= rulesMaxDd ? '+' : '-'}{Math.abs(llmMaxDd - rulesMaxDd).toFixed(2)}%
                 </td>
               </tr>
@@ -375,7 +375,7 @@ export default function Comparison() {
                   {rulesWinRate.toFixed(1)}%
                 </td>
                 <td className="py-3.5 px-5 text-right text-zinc-500 font-normal text-sm sm:text-base tabular-nums">—</td>
-                <td className="py-3.5 px-5 text-right font-bold text-base sm:text-lg tabular-nums text-accent border-l border-border-hairline bg-accent/[0.04]">
+                <td className="py-3.5 px-5 text-right font-bold text-base sm:text-lg tabular-nums text-brand-blue-text border-l border-border-hairline bg-brand-blue-soft/20">
                   {llmWinRate >= rulesWinRate ? '+' : ''}{(llmWinRate - rulesWinRate).toFixed(1)}%
                 </td>
               </tr>
@@ -386,7 +386,7 @@ export default function Comparison() {
                 <td className="py-3.5 px-5 text-right text-zinc-100 font-medium text-sm sm:text-base tabular-nums">{llmTrades}</td>
                 <td className="py-3.5 px-5 text-right text-zinc-100 font-medium text-sm sm:text-base tabular-nums">{rulesTrades}</td>
                 <td className="py-3.5 px-5 text-right text-zinc-500 font-normal text-sm sm:text-base tabular-nums">—</td>
-                <td className="py-3.5 px-5 text-right font-bold text-base sm:text-lg tabular-nums text-accent border-l border-border-hairline bg-accent/[0.04]">
+                <td className="py-3.5 px-5 text-right font-bold text-base sm:text-lg tabular-nums text-brand-blue-text border-l border-border-hairline bg-brand-blue-soft/20">
                   {llmTrades - rulesTrades >= 0 ? '+' : ''}{llmTrades - rulesTrades}
                 </td>
               </tr>
@@ -409,7 +409,7 @@ export default function Comparison() {
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="px-3 py-1.5 rounded font-mono text-sm bg-white/[0.04] text-accent border border-accent/30 font-semibold">
+            <span className="px-3 py-1.5 rounded font-mono text-sm bg-brand-blue-soft text-brand-blue-text border border-brand-blue/40 font-semibold">
               Cognitive Δ: {alphaSpreadPct >= 0 ? '+' : ''}{alphaSpreadPct.toFixed(2)}%
             </span>
           </div>
@@ -457,7 +457,7 @@ export default function Comparison() {
                         <span className="text-zinc-200 font-medium tabular-nums">{item.rulesBuy.toFixed(2)}%</span>
                       </div>
                       <div className="flex justify-between gap-5 pt-1.5 border-t border-border-hairline">
-                        <span className="text-accent font-semibold">Net Cognitive Alpha:</span>
+                        <span className="text-brand-blue-text font-semibold">Net Cognitive Alpha:</span>
                         <span className={cn("font-bold tabular-nums text-base", item.cognitiveAlpha >= 0 ? "text-positive" : "text-negative")}>
                           {item.cognitiveAlpha >= 0 ? '+' : ''}{item.cognitiveAlpha.toFixed(2)}%
                         </span>
@@ -482,7 +482,7 @@ export default function Comparison() {
           </ResponsiveContainer>
         </div>
 
-        {/* Legend / Quick Read Aid (Bumped up font size & contrast) */}
+        {/* Legend / Quick Read Aid */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-border-hairline font-mono text-xs sm:text-sm text-zinc-300">
           <div className="flex items-center gap-5">
             <span className="inline-flex items-center gap-2">
@@ -497,7 +497,7 @@ export default function Comparison() {
           <span className="text-zinc-400">Zero line = Matched Rules Baseline</span>
         </div>
 
-        {/* Collapsible Horizon Drawer (High Legibility) */}
+        {/* Collapsible Horizon Drawer */}
         <div className="pt-2 border-t border-border-hairline space-y-3 font-mono text-xs sm:text-sm">
           <div className="flex items-center justify-between">
             <button
@@ -519,7 +519,7 @@ export default function Comparison() {
                     <th className="py-3 px-4 font-normal">Holding Horizon</th>
                     <th className="py-3 px-4 text-right font-normal text-positive">LLM BUY Avg</th>
                     <th className="py-3 px-4 text-right font-normal text-sky-400">Rules BUY Avg</th>
-                    <th className="py-3 px-4 text-right font-normal text-accent font-semibold">Net Cognitive Alpha</th>
+                    <th className="py-3 px-4 text-right font-normal text-brand-blue-text font-semibold">Net Cognitive Alpha</th>
                     <th className="py-3 px-4 text-right font-normal text-zinc-400">LLM HOLD Avg</th>
                     <th className="py-3 px-4 text-right font-normal text-zinc-400">Nifty 500</th>
                   </tr>
@@ -543,7 +543,7 @@ export default function Comparison() {
                         <td className="py-3 px-4 text-right text-sky-400 font-medium text-sm sm:text-base tabular-nums">
                           {formatPct(rulesVal)}
                         </td>
-                        <td className={cn("py-3 px-4 text-right font-bold text-sm sm:text-base tabular-nums", alphaVal >= 0 ? "text-accent" : "text-negative")}>
+                        <td className={cn("py-3 px-4 text-right font-bold text-sm sm:text-base tabular-nums", alphaVal >= 0 ? "text-brand-blue-text" : "text-negative")}>
                           {alphaVal >= 0 ? '+' : ''}{alphaVal.toFixed(2)}%
                         </td>
                         <td className="py-3 px-4 text-right text-zinc-300 font-normal text-sm sm:text-base tabular-nums">

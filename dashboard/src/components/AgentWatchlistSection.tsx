@@ -85,7 +85,7 @@ export default function AgentWatchlistSection({
                         </span>
                         <div className="w-16 h-1 bg-white/10 rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-accent rounded-full"
+                            className="h-full bg-brand-blue rounded-full"
                             style={{ width: `${Math.max(intensityRatio * 100, 8)}%` }}
                           />
                         </div>

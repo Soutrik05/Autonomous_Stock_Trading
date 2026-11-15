@@ -128,7 +128,7 @@ export default function ExplainabilitySpotlight({ personaId = 'simons' }: Explai
         return (
           <mark
             key={idx}
-            className="bg-accent/20 text-accent px-1.5 py-0.5 rounded font-mono text-sm font-semibold"
+            className="bg-brand-blue-soft text-brand-blue-text px-1.5 py-0.5 rounded font-mono text-sm font-semibold"
           >
             {part}
           </mark>
@@ -198,7 +198,7 @@ export default function ExplainabilitySpotlight({ personaId = 'simons' }: Explai
           <thead className="bg-surface-well text-xs sm:text-sm text-zinc-400 border-b border-border-hairline">
             <tr>
               <th className="py-3 px-5 font-normal">Audited Indicator</th>
-              <th className="py-3 px-5 text-right font-normal text-accent">Cited Claim</th>
+              <th className="py-3 px-5 text-right font-normal text-brand-blue-text">Cited Claim</th>
               <th className="py-3 px-5 text-right font-normal text-zinc-300">Exchange Snapshot</th>
               <th className="py-3 px-5 text-right font-normal text-zinc-400">Variance (Δ)</th>
               <th className="py-3 px-5 text-right font-normal text-zinc-300">Audit Verdict</th>
@@ -210,7 +210,7 @@ export default function ExplainabilitySpotlight({ personaId = 'simons' }: Explai
                 <td className="py-3.5 px-5 font-sans font-medium text-white text-sm sm:text-base">
                   {cm.label}
                 </td>
-                <td className="py-3.5 px-5 text-right font-mono font-bold text-accent text-sm sm:text-base tabular-nums">
+                <td className="py-3.5 px-5 text-right font-mono font-bold text-brand-blue-text text-sm sm:text-base tabular-nums">
                   {cm.cited}
                 </td>
                 <td className="py-3.5 px-5 text-right font-mono font-medium text-zinc-100 text-sm sm:text-base tabular-nums">

@@ -296,11 +296,11 @@ export default function HeadToHeadDuelsTable({ agents }: HeadToHeadDuelsTablePro
                           <div className="flex items-center gap-2.5">
                             <Link
                               to={`/portfolio/${llm?.id || pair.llmId}`}
-                              className="font-sans font-medium text-[14px] sm:text-[15px] text-white hover:text-accent transition-colors truncate max-w-[200px]"
+                              className="font-sans font-medium text-[14px] sm:text-[15px] text-white hover:text-brand-blue-text transition-colors truncate max-w-[200px]"
                             >
                               {pair.llmDisplayName}
                             </Link>
-                            <span className="px-1.5 py-0.5 text-[10px] font-mono border border-accent/30 text-accent bg-accent/10 rounded font-medium flex-shrink-0">
+                            <span className="px-1.5 py-0.5 text-[10px] font-mono border border-brand-blue text-brand-blue-text bg-brand-blue-soft rounded font-medium flex-shrink-0">
                               LLM
                             </span>
                           </div>

@@ -60,14 +60,14 @@ export default function PodiumCards({ topAgents }: PodiumCardsProps) {
                 className="group flex items-start justify-between mt-2.5"
               >
                 <div>
-                  <h4 className="font-display font-medium text-base text-white group-hover:text-accent transition-colors leading-tight font-sans">
+                  <h4 className="font-display font-medium text-base text-white group-hover:text-brand-blue-text transition-colors leading-tight font-sans">
                     {agent.name}
                   </h4>
                   <span className="text-[11px] text-zinc-400 block mt-0.5 font-mono">
                     {agent.horizonDays} Horizon
                   </span>
                 </div>
-                <ArrowUpRight className="w-3.5 h-3.5 text-zinc-500 group-hover:text-accent transition-colors" />
+                <ArrowUpRight className="w-3.5 h-3.5 text-zinc-500 group-hover:text-brand-blue-text transition-colors" />
               </Link>
 
               {/* Return Metrics */}

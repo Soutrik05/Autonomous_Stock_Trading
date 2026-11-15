@@ -78,11 +78,11 @@ export default function IntegratedTradesSection({
               className={cn(
                 "px-3 py-1 rounded transition-colors cursor-pointer flex items-center gap-1.5",
                 viewTab === 'DECISIONS'
-                  ? "bg-accent/15 text-accent font-semibold border border-accent/30"
+                  ? "bg-brand-blue-soft text-brand-blue-text font-semibold border border-brand-blue"
                   : "text-zinc-400 hover:text-white"
               )}
             >
-              <Brain className="w-3.5 h-3.5 text-accent" />
+              <Brain className="w-3.5 h-3.5 text-brand-blue-text" />
               <span>Decisions ({decisions.length})</span>
             </button>
           </div>
@@ -280,7 +280,7 @@ export default function IntegratedTradesSection({
                                       e.stopPropagation();
                                       setAutopsyPosition(pos);
                                     }}
-                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#161616] border border-border-hairline hover:border-accent/40 text-accent font-mono text-[11px] transition-colors cursor-pointer flex-shrink-0"
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#161616] border border-border-hairline hover:border-brand-blue/40 text-brand-blue-text font-mono text-[11px] transition-colors cursor-pointer flex-shrink-0"
                                   >
                                     <Activity className="w-3.5 h-3.5" />
                                     <span>Forensic Autopsy</span>
@@ -416,7 +416,7 @@ export default function IntegratedTradesSection({
                           </td>
 
                           {/* Sizing Fidelity */}
-                          <td className="py-3 px-4 text-right tabular-nums text-accent font-semibold">
+                          <td className="py-3 px-4 text-right tabular-nums text-brand-blue-text font-semibold">
                             {dec.sizingFidelityScore !== undefined && dec.sizingFidelityScore !== null
                               ? `${(dec.sizingFidelityScore * 100).toFixed(0)}%`
                               : '—'}

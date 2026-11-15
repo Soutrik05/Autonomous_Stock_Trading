@@ -160,7 +160,7 @@ function BenchmarkMatrixTableComponent({
                   <div className="flex items-center gap-1.5">
                     <Link
                       to={`/portfolio/${ag.id}`}
-                      className="font-sans font-medium text-sm text-zinc-100 hover:text-accent transition-colors truncate max-w-[170px]"
+                      className="font-sans font-medium text-sm text-zinc-100 hover:text-brand-blue-text transition-colors truncate max-w-[170px]"
                     >
                       {displayName}
                     </Link>

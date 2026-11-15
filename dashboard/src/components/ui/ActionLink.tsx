@@ -16,7 +16,7 @@ export const ActionLink: React.FC<ActionLinkProps> = ({
   className,
 }) => {
   const variantStyles = {
-    primary: 'text-white hover:text-accent font-medium',
+    primary: 'text-white hover:text-brand-blue-text font-medium',
     secondary: 'text-zinc-400 hover:text-white font-medium',
     subdued: 'text-zinc-500 hover:text-zinc-300 font-normal text-xs',
   };

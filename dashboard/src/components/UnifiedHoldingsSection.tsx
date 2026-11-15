@@ -86,7 +86,7 @@ export default function UnifiedHoldingsSection({
             onClick={() => setAllocationMode('STOCKS')}
             className={`px-3 py-1 rounded transition-colors cursor-pointer text-xs ${
               allocationMode === 'STOCKS'
-                ? 'bg-white/[0.14] text-[#D4AF37] font-semibold border border-[#D4AF37]/40'
+                ? 'bg-brand-blue-soft text-brand-blue-text font-semibold border border-brand-blue'
                 : 'text-zinc-400 hover:text-white'
             }`}
           >
@@ -96,7 +96,7 @@ export default function UnifiedHoldingsSection({
             onClick={() => setAllocationMode('SECTORS')}
             className={`px-3 py-1 rounded transition-colors cursor-pointer text-xs ${
               allocationMode === 'SECTORS'
-                ? 'bg-white/[0.14] text-[#D4AF37] font-semibold border border-[#D4AF37]/40'
+                ? 'bg-brand-blue-soft text-brand-blue-text font-semibold border border-brand-blue'
                 : 'text-zinc-400 hover:text-white'
             }`}
           >
@@ -156,26 +156,26 @@ export default function UnifiedHoldingsSection({
           })}
 
           {/* Liquid Cash Buffer Tile */}
-          <div className="p-3.5 rounded-sm border bg-[#D4AF37]/[0.04] border-[#D4AF37]/25 hover:border-[#D4AF37]/50 transition-all flex flex-col justify-between">
+          <div className="p-3.5 rounded-sm border bg-brand-blue/[0.04] border-brand-blue/25 hover:border-brand-blue/50 transition-all flex flex-col justify-between">
             <div className="flex items-start justify-between gap-2">
               <div>
-                <span className="font-semibold text-[#D4AF37] text-sm tracking-tight font-sans block">
+                <span className="font-semibold text-brand-blue-text text-sm tracking-tight font-sans block">
                   Liquid Cash
                 </span>
                 <span className="text-[10px] font-mono text-zinc-400 block">
                   Unallocated Reserve
                 </span>
               </div>
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-[#D4AF37]/15 text-[#D4AF37] border border-[#D4AF37]/30">
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-brand-blue-soft text-brand-blue-text border border-brand-blue">
                 BUFFER
               </span>
             </div>
 
-            <div className="flex items-baseline justify-between gap-2 pt-2 border-t border-[#D4AF37]/10 font-mono">
+            <div className="flex items-baseline justify-between gap-2 pt-2 border-t border-brand-blue/10 font-mono">
               <span className="text-base font-bold text-zinc-100 tabular-nums">
                 {cashWeightPct.toFixed(1)}%
               </span>
-              <span className="text-[11px] text-[#D4AF37] tabular-nums font-medium">
+              <span className="text-[11px] text-brand-blue-text tabular-nums font-medium">
                 {formatPaiseToRupees(cashPaise)}
               </span>
             </div>
@@ -188,7 +188,7 @@ export default function UnifiedHoldingsSection({
           <div className="h-3 w-full rounded-sm overflow-hidden flex bg-zinc-900 border border-white/10">
             {sectorList.map((sec, i) => {
               const colors = ['bg-blue-500', 'bg-emerald-500', 'bg-amber-500', 'bg-purple-500', 'bg-rose-500'];
-              const c = sec.sector.includes('Cash') ? 'bg-[#D4AF37]' : colors[i % colors.length];
+              const c = sec.sector.includes('Cash') ? 'bg-brand-blue' : colors[i % colors.length];
               return (
                 <div
                   key={sec.sector}
@@ -203,7 +203,7 @@ export default function UnifiedHoldingsSection({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-xs font-mono">
             {sectorList.map((sec, i) => {
               const colors = ['bg-blue-400', 'bg-emerald-400', 'bg-amber-400', 'bg-purple-400', 'bg-rose-400'];
-              const dot = sec.sector.includes('Cash') ? 'bg-[#D4AF37]' : colors[i % colors.length];
+              const dot = sec.sector.includes('Cash') ? 'bg-brand-blue' : colors[i % colors.length];
               return (
                 <div
                   key={sec.sector}
@@ -325,9 +325,9 @@ export default function UnifiedHoldingsSection({
               )}
 
               {/* Cash Reserve Row */}
-              <tr className="bg-[#D4AF37]/[0.02]">
+              <tr className="bg-brand-blue/[0.02]">
                 <td className="py-3.5 px-4 font-sans">
-                  <div className="font-semibold text-[#D4AF37] text-sm">Liquid Cash Buffer</div>
+                  <div className="font-semibold text-brand-blue-text text-sm">Liquid Cash Buffer</div>
                   <div className="text-[11px] font-mono text-zinc-500 mt-0.5">
                     Unallocated Trading Capital
                   </div>
@@ -335,10 +335,10 @@ export default function UnifiedHoldingsSection({
                 <td className="py-3.5 px-3 text-right text-zinc-500 tabular-nums">—</td>
                 <td className="py-3.5 px-4 text-right text-zinc-500 tabular-nums">—</td>
                 <td className="py-3.5 px-4 text-right text-zinc-500 tabular-nums">—</td>
-                <td className="py-3.5 px-4 text-right tabular-nums text-[#D4AF37] font-semibold">
+                <td className="py-3.5 px-4 text-right tabular-nums text-brand-blue-text font-semibold">
                   {formatPaiseToRupees(cashPaise)}
                 </td>
-                <td className="py-3.5 px-3 text-right tabular-nums text-[#D4AF37] font-bold">
+                <td className="py-3.5 px-3 text-right tabular-nums text-brand-blue-text font-bold">
                   {cashWeightPct.toFixed(1)}%
                 </td>
                 <td className="py-3.5 px-4 text-right text-zinc-500 tabular-nums">—</td>

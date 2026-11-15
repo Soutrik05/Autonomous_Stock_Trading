@@ -7,13 +7,15 @@ import {
 } from 'lucide-react';
 import type { NavHistoryPoint, AgentLeaderboardEntry, ActivityEvent } from '../types';
 import { apiService, TELEMETRY_POLL_INTERVAL_MS } from '../services/api';
-import { formatPct, formatISTDateTime } from '../utils/formatters';
+import { formatISTDateTime } from '../utils/formatters';
 import { cn } from '../utils/cn';
 import { MetaList } from '../components/ui/MetaList';
 import { ActionLink } from '../components/ui/ActionLink';
-import { CategoryBadge } from '../components/ui/CategoryBadge';
 import { SectionHeader } from '../components/ui/SectionHeader';
 import { TrajectoryChart, type TrajectoryChartPoint } from '../components/TrajectoryChart';
+import PersonaCard from '../components/PersonaCard';
+import TopAgentRow from '../components/TopAgentRow';
+import Reveal from '../components/Reveal';
 
 const SCHOOLS_OF_THOUGHT = [
   {
@@ -221,7 +223,7 @@ export default function Home() {
     return (
       <div className="max-w-7xl mx-auto px-4 py-28 flex justify-center items-center font-mono text-xs text-zinc-500">
         <div className="flex items-center gap-3">
-          <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+          <div className="w-4 h-4 border-2 border-brand-blue border-t-transparent rounded-full animate-spin" />
           <span>Synchronizing empirical observation deck...</span>
         </div>
       </div>
@@ -241,10 +243,10 @@ export default function Home() {
         <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-border-hairline">
 
           {/* Left Column: Editorial Thesis, Protocol Matrix & Primary CTAs */}
-          <div className="lg:col-span-5 p-6 sm:p-8 lg:p-9 flex flex-col justify-between space-y-7">
+          <Reveal mode="immediate" delayMs={0} className="lg:col-span-5 p-6 sm:p-8 lg:p-9 flex flex-col justify-between space-y-7">
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-accent flex-shrink-0 animate-ping opacity-75" />
+                <span className="w-1.5 h-1.5 rounded-full bg-brand-blue flex-shrink-0 animate-ping opacity-75" />
                 <MetaList
                   items={[
                     { label: 'Trial', value: 'Live Paper Trading' },
@@ -255,10 +257,10 @@ export default function Home() {
               </div>
 
               <h1 className="font-display text-3xl sm:text-4xl lg:text-[42px] font-medium tracking-tight text-white leading-[1.08]">
-                Can generative reasoning generate real alpha?
+                Can AI judgment survive a <span className="hl">live market</span>?
               </h1>
 
-              <p className="text-lg sm:text-xl text-zinc-200 font-sans leading-relaxed pt-1">
+              <p className="text-base sm:text-lg text-zinc-300 font-sans leading-relaxed pt-1">
                 Five autonomous LLM agents trade Indian equities live alongside matched, deterministic Python rules. Each pair embodies a distinct investing school of thought—pitted under identical capital and statutory friction to measure whether generative judgment outperforms mechanical execution.
               </p>
             </div>
@@ -289,10 +291,10 @@ export default function Home() {
                 Inspect Philosophy Matchups
               </ActionLink>
             </div>
-          </div>
+          </Reveal>
 
           {/* Right Column: Integrated Telemetry Deck (Chart + Docked Top 3 Standings) */}
-          <div className="lg:col-span-7 flex flex-col divide-y divide-border-hairline bg-[#141414]">
+          <Reveal mode="immediate" delayMs={150} className="lg:col-span-7 flex flex-col divide-y divide-border-hairline bg-[#141414]">
 
             {/* Upper Chamber: Memoized Observed Cumulative Return Trajectories */}
             <TrajectoryChart
@@ -312,53 +314,9 @@ export default function Home() {
 
               {/* Vertical Ranked Rows with Hairline Dividers */}
               <div className="divide-y divide-white/[0.04]">
-                {topAgents.map((ag, i) => {
-                  const isPositive = ag.returnPct >= 0;
-                  const isFirst = i === 0;
-                  const cleanName = ag.name.replace(' (LLM)', '').replace('Baseline ', '');
-
-                  return (
-                    <div
-                      key={ag.id}
-                      className={cn(
-                        'flex items-center justify-between py-2 transition-colors',
-                        isFirst ? 'text-white' : 'text-zinc-300'
-                      )}
-                    >
-                      {/* Left: Rank, Agent Name, Monochrome Outline Badge */}
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <span
-                          className={cn(
-                            'font-mono text-xs',
-                            isFirst ? 'text-zinc-300 font-bold' : 'text-zinc-600'
-                          )}
-                        >
-                          #{i + 1}
-                        </span>
-                        <span
-                          className={cn(
-                            'truncate font-sans',
-                            isFirst ? 'text-sm font-semibold text-white' : 'text-xs text-zinc-300'
-                          )}
-                        >
-                          {cleanName}
-                        </span>
-                        <CategoryBadge type={ag.id} />
-                      </div>
-
-                      {/* Right: Return value (only colored element in row) */}
-                      <div
-                        className={cn(
-                          'font-mono font-bold tabular-nums text-right flex-shrink-0',
-                          isFirst ? 'text-sm font-extrabold' : 'text-xs',
-                          isPositive ? 'text-positive' : 'text-negative'
-                        )}
-                      >
-                        {formatPct(ag.returnPct)}
-                      </div>
-                    </div>
-                  );
-                })}
+                {topAgents.map((ag, i) => (
+                  <TopAgentRow key={ag.id} agent={ag} rank={i} staggerMs={i * 200} />
+                ))}
               </div>
 
               {/* Docked Status Footer */}
@@ -368,7 +326,7 @@ export default function Home() {
               </div>
             </div>
 
-          </div>
+          </Reveal>
 
         </div>
       </section>
@@ -392,8 +350,8 @@ export default function Home() {
                 {/* Node on Rail */}
                 <div className="flex items-center gap-3 md:block">
                   {st.isCore ? (
-                    <div className="w-6 h-6 rounded-full bg-accent/20 border-2 border-accent flex items-center justify-center bg-surface-well z-10 shadow-[0_0_16px_rgba(212,175,55,0.25)]">
-                      <div className="w-2 h-2 rounded-full bg-accent" />
+                    <div className="w-6 h-6 rounded-full bg-brand-blue-soft border-2 border-brand-blue flex items-center justify-center bg-surface-well z-10 shadow-[0_0_16px_rgba(0,63,136,0.35)]">
+                      <div className="w-2 h-2 rounded-full bg-brand-blue" />
                     </div>
                   ) : (
                     <div className="w-4 h-4 rounded-full bg-[#181818] border border-zinc-600 z-10 my-1 flex items-center justify-center">
@@ -401,7 +359,7 @@ export default function Home() {
                     </div>
                   )}
 
-                  <span className={cn("md:hidden text-[10px] font-mono", st.isCore ? "text-accent font-bold" : "text-zinc-500")}>
+                  <span className={cn("md:hidden text-[10px] font-mono", st.isCore ? "text-brand-blue-text font-bold" : "text-zinc-500")}>
                     {st.step}
                   </span>
                 </div>
@@ -409,13 +367,13 @@ export default function Home() {
                 {/* Typography below node */}
                 <div className="space-y-1.5 pl-7 md:pl-0">
                   <div className="hidden md:flex items-center justify-between text-[10px] font-mono">
-                    <span className={st.isCore ? "text-accent font-bold" : "text-zinc-500"}>{st.step}</span>
+                    <span className={st.isCore ? "text-brand-blue-text font-bold" : "text-zinc-500"}>{st.step}</span>
                   </div>
 
                   <h3
                     className={cn(
-                      'font-sans text-sm sm:text-base font-medium',
-                      st.isCore ? 'text-white font-semibold' : 'text-zinc-200'
+                      'font-sans text-sm font-medium',
+                      st.isCore ? 'text-white font-semibold text-base' : 'text-zinc-200'
                     )}
                   >
                     {st.title}
@@ -423,13 +381,13 @@ export default function Home() {
 
                   {st.subtitle && (
                     <div>
-                      <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono text-accent bg-accent/10 border border-accent/20">
+                      <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono text-brand-blue-text bg-brand-blue-soft border border-brand-blue">
                         {st.subtitle}
                       </span>
                     </div>
                   )}
 
-                  <p className="text-[15px] sm:text-base text-zinc-300 font-sans leading-relaxed pt-0.5">
+                  <p className="text-sm text-zinc-400 font-sans leading-relaxed pt-0.5">
                     {st.detail}
                   </p>
                 </div>
@@ -455,8 +413,8 @@ export default function Home() {
             <div key={tp.title} className="flex gap-5">
               <span className="font-mono text-sm text-zinc-500 pt-0.5 flex-shrink-0 w-6">0{i+1}</span>
               <div>
-                <h3 className="font-sans text-base sm:text-lg font-medium text-white mb-1.5">{tp.title}</h3>
-                <p className="text-base text-zinc-300 leading-relaxed">{tp.detail}</p>
+                <h3 className="font-sans text-base font-medium text-white mb-1.5">{tp.title}</h3>
+                <p className="text-sm text-zinc-400 leading-relaxed">{tp.detail}</p>
               </div>
             </div>
           ))}
@@ -476,7 +434,7 @@ export default function Home() {
 
         {/* Question 01 */}
         <div className="space-y-4 pt-2">
-          <h3 className="font-display text-xl sm:text-2xl font-medium tracking-tight text-white">
+          <h3 className="font-display text-2xl sm:text-3xl font-medium tracking-tight text-white">
             1. Can Autonomous Agent Personas Generate Real Equity Alpha?
           </h3>
 
@@ -503,7 +461,7 @@ export default function Home() {
 
         {/* Question 02 */}
         <div className="space-y-4 pt-4 border-t border-white/[0.06]">
-          <h3 className="font-display text-xl sm:text-2xl font-medium tracking-tight text-white">
+          <h3 className="font-display text-2xl sm:text-3xl font-medium tracking-tight text-white">
             2. Does Heavy Inference Outperform Matched Rules?
           </h3>
 
@@ -532,49 +490,26 @@ export default function Home() {
 
 
       {/* =========================================================================
-          SECTION 5 · THE FIVE OBSERVED PERSONAS (EDITORIAL DIRECTORY: NO CARDS)
-          [Zero formulaic rule hurdles, calibrated text lengths, bottom-baseline alignment]
+          SECTION 5 · THE FIVE OBSERVED PERSONAS (CLICKABLE PERSONA CARDS)
           ========================================================================= */}
       <section className="pt-8 sm:pt-10 border-t border-border-hairline space-y-6">
-        <SectionHeader title="The Five Observed Personas" />
+        <SectionHeader
+          title="The Five Observed Personas"
+          subtitle="Click any card to open that agent's portfolio and dossier"
+        />
 
-        {/* 5-Column Typographic Directory with Uniform Height and Bottom Baseline Alignment */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-0 font-sans">
+        <div className="persona-grid font-sans">
           {SCHOOLS_OF_THOUGHT.map((phi) => (
-            <div
+            <PersonaCard
               key={phi.personaId}
-              className="flex flex-col justify-between h-full border-b md:border-b-0 md:border-r border-border-hairline last:border-r-0 py-6 md:py-0 md:px-4 lg:px-5 first:pl-0 last:pr-0"
-            >
-              <div className="space-y-3">
-                <div className="flex items-center justify-between text-xs font-mono text-zinc-500">
-                  <span className="font-bold">{phi.index}</span>
-                  <span>{phi.horizon}</span>
-                </div>
-
-                <div>
-                  <h3 className="font-display text-lg font-medium text-white">
-                    {phi.name}
-                  </h3>
-                  <div className="text-xs sm:text-sm text-zinc-400 mt-0.5">
-                    Inspired by {phi.inspiration}
-                  </div>
-                </div>
-
-                <div className="text-sm font-sans font-medium text-zinc-200 min-h-[36px] flex items-center">
-                  {phi.mandate}
-                </div>
-
-                <p className="text-[15px] sm:text-base text-zinc-300 font-sans leading-relaxed">
-                  {phi.profile}
-                </p>
-              </div>
-
-              <div className="pt-4 mt-auto">
-                <ActionLink to={`/portfolio/${phi.personaId}`} variant="subdued">
-                  Portfolio & Dossier
-                </ActionLink>
-              </div>
-            </div>
+              index={phi.index}
+              name={phi.name}
+              personaId={phi.personaId}
+              inspiration={phi.inspiration}
+              horizon={phi.horizon}
+              mandate={phi.mandate}
+              profile={phi.profile}
+            />
           ))}
         </div>
 
@@ -614,7 +549,7 @@ export default function Home() {
                         ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10'
                         : evt.eventType.includes('EXPIRED')
                           ? 'border-zinc-500/30 text-zinc-400 bg-white/[0.02]'
-                          : 'border-accent/30 text-accent bg-accent/10'
+                          : 'border-brand-blue text-brand-blue-text bg-brand-blue-soft'
                     )}
                   >
                     {evt.eventType}
@@ -623,7 +558,7 @@ export default function Home() {
                     {(evt.agentId || 'SYSTEM').replace('baseline-', '').toUpperCase()}
                   </span>
                   {evt.symbol && (
-                    <span className="px-1.5 py-0.5 rounded bg-white/[0.04] text-zinc-300 border border-white/5 font-mono text-[11px]">
+                    <span className="px-1.5 py-0.2 rounded bg-white/[0.04] text-zinc-300 border border-white/5 font-sans">
                       {evt.symbol}
                     </span>
                   )}
@@ -656,13 +591,13 @@ export default function Home() {
       <section className="pt-8 sm:pt-10 border-t border-border-hairline">
         <div className="pt-4 space-y-4 font-sans">
           <div className="flex items-center gap-3">
-            <span className="text-accent font-mono">·</span>
-            <h3 className="font-display text-2xl sm:text-3xl font-medium text-white tracking-tight leading-tight">
+            <span className="text-brand-blue-text font-mono">·</span>
+            <h3 className="font-display text-3xl sm:text-4xl font-medium text-white tracking-tight leading-tight">
               The empirical observation trial is actively underway.
             </h3>
           </div>
 
-          <p className="text-lg sm:text-xl text-zinc-200 leading-relaxed max-w-4xl">
+          <p className="text-base sm:text-lg text-zinc-300 leading-relaxed max-w-4xl">
             Statistical conclusions require a rigorous threshold of approximately 30 closed round-trip trades per agent across contrasting market regimes. While initial pilot mark-to-market positions are live, we do not declare premature alpha superiority. Daily order execution, prompt adherence, and thesis forensics remain continuously audited and open for inspection.
           </p>
 

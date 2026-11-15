@@ -181,7 +181,7 @@ export default function Backtest() {
               className={cn(
                 "px-3.5 py-1.5 rounded transition-colors cursor-pointer text-xs sm:text-sm whitespace-nowrap",
                 selectedWindowId === win.id
-                  ? "bg-white/[0.1] text-accent font-semibold border border-accent/30"
+                  ? "bg-brand-blue-soft text-brand-blue-text font-semibold border border-brand-blue/40"
                   : "text-zinc-400 hover:text-white border border-transparent"
               )}
             >
@@ -195,7 +195,7 @@ export default function Backtest() {
       <section className="space-y-3">
         {loading ? (
           <div className="border border-border-hairline bg-surface-inset rounded-lg p-20 text-center text-zinc-500 font-mono text-sm flex justify-center items-center gap-3">
-            <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+            <div className="w-5 h-5 border-2 border-brand-blue border-t-transparent rounded-full animate-spin" />
             <span>Synchronizing regime equity growth curves...</span>
           </div>
         ) : (
