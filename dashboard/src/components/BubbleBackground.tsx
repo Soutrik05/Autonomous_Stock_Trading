@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react';
 
-/** All tunable numbers in one place. No cursor trail/glow anymore -- the cursor only
- * gently (and smoothly) pushes ambient bubbles out of its way. Ambient drift is ~50%
- * of the previous speed, with an added slow sideways sway and a slow alpha breathe so
- * nothing pops in/out suddenly. Count, sizes, colors and base opacity are unchanged. */
+/** All tunable numbers in one place. Delta-time driven (frame-rate independent), capped
+ * at CONFIG.maxDeltaTime so a backgrounded tab never makes bubbles jump on return. No
+ * cursor trail/rings/spawned bubbles -- the cursor only (a) drags one soft two-tone glow
+ * a little behind it, and (b) gently, smoothly pushes nearby ambient bubbles aside. */
 const CONFIG = {
   palette: [
     [79, 143, 224],
@@ -13,30 +13,52 @@ const CONFIG = {
     [16, 185, 129],
   ] as Array<[number, number, number]>,
   maxDpr: 2,
+  maxDeltaTime: 0.05, // seconds; clamps the dt used for all motion below
 
-  ambientCountDesktop: 22,
-  ambientCountTouch: 8,
-  ambientRadius: [8, 30] as [number, number],
-  ambientAlpha: [0.04, 0.088] as [number, number],
-  ambientDrift: [-0.04, 0.04] as [number, number],
+  ambientCountDesktop: 35,
+  ambientCountTouch: 14,
+  // Radius is biased toward the low end of this range; only occasionally reaches the
+  // top, for a few slightly-larger bubbles that read as background depth.
+  ambientRadiusMin: 8,
+  ambientRadiusMax: 38,
+  ambientRadiusBias: 2.2,
+  ambientAlpha: [0.056, 0.1232] as [number, number],
+  // px/second. Each bubble picks its own speed and its own direction (mostly upward,
+  // with a spread so they don't all drift the same way) -- see ambientAngleSpreadDeg.
+  ambientSpeed: [12, 25] as [number, number],
+  ambientAngleSpreadDeg: 35,
   // Gentle sideways sway layered on top of the base drift, like bubbles rising in water.
-  swayAmplitude: [4, 10] as [number, number],
-  swaySpeed: [0.15, 0.3] as [number, number],
-  // Slow opacity "breathe" so a bubble never pops to full/zero alpha abruptly.
+  swayAmplitude: [15, 30] as [number, number],
+  swayPeriod: [6, 10] as [number, number], // seconds per full left-right cycle
+  // Slow opacity "breathe" so a bubble never sits at a flat, static brightness.
   breatheDepth: 0.35,
   breatheSpeed: [0.1, 0.2] as [number, number],
+  // When a bubble wraps to the opposite edge, it fades back in over this many seconds
+  // instead of popping to full opacity immediately.
+  wrapFadeInSeconds: 1.4,
 
-  twinkleCount: 60,
+  twinkleCount: 78,
   twinkleRadius: [0.6, 1.6] as [number, number],
-  twinkleBaseAlpha: 0.112,
-  twinkleAmplitude: 0.128,
+  twinkleBaseAlpha: 0.1456,
+  twinkleAmplitude: 0.1664,
   twinkleSpeed: 1.5,
 
-  // Cursor repel: softer force, eased toward/away so bubbles slide, never jump.
+  // Cursor repel on ambient bubbles: soft force, eased so bubbles slide, never jump.
   cursorRepelRadius: 170,
   cursorRepelForce: 0.27,
-  cursorEaseIn: 0.08,
-  cursorEaseOut: 0.04,
+  cursorEaseInRate: 4.8, // per second
+  cursorEaseOutRate: 2.4, // per second
+
+  // Cursor glow: one soft green glow (plus a fainter, larger blue one behind it) that
+  // lags the cursor and fades in/out as the pointer enters/leaves the window.
+  glowGreenColor: [16, 185, 129] as [number, number, number],
+  glowGreenRadius: 220,
+  glowGreenAlpha: 0.1,
+  glowBlueColor: [0, 63, 136] as [number, number, number],
+  glowBlueRadius: 260,
+  glowBlueAlpha: 0.06,
+  glowFollowRate: 5.5, // per second; ~9% of the remaining distance per 60fps frame
+  glowFadeRate: 3, // per second
 };
 
 interface AmbientBubble {
@@ -53,6 +75,7 @@ interface AmbientBubble {
   breathePhase: number;
   pushVx: number;
   pushVy: number;
+  wrapFadeTimer: number;
   color: [number, number, number];
 }
 
@@ -76,11 +99,60 @@ function randIn(range: [number, number]): number {
   return rand(range[0], range[1]);
 }
 
+function randomRadius(): number {
+  const biased = Math.pow(Math.random(), CONFIG.ambientRadiusBias);
+  return CONFIG.ambientRadiusMin + biased * (CONFIG.ambientRadiusMax - CONFIG.ambientRadiusMin);
+}
+
+function createAmbientBubble(x: number, y: number): AmbientBubble {
+  const speed = randIn(CONFIG.ambientSpeed);
+  // Mostly straight up (-90deg), with a spread so bubbles don't all move identically.
+  const angleDeg = -90 + rand(-CONFIG.ambientAngleSpreadDeg, CONFIG.ambientAngleSpreadDeg);
+  const angle = (angleDeg * Math.PI) / 180;
+  return {
+    baseX: x,
+    baseY: y,
+    r: randomRadius(),
+    alpha: randIn(CONFIG.ambientAlpha),
+    vx: Math.cos(angle) * speed,
+    vy: Math.sin(angle) * speed,
+    swayAmp: randIn(CONFIG.swayAmplitude),
+    swaySpeed: (2 * Math.PI) / randIn(CONFIG.swayPeriod),
+    swayPhase: rand(0, Math.PI * 2),
+    breatheSpeed: randIn(CONFIG.breatheSpeed),
+    breathePhase: rand(0, Math.PI * 2),
+    pushVx: 0,
+    pushVy: 0,
+    wrapFadeTimer: 0,
+    color: pickColor(),
+  };
+}
+
+/** Evenly spreads `count` starting points across the whole width/height (a jittered
+ * grid) instead of pure random placement, which tends to look clustered in places. */
+function evenlySpreadPoints(count: number, width: number, height: number): Array<[number, number]> {
+  const aspect = width / height || 1;
+  const cols = Math.max(1, Math.round(Math.sqrt(count * aspect)));
+  const rows = Math.max(1, Math.ceil(count / cols));
+  const cellW = width / cols;
+  const cellH = height / rows;
+  const points: Array<[number, number]> = [];
+  for (let i = 0; i < count; i++) {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const x = col * cellW + rand(cellW * 0.15, cellW * 0.85);
+    const y = row * cellH + rand(cellH * 0.15, cellH * 0.85);
+    points.push([x, y]);
+  }
+  return points;
+}
+
 /**
- * Very subtle, themed bubble field, drifting slowly in the background. The cursor only
- * gently and smoothly pushes nearby bubbles out of the way -- no trail, no glow, nothing
- * visibly follows the pointer. Mounted once at the app level (Layout.tsx) so it persists
- * across route changes. Renders nothing under prefers-reduced-motion. No new libraries.
+ * Very subtle, themed bubble field, drifting slowly in the background, plus one soft
+ * two-tone glow that lags the cursor. No trail, no rings, no spawned bubbles -- the
+ * cursor only gently and smoothly pushes nearby ambient bubbles out of its way. Mounted
+ * once at the app level (Layout.tsx) so it persists across route changes. Renders
+ * nothing under prefers-reduced-motion. No new libraries.
  */
 export default function BubbleBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -124,22 +196,8 @@ export default function BubbleBackground() {
     window.addEventListener('resize', resize);
 
     const ambientCount = isTouch ? CONFIG.ambientCountTouch : CONFIG.ambientCountDesktop;
-    const ambient: AmbientBubble[] = Array.from({ length: ambientCount }, () => ({
-      baseX: Math.random() * width,
-      baseY: Math.random() * height,
-      r: randIn(CONFIG.ambientRadius),
-      alpha: randIn(CONFIG.ambientAlpha),
-      vx: randIn(CONFIG.ambientDrift),
-      vy: randIn(CONFIG.ambientDrift),
-      swayAmp: randIn(CONFIG.swayAmplitude),
-      swaySpeed: randIn(CONFIG.swaySpeed),
-      swayPhase: Math.random() * Math.PI * 2,
-      breatheSpeed: randIn(CONFIG.breatheSpeed),
-      breathePhase: Math.random() * Math.PI * 2,
-      pushVx: 0,
-      pushVy: 0,
-      color: pickColor(),
-    }));
+    const startPoints = evenlySpreadPoints(ambientCount, width, height);
+    const ambient: AmbientBubble[] = startPoints.map(([x, y]) => createAmbientBubble(x, y));
 
     const twinkles: TwinkleDot[] = Array.from({ length: CONFIG.twinkleCount }, () => ({
       x: Math.random() * width,
@@ -150,11 +208,17 @@ export default function BubbleBackground() {
     }));
 
     const mouse = { x: -9999, y: -9999, active: false };
+    const glow = { x: 0, y: 0, opacity: 0, initialized: false };
 
     function handleMouseMove(e: MouseEvent) {
       mouse.x = e.clientX;
       mouse.y = e.clientY;
       mouse.active = true;
+      if (!glow.initialized) {
+        glow.x = e.clientX;
+        glow.y = e.clientY;
+        glow.initialized = true;
+      }
     }
 
     function handleMouseLeave() {
@@ -174,8 +238,10 @@ export default function BubbleBackground() {
 
     let rafId = 0;
     let t = 0;
+    let lastTime: number | null = null;
 
-    function drawBubble(x: number, y: number, r: number, alpha: number, color: [number, number, number]) {
+    function drawGlow(x: number, y: number, r: number, alpha: number, color: [number, number, number]) {
+      if (alpha <= 0.001) return;
       const [cr, cg, cb] = color;
       const gradient = ctx!.createRadialGradient(x, y, 0, x, y, r);
       gradient.addColorStop(0, `rgba(${cr}, ${cg}, ${cb}, ${alpha})`);
@@ -186,21 +252,40 @@ export default function BubbleBackground() {
       ctx!.fill();
     }
 
-    function tick() {
+    function tick(now: number) {
       rafId = requestAnimationFrame(tick);
       if (paused) return;
-      t += 0.016;
+      if (lastTime === null) lastTime = now;
+      let dt = (now - lastTime) / 1000;
+      lastTime = now;
+      dt = Math.min(dt, CONFIG.maxDeltaTime);
+      t += dt;
       ctx!.clearRect(0, 0, width, height);
 
-      // Ambient bubbles: slow drift + sideways sway + slow alpha breathe, softly and
-      // smoothly pushed away from the cursor (never a sudden jump either way).
+      const easeInFactor = Math.min(1, CONFIG.cursorEaseInRate * dt);
+      const easeOutFactor = Math.min(1, CONFIG.cursorEaseOutRate * dt);
+
+      // Ambient bubbles: slow upward drift + sideways sway + slow alpha breathe,
+      // softly and smoothly pushed away from the cursor (never a sudden jump either
+      // way), and fading back in (not popping) after wrapping to the opposite edge.
       for (const b of ambient) {
-        b.baseX += b.vx;
-        b.baseY += b.vy;
-        if (b.baseX < -40) b.baseX = width + 40;
-        if (b.baseX > width + 40) b.baseX = -40;
-        if (b.baseY < -40) b.baseY = height + 40;
-        if (b.baseY > height + 40) b.baseY = -40;
+        b.baseX += b.vx * dt;
+        b.baseY += b.vy * dt;
+
+        if (b.baseX < -60) {
+          b.baseX = width + 60;
+          b.wrapFadeTimer = CONFIG.wrapFadeInSeconds;
+        } else if (b.baseX > width + 60) {
+          b.baseX = -60;
+          b.wrapFadeTimer = CONFIG.wrapFadeInSeconds;
+        }
+        if (b.baseY < -60) {
+          b.baseY = height + 60;
+          b.wrapFadeTimer = CONFIG.wrapFadeInSeconds;
+        } else if (b.baseY > height + 60) {
+          b.baseY = -60;
+          b.wrapFadeTimer = CONFIG.wrapFadeInSeconds;
+        }
 
         const swayX = Math.sin(t * b.swaySpeed + b.swayPhase) * b.swayAmp;
         const x = b.baseX + swayX;
@@ -214,28 +299,50 @@ export default function BubbleBackground() {
             const force = CONFIG.cursorRepelForce * Math.pow(1 - d / CONFIG.cursorRepelRadius, 2);
             const targetVx = (dx / d) * force;
             const targetVy = (dy / d) * force;
-            b.pushVx += (targetVx - b.pushVx) * CONFIG.cursorEaseIn;
-            b.pushVy += (targetVy - b.pushVy) * CONFIG.cursorEaseIn;
+            b.pushVx += (targetVx - b.pushVx) * easeInFactor;
+            b.pushVy += (targetVy - b.pushVy) * easeInFactor;
           } else {
-            b.pushVx += (0 - b.pushVx) * CONFIG.cursorEaseOut;
-            b.pushVy += (0 - b.pushVy) * CONFIG.cursorEaseOut;
+            b.pushVx += (0 - b.pushVx) * easeOutFactor;
+            b.pushVy += (0 - b.pushVy) * easeOutFactor;
           }
         } else {
-          b.pushVx += (0 - b.pushVx) * CONFIG.cursorEaseOut;
-          b.pushVy += (0 - b.pushVy) * CONFIG.cursorEaseOut;
+          b.pushVx += (0 - b.pushVx) * easeOutFactor;
+          b.pushVy += (0 - b.pushVy) * easeOutFactor;
         }
 
         b.baseX += b.pushVx;
         b.baseY += b.pushVy;
 
+        if (b.wrapFadeTimer > 0) b.wrapFadeTimer = Math.max(0, b.wrapFadeTimer - dt);
+        const wrapFadeMul = 1 - b.wrapFadeTimer / CONFIG.wrapFadeInSeconds;
+
         const breathe = 1 - CONFIG.breatheDepth * (0.5 + 0.5 * Math.sin(t * b.breatheSpeed + b.breathePhase));
-        drawBubble(x + b.pushVx, y + b.pushVy, b.r, Math.max(0, b.alpha * breathe), b.color);
+        drawGlow(x + b.pushVx, y + b.pushVy, b.r, Math.max(0, b.alpha * breathe * wrapFadeMul), b.color);
       }
 
       // Twinkling dots.
       for (const dot of twinkles) {
         const alpha = Math.max(0, CONFIG.twinkleBaseAlpha + CONFIG.twinkleAmplitude * Math.sin(t * CONFIG.twinkleSpeed + dot.phase));
-        drawBubble(dot.x, dot.y, dot.r, alpha, dot.color);
+        drawGlow(dot.x, dot.y, dot.r, alpha, dot.color);
+      }
+
+      // Soft two-tone glow that lags the cursor and fades in/out with it.
+      if (!isTouch) {
+        const followFactor = Math.min(1, CONFIG.glowFollowRate * dt);
+        glow.x += (mouse.x - glow.x) * followFactor;
+        glow.y += (mouse.y - glow.y) * followFactor;
+
+        const targetOpacity = mouse.active ? 1 : 0;
+        const fadeFactor = Math.min(1, CONFIG.glowFadeRate * dt);
+        glow.opacity += (targetOpacity - glow.opacity) * fadeFactor;
+
+        if (glow.opacity > 0.001) {
+          const prevComposite = ctx!.globalCompositeOperation;
+          ctx!.globalCompositeOperation = 'lighter';
+          drawGlow(glow.x, glow.y, CONFIG.glowBlueRadius, CONFIG.glowBlueAlpha * glow.opacity, CONFIG.glowBlueColor);
+          drawGlow(glow.x, glow.y, CONFIG.glowGreenRadius, CONFIG.glowGreenAlpha * glow.opacity, CONFIG.glowGreenColor);
+          ctx!.globalCompositeOperation = prevComposite;
+        }
       }
     }
 
