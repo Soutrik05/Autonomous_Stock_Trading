@@ -256,7 +256,7 @@ export default function Home() {
                 />
               </div>
 
-              <h1 className="font-display text-3xl sm:text-4xl lg:text-[42px] font-medium tracking-tight text-white leading-[1.08]">
+              <h1 className="hero-headline text-white">
                 Can AI judgment survive a <span className="hl">live market</span>?
               </h1>
 
