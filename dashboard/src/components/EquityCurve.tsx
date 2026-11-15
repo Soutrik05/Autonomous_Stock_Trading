@@ -68,7 +68,7 @@ function EquityCurveComponent({
           <h3 className="text-lg font-display font-medium text-white flex items-center gap-2.5">
             <span>{title}</span>
             {isBacktest && (
-              <span className="text-[10px] px-2 py-0.5 rounded border border-[#D4AF37]/40 text-[#D4AF37] bg-[#D4AF37]/10 font-mono font-medium">
+              <span className="text-[10px] px-2 py-0.5 rounded border border-brand-blue text-brand-blue-text bg-brand-blue-soft font-mono font-medium">
                 Backtest Simulation
               </span>
             )}

@@ -147,7 +147,7 @@ export default function Leaderboard() {
     return (
       <div className="max-w-7xl mx-auto px-4 py-28 flex justify-center items-center">
         <div className="flex items-center gap-3 text-zinc-500 font-mono text-xs">
-          <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+          <div className="w-4 h-4 border-2 border-brand-blue border-t-transparent rounded-full animate-spin" />
           <span>Synchronizing live agent telemetry...</span>
         </div>
       </div>
@@ -191,7 +191,7 @@ export default function Leaderboard() {
                   className={cn(
                     'px-3 py-1.5 rounded transition-colors cursor-pointer text-xs',
                     strategyFilter === filter
-                      ? 'bg-white/[0.1] text-accent font-medium border border-accent/30'
+                      ? 'bg-brand-blue-soft text-brand-blue-text font-medium border border-brand-blue'
                       : 'text-zinc-400 hover:text-white border border-transparent'
                   )}
                 >

@@ -19,9 +19,9 @@
   --color-ink-secondary: #A0A0A0;
   --color-ink-muted: #757575;
 
-  --color-gold: #D4AF37;
-  --color-accent: #D4AF37;
-  --color-accent-subdued: rgba(212, 175, 55, 0.15);
+  --color-brand-blue: #003F88;
+  --color-brand-blue-text: #4F8FE0;
+  --color-brand-blue-soft: rgba(0, 63, 136, 0.22);
   --color-profit: #10B981;
   --color-positive: #10B981;
   --color-loss: #C4553F;
@@ -47,15 +47,15 @@
   --border-primary: rgba(255, 255, 255, 0.08);
   --border-subdued: rgba(255, 255, 255, 0.05);
   --border-strong: rgba(255, 255, 255, 0.12);
-  --border-gold: rgba(212, 175, 55, 0.35);
 
   --ink-primary: #E0E0E0;
   --ink-secondary: #A0A0A0;
   --ink-muted: #757575;
   --ink-subdued: #666666;
 
-  --brand-accent: #D4AF37;
-  --gold-accent: #D4AF37;
+  --brand-blue: #003F88;
+  --brand-blue-text: #4F8FE0;
+  --brand-blue-soft: rgba(0, 63, 136, 0.22);
   --profit-color: #10B981;
   --loss-color: #C4553F;
   --control-color: #94A3B8;
@@ -211,7 +211,7 @@ a:focus-visible,
 button:focus-visible,
 input:focus-visible,
 select:focus-visible {
-  outline: 2px solid var(--brand-accent);
+  outline: 2px solid var(--brand-blue);
   outline-offset: 2px;
 }
 
@@ -231,7 +231,377 @@ select:focus-visible {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(212, 175, 55, 0.5);
+  background: rgba(0, 63, 136, 0.5);
+}
+
+/* Brand Wordmark (Logo.tsx) */
+.logo {
+  --mx: 50%;
+  --my: 50%;
+  display: inline-flex;
+  flex-direction: column;
+  text-decoration: none;
+  line-height: 1;
+}
+
+.logo__name {
+  position: relative;
+  display: block;
+  font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  font-weight: 900;
+  font-size: var(--fs);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #F2EFE8;
+}
+
+.logo__name::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 200ms ease;
+  background: radial-gradient(
+    circle calc(var(--fs) * 1.1) at var(--mx) var(--my),
+    #10B981 0,
+    #10B981 38%,
+    rgba(16, 185, 129, 0) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  pointer-events: none;
+}
+
+.logo:hover .logo__name::after,
+.logo:focus-visible .logo__name::after {
+  opacity: 1;
+}
+
+.logo__tagline {
+  display: block;
+  font-family: 'Great Vibes', cursive;
+  font-weight: 400;
+  font-size: calc(var(--fs) * 0.55);
+  line-height: 1;
+  color: #10B981;
+  margin-top: calc(var(--fs) * -0.04);
+  margin-left: calc(var(--fs) * 0.08);
+}
+
+@media (max-width: 639px) {
+  .logo--header .logo__tagline {
+    display: none;
+  }
+}
+
+@media (hover: none) {
+  .logo__name::after {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo__name::after {
+    transition: none;
+  }
+}
+
+/* Header nav hover/active underline (Header.tsx) */
+.nav-link {
+  position: relative;
+}
+
+.nav-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -6px;
+  height: 2px;
+  background: var(--brand-blue);
+  box-shadow: 0 0 10px rgba(79, 143, 224, 0.55);
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 350ms cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+.nav-link:hover::after,
+.nav-link:focus-visible::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+.nav-link.is-active::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-link::after {
+    transition: none;
+  }
+}
+
+/* Fixed header: frosted-on-scroll + hide-on-scroll-down (Header.tsx) */
+.site-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  background-color: #141414;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  transform: translateY(0);
+  transition:
+    transform 400ms cubic-bezier(0.4, 0, 0.2, 1),
+    background-color 300ms ease,
+    backdrop-filter 300ms ease,
+    border-color 300ms ease;
+}
+
+.site-header--scrolled {
+  background-color: rgba(22, 22, 22, 0.55);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  border-bottom-color: rgba(255, 255, 255, 0.07);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .site-header--scrolled {
+    background-color: rgba(22, 22, 22, 0.92);
+  }
+}
+
+.site-header--hidden {
+  transform: translateY(-100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-header {
+    transition: none;
+    transform: none !important;
+    background-color: #141414 !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+  }
+}
+
+/* Persona cards (Home.tsx "The Five Observed Personas") */
+.persona-grid {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: 18px;
+}
+
+@media (min-width: 600px) {
+  .persona-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 900px) {
+  .persona-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1280px) {
+  .persona-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+.persona-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 20px;
+  border-radius: 14px;
+  border: 1px solid #262626;
+  background: linear-gradient(180deg, #1a1a1a 0%, #171717 100%);
+  text-decoration: none;
+  transition:
+    transform 250ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    border-color 250ms ease,
+    background 250ms ease,
+    box-shadow 250ms ease;
+}
+
+.persona-card:hover,
+.persona-card:focus-visible {
+  transform: translateY(-8px);
+  border-color: var(--brand-blue);
+  background: linear-gradient(180deg, #1b2230 0%, #171a20 100%);
+  box-shadow: 0 16px 36px rgba(0, 63, 136, 0.32), 0 0 0 1px rgba(79, 143, 224, 0.18);
+}
+
+.persona-card:focus-visible {
+  outline: 2px solid var(--brand-blue-text);
+  outline-offset: 3px;
+}
+
+.persona-card:hover .persona-card__horizon,
+.persona-card:focus-visible .persona-card__horizon,
+.persona-card:hover .persona-card__link,
+.persona-card:focus-visible .persona-card__link {
+  color: var(--brand-blue-text);
+}
+
+.persona-card:hover .persona-card__arrow,
+.persona-card:focus-visible .persona-card__arrow {
+  transform: translateX(5px);
+}
+
+.persona-card__arrow {
+  display: inline-block;
+  transition: transform 250ms ease;
+}
+
+@media (hover: none) {
+  .persona-card:hover {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .persona-card {
+    transition: border-color 250ms ease, background 250ms ease, box-shadow 250ms ease;
+  }
+  .persona-card:hover,
+  .persona-card:focus-visible {
+    transform: none;
+  }
+  .persona-card__arrow {
+    transition: none;
+  }
+  .persona-card:hover .persona-card__arrow,
+  .persona-card:focus-visible .persona-card__arrow {
+    transform: none;
+  }
+}
+
+/* Home hero headline accent */
+.hl {
+  color: #10b981;
+}
+
+/* Entrance reveal (Reveal.tsx): fade + slide up, once per mount */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 650ms cubic-bezier(0.2, 0.8, 0.2, 1), transform 650ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: opacity, transform;
+}
+
+.reveal--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Row slide-in from the left (Home Live Standings, Portfolio holdings) */
+.row-reveal {
+  opacity: 0;
+  transform: translateX(-22px);
+  transition: opacity 500ms cubic-bezier(0.2, 0.8, 0.2, 1), transform 500ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.row-reveal--visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .row-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* Dashed chart series: Recharts animates dashes badly, so these fade in via CSS instead */
+.chart-dashed-fade {
+  opacity: 0;
+  animation: chart-dashed-fade-in 800ms ease forwards;
+  animation-delay: 1.6s;
+}
+
+@keyframes chart-dashed-fade-in {
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chart-dashed-fade {
+    opacity: 1;
+    animation: none;
+  }
+}
+
+/* Flash-on-change (useFlashOnChange) */
+.flash-up {
+  background-color: rgba(16, 185, 129, 0.28);
+  color: #34d399 !important;
+  border-radius: 3px;
+}
+
+.flash-down {
+  background-color: rgba(229, 72, 77, 0.25);
+  color: #ff6b70 !important;
+  border-radius: 3px;
+}
+
+/* Live market pill (Header.tsx) */
+.market-pill {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  transition: background-color 300ms ease, border-color 300ms ease;
+}
+
+.market-pill--open {
+  border-color: rgba(0, 63, 136, 0.9);
+  background: rgba(0, 63, 136, 0.2);
+  animation: market-pill-breathe 3.2s ease-in-out infinite;
+}
+
+@keyframes market-pill-breathe {
+  0%, 100% {
+    box-shadow: 0 0 18px rgba(0, 63, 136, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 9px rgba(0, 63, 136, 0.18);
+  }
+}
+
+.market-pill__ring {
+  animation: market-pill-ring 1.6s ease-out infinite;
+}
+
+@keyframes market-pill-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .market-pill--open {
+    animation: none;
+    box-shadow: 0 0 18px rgba(0, 63, 136, 0.35);
+  }
+  .market-pill__ring {
+    animation: none;
+    display: none;
+  }
 }
 
 /* Micro-interaction Transitions */

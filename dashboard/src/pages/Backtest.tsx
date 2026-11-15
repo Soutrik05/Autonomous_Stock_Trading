@@ -131,7 +131,7 @@ export default function Backtest() {
               className={cn(
                 "p-4 rounded border text-left cursor-pointer transition-colors flex flex-col justify-between",
                 isSelected
-                  ? "border-accent bg-surface-inset"
+                  ? "border-brand-blue bg-surface-inset"
                   : "border-border-hairline bg-[#141414] hover:border-white/20 hover:bg-surface-inset"
               )}
             >
@@ -191,7 +191,7 @@ export default function Backtest() {
           </div>
           <div className="py-1 sm:px-3">
             <span className="text-[11px] text-zinc-500 block font-sans">Seed Capital</span>
-            <div className="text-accent font-semibold mt-0.5">₹5,00,000 / Agent</div>
+            <div className="text-brand-blue-text font-semibold mt-0.5">₹5,00,000 / Agent</div>
           </div>
         </div>
 
@@ -217,7 +217,7 @@ export default function Backtest() {
 
         {loading ? (
           <div className="p-20 text-center text-zinc-500 font-mono text-xs flex justify-center items-center gap-3">
-            <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+            <div className="w-4 h-4 border-2 border-brand-blue border-t-transparent rounded-full animate-spin" />
             <span>Synchronizing regime equity growth curves...</span>
           </div>
         ) : (

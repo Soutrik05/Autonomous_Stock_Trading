@@ -118,7 +118,7 @@ export default function Pulse() {
     return (
       <div className="max-w-7xl mx-auto px-4 py-28 flex justify-center items-center">
         <div className="flex items-center gap-3 text-zinc-500 font-mono text-xs">
-          <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+          <div className="w-4 h-4 border-2 border-brand-blue border-t-transparent rounded-full animate-spin" />
           <span>Polling system telemetry...</span>
         </div>
       </div>
@@ -162,7 +162,7 @@ export default function Pulse() {
             disabled={refreshing}
             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-white/[0.04] hover:bg-white/[0.08] border border-border-hairline text-xs font-mono text-zinc-300 transition-colors cursor-pointer"
           >
-            <RefreshCw className={cn("w-3.5 h-3.5", refreshing && "animate-spin text-accent")} />
+            <RefreshCw className={cn("w-3.5 h-3.5", refreshing && "animate-spin text-brand-blue-text")} />
             <span>Refresh</span>
           </button>
         </div>
@@ -285,14 +285,14 @@ export default function Pulse() {
                 placeholder="Search events..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8 pr-3 py-1 bg-surface-well border border-border-hairline rounded text-xs text-white placeholder-zinc-500 focus:border-accent w-36 sm:w-48"
+                className="pl-8 pr-3 py-1 bg-surface-well border border-border-hairline rounded text-xs text-white placeholder-zinc-500 focus:border-brand-blue w-36 sm:w-48"
               />
             </div>
 
             <select
               value={selectedAgent}
               onChange={(e) => setSelectedAgent(e.target.value)}
-              className="py-1 px-2 bg-surface-well border border-border-hairline rounded text-xs text-zinc-300 cursor-pointer focus:border-accent"
+              className="py-1 px-2 bg-surface-well border border-border-hairline rounded text-xs text-zinc-300 cursor-pointer focus:border-brand-blue"
             >
               {AGENT_OPTIONS.map((opt) => (
                 <option key={opt.id} value={opt.id}>
@@ -304,7 +304,7 @@ export default function Pulse() {
             <select
               value={selectedSeverity}
               onChange={(e) => setSelectedSeverity(e.target.value)}
-              className="py-1 px-2 bg-surface-well border border-border-hairline rounded text-xs text-zinc-300 cursor-pointer focus:border-accent"
+              className="py-1 px-2 bg-surface-well border border-border-hairline rounded text-xs text-zinc-300 cursor-pointer focus:border-brand-blue"
             >
               <option value="ALL">All Severities</option>
               <option value="SUCCESS">Success</option>

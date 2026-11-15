@@ -237,7 +237,7 @@ export default function Portfolio() {
     return (
       <div className="max-w-7xl mx-auto px-4 py-28 flex justify-center items-center">
         <div className="flex items-center gap-3 text-zinc-500 font-mono text-xs">
-          <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+          <div className="w-4 h-4 border-2 border-brand-blue border-t-transparent rounded-full animate-spin" />
           <span>Synchronizing strategy ledger telemetry...</span>
         </div>
       </div>
@@ -360,7 +360,7 @@ export default function Portfolio() {
           {/* Head-to-Head Duel Shortcut */}
           <Link
             to={`/comparison`}
-            className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1.5 rounded bg-transparent hover:bg-white/[0.04] text-zinc-400 hover:text-accent border border-transparent hover:border-border-hairline transition-colors text-xs font-mono"
+            className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1.5 rounded bg-transparent hover:bg-white/[0.04] text-zinc-400 hover:text-brand-blue-text border border-transparent hover:border-border-hairline transition-colors text-xs font-mono"
             title="Inspect Head-to-Head Duel Comparison"
           >
             <span>Duel</span>
@@ -407,7 +407,7 @@ export default function Portfolio() {
                           <CategoryBadge type="LLM" />
                           <span className="truncate">{ag.name}</span>
                         </div>
-                        {isSelected && <Check className="w-3.5 h-3.5 text-accent flex-shrink-0" />}
+                        {isSelected && <Check className="w-3.5 h-3.5 text-brand-blue-text flex-shrink-0" />}
                       </button>
                     );
                   })}
@@ -438,7 +438,7 @@ export default function Portfolio() {
                           <CategoryBadge type="RULES" />
                           <span className="truncate">{ag.name}</span>
                         </div>
-                        {isSelected && <Check className="w-3.5 h-3.5 text-accent flex-shrink-0" />}
+                        {isSelected && <Check className="w-3.5 h-3.5 text-brand-blue-text flex-shrink-0" />}
                       </button>
                     );
                   })}
@@ -459,7 +459,7 @@ export default function Portfolio() {
         <div className="border border-border-hairline bg-surface-inset rounded-lg px-4 py-2.5 font-mono text-xs space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
-              <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+              <span className="w-2 h-2 rounded-full bg-brand-blue animate-pulse" />
               <span className="text-zinc-200 font-medium">
                 {pendingOrders.length} Order{pendingOrders.length > 1 ? 's' : ''} Queued for Market Open
               </span>
@@ -506,7 +506,7 @@ export default function Portfolio() {
                         <td className="py-2 pr-4 text-right tabular-nums text-zinc-200">
                           {formatPaiseToRupees(price)}
                         </td>
-                        <td className="py-2 pr-4 text-right tabular-nums text-accent font-medium">
+                        <td className="py-2 pr-4 text-right tabular-nums text-brand-blue-text font-medium">
                           {formatPaiseToRupees(estOutlay)}
                         </td>
                         <td className="py-2 text-right text-zinc-500 text-[11px]">

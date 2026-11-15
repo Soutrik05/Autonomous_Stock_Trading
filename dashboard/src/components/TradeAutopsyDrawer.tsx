@@ -128,14 +128,14 @@ export default function TradeAutopsyDrawer({ trade, onClose }: TradeAutopsyDrawe
             {/* Deterministic Forensics & Reflection Loop */}
             <div className="border border-border-hairline bg-[#121212] p-4 rounded-lg space-y-3">
               <div className="flex items-center gap-2 text-xs font-medium text-white">
-                <Activity className="w-4 h-4 text-accent" />
+                <Activity className="w-4 h-4 text-brand-blue-text" />
                 <span>Causal Forensics & Reflection Loop</span>
               </div>
 
               <div className="p-3.5 rounded bg-[#161616] border border-border-hairline space-y-2 text-xs">
                 <div className="flex items-center justify-between text-white font-semibold text-[11px]">
                   <span>Classification: {forensic.label}</span>
-                  <span className="text-[10px] text-accent">Autonomous Reflection Engine</span>
+                  <span className="text-[10px] text-brand-blue-text">Autonomous Reflection Engine</span>
                 </div>
 
                 <p className="text-[11px] text-zinc-400 leading-relaxed font-sans">

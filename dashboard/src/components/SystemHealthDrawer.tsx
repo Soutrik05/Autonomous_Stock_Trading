@@ -64,7 +64,7 @@ export default function SystemHealthDrawer({ isOpen, onClose }: SystemHealthDraw
           {/* Header */}
           <div className="p-5 border-b border-border-hairline flex items-center justify-between bg-[#121212]">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded bg-accent/10 border border-accent/20 flex items-center justify-center text-accent">
+              <div className="w-8 h-8 rounded bg-brand-blue-soft border border-brand-blue flex items-center justify-center text-brand-blue-text">
                 <ShieldCheck className="w-4 h-4" />
               </div>
               <div>
@@ -111,7 +111,7 @@ export default function SystemHealthDrawer({ isOpen, onClose }: SystemHealthDraw
             <div className="p-3 rounded-lg border border-border-hairline bg-[#161616] font-mono text-xs">
               <div className="flex items-center justify-between text-zinc-500 text-[10px] uppercase">
                 <span>FastAPI Service</span>
-                <Server className="w-3.5 h-3.5 text-accent" />
+                <Server className="w-3.5 h-3.5 text-brand-blue-text" />
               </div>
               <div className="text-base font-bold text-white mt-1 flex items-center gap-1.5">
                 <span>{isBackendHealthy ? 'Online' : 'Standby'}</span>

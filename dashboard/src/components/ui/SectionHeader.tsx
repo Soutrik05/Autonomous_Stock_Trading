@@ -19,7 +19,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
   return (
     <div className={cn('space-y-1.5', className)}>
       {tag && (
-        <div className="flex items-center gap-2 text-[11px] font-mono text-accent">
+        <div className="flex items-center gap-2 text-[11px] font-mono text-brand-blue-text">
           <span>{tag}</span>
         </div>
       )}

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import Logo from './Logo';
 
 export default function Footer() {
   return (
@@ -10,9 +11,9 @@ export default function Footer() {
 
           {/* Col 1: Wordmark & Core Mandate */}
           <div className="md:col-span-7 space-y-3">
-            <div className="flex items-center gap-2">
-              <span className="font-serif text-2xl font-normal text-white tracking-tight">StockMinds Benchmark</span>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded border border-[#D4AF37]/30 text-[#D4AF37] bg-[#D4AF37]/5">
+            <div className="flex items-center gap-3">
+              <Logo size="header" />
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded border border-brand-blue text-brand-blue-text bg-brand-blue-soft">
                 NIFTY 500
               </span>
             </div>
@@ -45,7 +46,7 @@ export default function Footer() {
         <div className="border-t border-border-hairline pt-6 space-y-3">
           <div className="flex items-center justify-between text-[11px] font-mono text-zinc-400 font-medium">
             <span>Research Disclaimer</span>
-            <span className="text-accent font-medium">Paper Trading Only</span>
+            <span className="text-brand-blue-text font-medium">Paper Trading Only</span>
           </div>
           <p className="text-xs text-zinc-500 leading-relaxed font-sans max-w-3xl">
             StockMinds is an academic research platform for empirical market evaluation. All trades, orders, and portfolio NAVs are strictly simulated. Not registered with SEBI; does not offer financial or investment advice.
