@@ -37,7 +37,7 @@ const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 /**
  * Cadence for dynamic telemetry polling across all pages.
- * Synchronized with the 10-minute backend monitor poll (600,000 ms)
+ * Synchronized with the 10-minute backenith monitor poll (600,000 ms)
  * to maintain strict data consistency and eliminate SQLite lock contention.
  */
 export const TELEMETRY_POLL_INTERVAL_MS = 10 * 60 * 1000;

@@ -12,6 +12,7 @@ import {
 import type { NavHistoryPoint } from '../types';
 import { formatPaiseCompact, formatPaiseToRupees } from '../utils/formatters';
 import { STRATEGY_THEME } from '../theme/tokens';
+import { cn } from '../utils/cn';
 
 interface EquityCurveProps {
   data: NavHistoryPoint[];
@@ -21,32 +22,11 @@ interface EquityCurveProps {
 
 function EquityCurveComponent({
   data,
-  title = 'Multi-Agent Portfolio Equity Curves',
-  isBacktest = false,
+  title = 'Equity Trajectories',
 }: EquityCurveProps) {
-  // Active series visibility (All 10 strategies + Nifty 500 benchmark)
-  const [activeSeries, setActiveSeries] = useState<Record<string, boolean>>({
-    simons: true,
-    baselineSimons: true,
-    lynch: true,
-    baselineLynch: true,
-    marks: true,
-    baselineMarks: true,
-    jhunjhunwala: true,
-    baselineRj: true,
-    stockmindsCore: true,
-    baselineVarsity: true,
-    nifty500: true,
-  });
-
-  // Focused series on hover (Intelligent Focus & Dimming UX)
+  const [activeCohort, setActiveCohort] = useState<'ALL' | 'LLM' | 'RULES'>('ALL');
   const [hoveredSeries, setHoveredSeries] = useState<string | null>(null);
 
-  const toggleSeries = (key: string) => {
-    setActiveSeries((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
-
-  // Map NavHistoryPoint keys to StrategyTheme keys
   const seriesMap: Record<string, string> = {
     simons: 'simons',
     baselineSimons: 'baseline-simons-rules',
@@ -61,93 +41,103 @@ function EquityCurveComponent({
     nifty500: 'nifty500',
   };
 
+  const isSeriesVisible = (key: string) => {
+    if (key === 'nifty500') return true;
+    const isControl = key.startsWith('baseline');
+    if (activeCohort === 'LLM') return !isControl;
+    if (activeCohort === 'RULES') return isControl;
+    return true;
+  };
+
   return (
-    <div className="border-t border-b border-white/[0.08] py-8 space-y-6 font-sans">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h3 className="text-lg font-display font-medium text-white flex items-center gap-2.5">
-            <span>{title}</span>
-            {isBacktest && (
-              <span className="text-[10px] px-2 py-0.5 rounded border border-[#D4AF37]/40 text-[#D4AF37] bg-[#D4AF37]/10 font-mono font-medium">
-                Backtest Simulation
-              </span>
-            )}
+    <div className="border border-border-hairline bg-surface-inset rounded-lg p-5 sm:p-6 space-y-4 font-sans">
+      
+      {/* 1. Header with Title & Compact Cohort Selector */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-border-hairline pb-3.5">
+        <div className="flex items-center gap-3">
+          <h3 className="text-base sm:text-lg font-display font-medium text-white">
+            {title}
           </h3>
         </div>
 
-        {/* Series Filter Chips with Hover Focus */}
-        <div className="flex flex-wrap gap-2 text-xs font-mono">
-          {Object.entries(seriesMap).map(([pointKey, themeKey]) => {
-            const config = STRATEGY_THEME[themeKey] || STRATEGY_THEME.nifty500;
-            const isEnabled = activeSeries[pointKey];
-            const isHovered = hoveredSeries === pointKey;
-
-            return (
-              <button
-                key={pointKey}
-                onClick={() => toggleSeries(pointKey)}
-                onMouseEnter={() => setHoveredSeries(pointKey)}
-                onMouseLeave={() => setHoveredSeries(null)}
-                className={`px-2.5 py-1 text-xs font-mono border transition-all cursor-pointer flex items-center gap-2 ${
-                  isEnabled
-                    ? isHovered
-                      ? 'border-white/30 bg-white/[0.08] text-white'
-                      : 'border-white/10 bg-white/[0.03] text-zinc-300'
-                    : 'border-white/5 bg-transparent text-zinc-600 opacity-40'
-                }`}
-              >
-                <span
-                  className="w-1.5 h-1.5 rounded-full"
-                  style={{ backgroundColor: isEnabled ? config.color : '#52525b' }}
-                />
-                <span>{config.shortName}</span>
-              </button>
-            );
-          })}
+        {/* Segmented Cohort Switcher */}
+        <div
+          role="tablist"
+          aria-label="Filter strategy cohorts"
+          className="flex items-center p-0.5 rounded-md bg-surface-well border border-border-hairline text-xs font-mono flex-shrink-0"
+        >
+          {(['ALL', 'LLM', 'RULES'] as const).map((cohort) => (
+            <button
+              key={cohort}
+              role="tab"
+              aria-selected={activeCohort === cohort}
+              onClick={() => setActiveCohort(cohort)}
+              className={cn(
+                "px-3 py-1.5 rounded transition-colors cursor-pointer text-xs font-mono",
+                activeCohort === cohort
+                  ? "bg-white/[0.1] text-accent font-semibold border border-accent/30"
+                  : "text-zinc-400 hover:text-white border border-transparent"
+              )}
+            >
+              {cohort === 'ALL' ? 'All (11)' : cohort === 'LLM' ? 'LLMs (5)' : 'Rules (5)'}
+            </button>
+          ))}
         </div>
       </div>
 
-      <div className="w-full h-80 sm:h-96 min-h-[320px]">
+      {/* 2. High-Legibility Line Chart */}
+      <div className="w-full h-80 sm:h-96 min-h-[340px]">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
+          <LineChart data={data} margin={{ top: 10, right: 15, left: 5, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-            <XAxis dataKey="date" stroke="#71717A" fontSize={11} tickMargin={8} fontFamily="JetBrains Mono" />
+            <XAxis
+              dataKey="date"
+              stroke="#71717A"
+              fontSize={12}
+              tickMargin={10}
+              fontFamily="JetBrains Mono"
+              tickLine={false}
+            />
             <YAxis
               stroke="#71717A"
-              fontSize={11}
+              fontSize={12}
               domain={['dataMin - 1000', 'dataMax + 1000']}
               tickFormatter={(v) => formatPaiseCompact(v * 100)}
               fontFamily="JetBrains Mono"
+              tickLine={false}
+              axisLine={false}
             />
             <Tooltip
               content={({ active, payload, label }) => {
                 if (active && payload && payload.length) {
                   return (
-                    <div className="p-3 shadow-2xl text-xs space-y-1.5 bg-[#262626] border border-white/10 font-mono">
-                      <p className="font-sans font-medium text-white border-b pb-1 mb-1 border-white/10">
-                        Trading Date: {label}
+                    <div className="p-3.5 shadow-2xl text-xs sm:text-sm space-y-2 bg-[#161616] border border-border-hairline rounded font-mono">
+                      <p className="font-semibold text-white border-b pb-1.5 border-border-hairline">
+                        Date: {label}
                       </p>
-                      {payload.map((item) => {
-                        const themeKey = seriesMap[item.dataKey as string] || 'nifty500';
-                        const config = STRATEGY_THEME[themeKey] || STRATEGY_THEME.nifty500;
-                        return (
-                          <div
-                            key={item.dataKey as string}
-                            className="flex justify-between items-center gap-4 text-[11px]"
-                          >
-                            <span className="flex items-center gap-1.5" style={{ color: config.color }}>
-                              <span
-                                className="w-1.5 h-1.5 rounded-full"
-                                style={{ backgroundColor: config.color }}
-                              />
-                              <span>{config.shortName}:</span>
-                            </span>
-                            <span className="font-semibold text-white tabular-nums">
-                              {formatPaiseToRupees(Number(item.value) * 100)}
-                            </span>
-                          </div>
-                        );
-                      })}
+                      <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                        {payload.map((item) => {
+                          const themeKey = seriesMap[item.dataKey as string] || 'nifty500';
+                          const config = STRATEGY_THEME[themeKey] || STRATEGY_THEME.nifty500;
+                          return (
+                            <div
+                              key={item.dataKey as string}
+                              className="flex justify-between items-center gap-5 text-xs"
+                            >
+                              <span className="flex items-center gap-2" style={{ color: config.color }}>
+                                <span
+                                  className="w-2 h-2 rounded-full flex-shrink-0"
+                                  style={{ backgroundColor: config.color }}
+                                />
+                                <span>{config.shortName}:</span>
+                              </span>
+                              <span className="font-bold text-white tabular-nums">
+                                {formatPaiseToRupees(Number(item.value) * 100)}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   );
                 }
@@ -155,19 +145,18 @@ function EquityCurveComponent({
               }}
             />
             <Legend
-              wrapperStyle={{ fontSize: '11px', paddingTop: '12px' }}
+              wrapperStyle={{ fontSize: '11px', paddingTop: '14px', fontFamily: 'JetBrains Mono' }}
               onMouseEnter={(o) => setHoveredSeries(o.dataKey as string)}
               onMouseLeave={() => setHoveredSeries(null)}
             />
 
             {Object.entries(seriesMap).map(([pointKey, themeKey]) => {
               const config = STRATEGY_THEME[themeKey] || STRATEGY_THEME.nifty500;
-              if (!activeSeries[pointKey]) return null;
+              if (!isSeriesVisible(pointKey)) return null;
 
-              // Intelligent Focus & Dimming UX
               const isHovered = hoveredSeries === pointKey;
               const opacity = hoveredSeries ? (isHovered ? 1.0 : 0.15) : 0.85;
-              const strokeWidth = isHovered ? 3.5 : pointKey === 'simons' || pointKey === 'baselineSimons' ? 2.5 : 2;
+              const strokeWidth = isHovered ? 3 : pointKey === 'nifty500' ? 1.5 : 2;
 
               return (
                 <Line
@@ -179,14 +168,15 @@ function EquityCurveComponent({
                   strokeWidth={strokeWidth}
                   strokeOpacity={opacity}
                   strokeDasharray={config.strokeDasharray}
-                  dot={{ r: isHovered ? 4 : 2, fill: config.color }}
-                  activeDot={{ r: 5 }}
+                  dot={false}
+                  activeDot={{ r: 4 }}
                 />
               );
             })}
           </LineChart>
         </ResponsiveContainer>
       </div>
+
     </div>
   );
 }

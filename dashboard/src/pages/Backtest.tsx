@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { NavHistoryPoint } from '../types';
 import { apiService } from '../services/api';
-import { formatPct } from '../utils/formatters';
-import { SectionHeader } from '../components/ui/SectionHeader';
 import { CategoryBadge } from '../components/ui/CategoryBadge';
 import EquityCurve from '../components/EquityCurve';
 import { cn } from '../utils/cn';
@@ -10,74 +8,103 @@ import { cn } from '../utils/cn';
 interface RegimeWindow {
   id: string;
   name: string;
+  shortLabel: string;
   runId: string;
   period: string;
   sessions: number;
   vix: number;
-  vixBadge: string;
   regime: 'BULL' | 'SIDEWAYS' | 'CORRECTION';
-  regimeLabel: string;
+  regimeBadgeText: string;
   nifty500ReturnPct: number;
-  description: string;
-  empiricalHighlight: string;
 }
 
 const VETTED_WINDOWS: RegimeWindow[] = [
   {
     id: 'rolling_w1_vetted',
-    name: 'Window 1: Sustained Bull Rally',
+    name: 'Sustained Bull Expansion',
+    shortLabel: 'Bull Expansion',
     runId: 'rolling_w1_vetted',
-    period: '2025-02-28 → 2025-11-21',
+    period: '28 Feb 2025 – 21 Nov 2025',
     sessions: 180,
     vix: 13.8,
-    vixBadge: 'Low Volatility',
     regime: 'BULL',
-    regimeLabel: 'STRONG_BULL_EXPANSION',
+    regimeBadgeText: 'BULL',
     nifty500ReturnPct: 19.89,
-    description: '180 consecutive trading sessions capturing persistent index momentum expansion and broad sector participation.',
-    empiricalHighlight: 'Tests whether volatility parity scales up exposure without blowups during structural rallies.',
   },
   {
     id: 's1_vetted',
-    name: 'Supplementary 1: Range Chop & Mean-Reversion',
+    name: 'Range Compression Chop',
+    shortLabel: 'Sideways Chop',
     runId: 's1_vetted',
-    period: '2025-11-24 → 2026-02-04',
+    period: '24 Nov 2025 – 04 Feb 2026',
     sessions: 51,
     vix: 11.3,
-    vixBadge: 'Ultra-Low Volatility',
     regime: 'SIDEWAYS',
-    regimeLabel: 'RANGE_COMPRESSION',
+    regimeBadgeText: 'SIDEWAYS',
     nifty500ReturnPct: -0.60,
-    description: '51 sessions of low-volatility range-bound oscillation testing cash preservation and false-breakout discipline.',
-    empiricalHighlight: 'Tests false-breakout pruning, capital preservation, and patience in sideways chop.',
   },
   {
     id: 'w2_vetted',
-    name: 'Window 2: High-Vol Correction & Recovery',
+    name: 'High-Vol Correction & Recovery',
+    shortLabel: 'High-Vol Correction',
     runId: 'w2_vetted',
-    period: '2026-02-05 → 2026-10-29',
+    period: '05 Feb 2026 – 29 Oct 2026',
     sessions: 180,
     vix: 22.4,
-    vixBadge: 'High Volatility Spikes',
     regime: 'CORRECTION',
-    regimeLabel: 'HIGH_VOL_CORRECTION',
+    regimeBadgeText: 'CORRECTION',
     nifty500ReturnPct: 0.36,
-    description: '180 trading sessions testing sharp volatility spikes, rapid drawdown recovery, and margin-of-safety resilience.',
-    empiricalHighlight: 'Tests catastrophic drawdown containment, stop discipline, and recovery alpha.',
   },
 ];
 
-const EMPIRICAL_DURATIONS = [
-  { agent: 'Jim Simons', school: 'Quant Momentum', target: '1–10 Days', empirical: '6.4 Days', maxHold: '18 Days', resolution: 'Trailing Stop / Time Decay', type: 'LLM' },
-  { agent: 'Simons Rules Baseline', school: 'Quant Momentum', target: '1–10 Days', empirical: '4.8 Days', maxHold: '10 Days', resolution: 'Fixed 2.5x ATR Trailing Stop', type: 'RULES' },
-  { agent: 'StockMinds Core', school: 'Dual-Confluence', target: '5–20 Days', empirical: '14.2 Days', maxHold: '31 Days', resolution: 'Target Reached / Confluence Break', type: 'LLM' },
-  { agent: 'Varsity Rules Baseline', school: 'Dual-Confluence', target: '5–20 Days', empirical: '12.0 Days', maxHold: '20 Days', resolution: 'Rigid EMA 20/50 Stop', type: 'RULES' },
-  { agent: 'Peter Lynch', school: 'GARP Compounding', target: '15–60 Days', empirical: '38.6 Days', maxHold: '72 Days', resolution: 'Valuation Cap / Deterioration', type: 'LLM' },
-  { agent: 'Lynch Rules Baseline', school: 'GARP Compounding', target: '15–60 Days', empirical: '42.1 Days', maxHold: '60 Days', resolution: 'Mechanical PEG > 1.2 Exit', type: 'RULES' },
-  { agent: 'Howard Marks', school: 'Contrarian Value', target: '30–90 Days', empirical: '52.1 Days', maxHold: '112 Days', resolution: 'Mean Reversion / Target Met', type: 'LLM' },
-  { agent: 'Marks Rules Baseline', school: 'Contrarian Value', target: '30–90 Days', empirical: '48.5 Days', maxHold: '90 Days', resolution: 'Fixed Valuation Target / Time Stop', type: 'RULES' },
-  { agent: 'Rakesh Jhunjhunwala', school: 'Secular Growth', target: '90–180 Days', empirical: '84.3 Days', maxHold: '164 Days', resolution: 'Thesis Fulfillment / Rebalance', type: 'LLM' },
-  { agent: 'Jhunjhunwala Rules Baseline', school: 'Secular Growth', target: '90–180 Days', empirical: '91.0 Days', maxHold: '180 Days', resolution: 'Quarterly Fixed Rebalance', type: 'RULES' },
+interface PhilosophyDurationGroup {
+  philosophy: string;
+  strategies: {
+    agent: string;
+    type: 'LLM' | 'RULES';
+    target: string;
+    empirical: string;
+    maxHold: string;
+    resolution: string;
+  }[];
+}
+
+const PHILOSOPHY_GROUPS: PhilosophyDurationGroup[] = [
+  {
+    philosophy: 'Quantitative Momentum',
+    strategies: [
+      { agent: 'Jim Simons', type: 'LLM', target: '1–10 Days', empirical: '6.4 Days', maxHold: '18 Days', resolution: 'Trailing Stop / Time Decay' },
+      { agent: 'Simons Rules Baseline', type: 'RULES', target: '1–10 Days', empirical: '4.8 Days', maxHold: '10 Days', resolution: 'Fixed 2.5x ATR Trailing Stop' },
+    ],
+  },
+  {
+    philosophy: 'Dual-Confluence Swing',
+    strategies: [
+      { agent: 'StockMinds Core', type: 'LLM', target: '5–20 Days', empirical: '14.2 Days', maxHold: '31 Days', resolution: 'Target Reached / Confluence Break' },
+      { agent: 'Varsity Rules Baseline', type: 'RULES', target: '5–20 Days', empirical: '12.0 Days', maxHold: '20 Days', resolution: 'Rigid EMA 20/50 Stop' },
+    ],
+  },
+  {
+    philosophy: 'GARP Compounding',
+    strategies: [
+      { agent: 'Peter Lynch', type: 'LLM', target: '15–60 Days', empirical: '38.6 Days', maxHold: '72 Days', resolution: 'Valuation Cap / Deterioration' },
+      { agent: 'Lynch Rules Baseline', type: 'RULES', target: '15–60 Days', empirical: '42.1 Days', maxHold: '60 Days', resolution: 'Mechanical PEG > 1.2 Exit' },
+    ],
+  },
+  {
+    philosophy: 'Contrarian Value',
+    strategies: [
+      { agent: 'Howard Marks', type: 'LLM', target: '30–90 Days', empirical: '52.1 Days', maxHold: '112 Days', resolution: 'Mean Reversion / Target Met' },
+      { agent: 'Marks Rules Baseline', type: 'RULES', target: '30–90 Days', empirical: '48.5 Days', maxHold: '90 Days', resolution: 'Fixed Valuation Target / Time Stop' },
+    ],
+  },
+  {
+    philosophy: 'Secular Domestic Growth',
+    strategies: [
+      { agent: 'Rakesh Jhunjhunwala', type: 'LLM', target: '90–180 Days', empirical: '84.3 Days', maxHold: '164 Days', resolution: 'Thesis Fulfillment / Rebalance' },
+      { agent: 'Jhunjhunwala Rules Baseline', type: 'RULES', target: '90–180 Days', empirical: '91.0 Days', maxHold: '180 Days', resolution: 'Quarterly Fixed Rebalance' },
+    ],
+  },
 ];
 
 export default function Backtest() {
@@ -105,180 +132,144 @@ export default function Backtest() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-7 animate-hero-entrance font-sans">
       
-      {/* 1. STANDARDIZED PAGE HEADER & OVERVIEW */}
-      <div className="space-y-3 border-b border-border-hairline pb-4">
-        <SectionHeader
-          title="Backtest Laboratory"
-          tag="EMPIRICAL REGIME AUDIT"
-          subtitle="Out-of-sample historical walk-forward simulations across divergent market regimes (Bull Rally, Sideways Chop, and Volatility Shocks)."
-        />
-        <p className="text-base sm:text-lg text-zinc-300 font-sans leading-relaxed max-w-3xl">
-          Three non-overlapping historical windows evaluate agent resilience. All strategies start with matched ₹5,00,000 seed capital and undergo identical statutory charges and slippage under strict point-in-time constraints.
-        </p>
-      </div>
-
-      {/* 2. REGIME WINDOW SELECTOR CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {VETTED_WINDOWS.map((win) => {
-          const isSelected = win.id === selectedWindowId;
-          const isBull = win.regime === 'BULL';
-          const isCorrection = win.regime === 'CORRECTION';
-
-          return (
-            <button
-              key={win.id}
-              onClick={() => setSelectedWindowId(win.id)}
+      {/* 1. STANDARDIZED HEADER & STREAMLINED REGIME SWITCHER (MATCHING COMPARISON) */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 border-b border-border-hairline pb-4">
+        
+        {/* Left: Active Regime Identity & Key Context */}
+        <div className="space-y-1">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="text-2xl sm:text-3xl font-display font-medium tracking-tight text-white">
+              {activeWindow.name}
+            </h1>
+            <span
               className={cn(
-                "p-4 rounded border text-left cursor-pointer transition-colors flex flex-col justify-between",
-                isSelected
-                  ? "border-accent bg-surface-inset"
-                  : "border-border-hairline bg-[#141414] hover:border-white/20 hover:bg-surface-inset"
+                "text-xs px-2 py-0.5 rounded font-mono font-semibold tracking-wider",
+                activeWindow.regime === 'BULL'
+                  ? "bg-emerald-500/15 text-positive border border-emerald-500/30"
+                  : activeWindow.regime === 'CORRECTION'
+                  ? "bg-rose-500/15 text-negative border border-rose-500/30"
+                  : "bg-zinc-800 text-zinc-300 border border-zinc-700"
               )}
             >
-              <div>
-                <div className="flex items-center justify-between mb-2.5">
-                  <span
-                    className={cn(
-                      "text-[10px] px-2 py-0.5 rounded border uppercase font-mono font-semibold",
-                      isBull
-                        ? "bg-emerald-500/10 text-positive border-emerald-500/25"
-                        : isCorrection
-                        ? "bg-rose-500/10 text-negative border-rose-500/25"
-                        : "bg-amber-500/10 text-amber-400 border-amber-500/25"
-                    )}
-                  >
-                    {win.regime}
-                  </span>
-                  <span className={cn("font-mono font-bold text-xs sm:text-sm tabular-nums", win.nifty500ReturnPct >= 0 ? 'text-positive' : 'text-negative')}>
-                    Nifty {win.nifty500ReturnPct >= 0 ? '+' : ''}{win.nifty500ReturnPct.toFixed(2)}%
-                  </span>
-                </div>
+              {activeWindow.regimeBadgeText}
+            </span>
+            <span className="text-zinc-600 hidden sm:inline">·</span>
+            <span className="text-xs sm:text-sm font-mono text-zinc-400">
+              Nifty 500: <strong className={cn("font-bold tabular-nums", activeWindow.nifty500ReturnPct >= 0 ? "text-positive" : "text-negative")}>
+                {activeWindow.nifty500ReturnPct >= 0 ? '+' : ''}{activeWindow.nifty500ReturnPct.toFixed(2)}%
+              </strong>
+            </span>
+          </div>
 
-                <div className={cn("text-sm font-sans font-medium mb-1", isSelected ? "text-white" : "text-zinc-200")}>
-                  {win.name}
-                </div>
-              </div>
+          <p className="text-xs sm:text-sm text-zinc-400 font-mono">
+            {activeWindow.period} · {activeWindow.sessions} Sessions · India VIX {activeWindow.vix.toFixed(1)} · ₹5L Seed
+          </p>
+        </div>
 
-              <div className="mt-3 pt-2.5 border-t border-border-hairline font-mono text-[11px] text-zinc-500 space-y-0.5">
-                <div>{win.period}</div>
-                <div>{win.sessions} sessions · VIX {win.vix.toFixed(1)}</div>
-              </div>
+        {/* Right: Compact 3-Regime Segmented Switcher */}
+        <div
+          role="tablist"
+          aria-label="Macro regime windows"
+          className="flex items-center p-0.5 rounded-md bg-surface-well border border-border-hairline text-xs sm:text-sm font-mono flex-shrink-0"
+        >
+          {VETTED_WINDOWS.map((win) => (
+            <button
+              key={win.id}
+              role="tab"
+              aria-selected={selectedWindowId === win.id}
+              onClick={() => setSelectedWindowId(win.id)}
+              className={cn(
+                "px-3.5 py-1.5 rounded transition-colors cursor-pointer text-xs sm:text-sm whitespace-nowrap",
+                selectedWindowId === win.id
+                  ? "bg-white/[0.1] text-accent font-semibold border border-accent/30"
+                  : "text-zinc-400 hover:text-white border border-transparent"
+              )}
+            >
+              {win.shortLabel}
             </button>
-          );
-        })}
-      </div>
-
-      {/* 3. ACTIVE REGIME TELEMETRY DETAILS */}
-      <div className="border border-border-hairline bg-surface-inset rounded-lg p-4 font-mono text-xs space-y-3">
-        <div className="grid grid-cols-2 sm:grid-cols-5 divide-y sm:divide-y-0 sm:divide-x divide-border-hairline">
-          <div className="py-1 sm:px-3">
-            <span className="text-[11px] text-zinc-500 block font-sans">Period</span>
-            <div className="text-zinc-200 font-medium mt-0.5">{activeWindow.period}</div>
-          </div>
-          <div className="py-1 sm:px-3">
-            <span className="text-[11px] text-zinc-500 block font-sans">Sessions</span>
-            <div className="text-white font-medium mt-0.5">{activeWindow.sessions} Trading Days</div>
-          </div>
-          <div className="py-1 sm:px-3">
-            <span className="text-[11px] text-zinc-500 block font-sans">India VIX</span>
-            <div className="text-white font-medium mt-0.5 tabular-nums">{activeWindow.vix.toFixed(1)} ({activeWindow.vixBadge})</div>
-          </div>
-          <div className="py-1 sm:px-3">
-            <span className="text-[11px] text-zinc-500 block font-sans">Nifty 500 Index</span>
-            <div className={cn("font-semibold mt-0.5 tabular-nums", activeWindow.nifty500ReturnPct >= 0 ? "text-positive" : "text-negative")}>
-              {formatPct(activeWindow.nifty500ReturnPct)}
-            </div>
-          </div>
-          <div className="py-1 sm:px-3">
-            <span className="text-[11px] text-zinc-500 block font-sans">Seed Capital</span>
-            <div className="text-accent font-semibold mt-0.5">₹5,00,000 / Agent</div>
-          </div>
-        </div>
-
-        <div className="pt-2.5 border-t border-border-hairline flex flex-wrap items-center justify-between gap-2 text-[11px] text-zinc-400">
-          <div>
-            <span className="text-zinc-500 mr-1.5 font-medium text-[11px] font-sans">Empirical Focus:</span>
-            <span className="text-zinc-300 font-sans">{activeWindow.empiricalHighlight}</span>
-          </div>
-          <span className="text-zinc-500 font-mono">Run ID: <code className="text-zinc-400">{activeWindow.runId}</code></span>
+          ))}
         </div>
       </div>
 
-      {/* 4. MULTI-AGENT EQUITY GROWTH COMBAT CURVES */}
+      {/* 2. MULTI-AGENT EQUITY GROWTH COMBAT CURVES */}
       <section className="space-y-3">
-        <div className="flex items-center justify-between border-b border-border-hairline pb-2 font-mono">
-          <h2 className="font-sans text-base font-medium text-zinc-200">
-            Equity Trajectories · {activeWindow.name}
-          </h2>
-          <span className="text-zinc-500 text-xs">
-            {activeWindow.sessions} Sessions
-          </span>
-        </div>
-
         {loading ? (
-          <div className="p-20 text-center text-zinc-500 font-mono text-xs flex justify-center items-center gap-3">
-            <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+          <div className="border border-border-hairline bg-surface-inset rounded-lg p-20 text-center text-zinc-500 font-mono text-sm flex justify-center items-center gap-3">
+            <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
             <span>Synchronizing regime equity growth curves...</span>
           </div>
         ) : (
           <EquityCurve
             data={navHistory}
-            title={`${activeWindow.name} — Equity Curves`}
+            title={`${activeWindow.name} — Equity Trajectories`}
             isBacktest={true}
           />
         )}
       </section>
 
-      {/* 5. EMPIRICAL HOLDING DURATION & THESIS RESOLUTION */}
+      {/* 3. EMPIRICAL HOLDING DURATION & THESIS RESOLUTION TABLE */}
       <section className="space-y-3 pt-2">
-        <div className="flex items-center justify-between border-b border-border-hairline pb-2 font-mono">
-          <h2 className="font-sans text-base font-medium text-zinc-200">
-            Empirical Holding Duration & Thesis Resolution
-          </h2>
-          <span className="text-zinc-500 text-xs">
-            5 Autonomous Agents vs. 5 Rules Baselines
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-border-hairline pb-3">
+          <div>
+            <h2 className="font-display text-base sm:text-lg font-medium text-white">
+              Holding Duration & Thesis Resolution
+            </h2>
+            <p className="text-xs sm:text-sm text-zinc-400 font-mono mt-0.5">
+              Observed holding period metrics across 5 autonomous LLM strategies and matched deterministic rules controls
+            </p>
+          </div>
+          <span className="text-xs font-mono text-zinc-400">
+            10 Matched Strategies · Out-of-Sample
           </span>
         </div>
 
         <div className="border border-border-hairline bg-surface-inset rounded-lg overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left font-mono text-xs sm:text-sm">
+            <table className="w-full text-left font-mono text-sm sm:text-base">
               <thead>
-                <tr className="bg-surface-well border-b border-border-hairline text-[11px] text-zinc-400">
-                  <th className="py-2.5 px-3 font-normal">Strategy / Persona</th>
-                  <th className="py-2.5 px-3 font-normal">Classification</th>
-                  <th className="py-2.5 px-3 font-normal">School</th>
-                  <th className="py-2.5 px-3 font-normal text-right">Target Horizon</th>
-                  <th className="py-2.5 px-3 font-normal text-right text-positive">Empirical Avg</th>
-                  <th className="py-2.5 px-3 font-normal text-right text-amber-300">Max Hold</th>
-                  <th className="py-2.5 px-3 font-normal">Primary Resolution Mechanism</th>
+                <tr className="bg-surface-well border-b border-border-hairline text-xs sm:text-sm text-zinc-400">
+                  <th className="py-3 px-5 font-normal">Strategy / Persona</th>
+                  <th className="py-3 px-4 font-normal">Type</th>
+                  <th className="py-3 px-4 font-normal text-right">Target Horizon</th>
+                  <th className="py-3 px-4 font-normal text-right text-positive">Empirical Mean</th>
+                  <th className="py-3 px-4 font-normal text-right text-zinc-300">Max Observed</th>
+                  <th className="py-3 px-5 font-normal">Exit Trigger</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-hairline text-zinc-300">
-                {EMPIRICAL_DURATIONS.map((dur) => (
-                  <tr key={dur.agent} className="hover:bg-white/[0.02] transition-colors">
-                    <td className="py-2.5 px-3 font-semibold text-white">
-                      {dur.agent}
-                    </td>
-                    <td className="py-2.5 px-3">
-                      <CategoryBadge type={dur.type} />
-                    </td>
-                    <td className="py-2.5 px-3 text-zinc-400 font-sans text-xs">
-                      {dur.school}
-                    </td>
-                    <td className="py-2.5 px-3 text-right text-zinc-400 tabular-nums">
-                      {dur.target}
-                    </td>
-                    <td className="py-2.5 px-3 text-right text-positive font-semibold tabular-nums">
-                      {dur.empirical}
-                    </td>
-                    <td className="py-2.5 px-3 text-right text-amber-300 font-semibold tabular-nums">
-                      {dur.maxHold}
-                    </td>
-                    <td className="py-2.5 px-3 text-zinc-400 font-sans text-xs">
-                      {dur.resolution}
-                    </td>
-                  </tr>
+                {PHILOSOPHY_GROUPS.map((group, groupIdx) => (
+                  group.strategies.map((strat, stratIdx) => {
+                    const isLastInGroup = stratIdx === group.strategies.length - 1;
+                    return (
+                      <tr
+                        key={strat.agent}
+                        className={cn(
+                          "hover:bg-white/[0.02] transition-colors",
+                          groupIdx % 2 === 1 ? "bg-white/[0.01]" : "bg-transparent",
+                          isLastInGroup && groupIdx < PHILOSOPHY_GROUPS.length - 1 ? "border-b-2 border-border-hairline" : ""
+                        )}
+                      >
+                        <td className="py-3.5 px-5 font-sans font-medium text-white text-sm sm:text-base whitespace-nowrap">
+                          {strat.agent}
+                        </td>
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          <CategoryBadge type={strat.type} />
+                        </td>
+                        <td className="py-3.5 px-4 text-right text-zinc-300 font-medium tabular-nums whitespace-nowrap">
+                          {strat.target}
+                        </td>
+                        <td className="py-3.5 px-4 text-right text-positive font-bold tabular-nums whitespace-nowrap">
+                          {strat.empirical}
+                        </td>
+                        <td className="py-3.5 px-4 text-right text-zinc-100 font-medium tabular-nums whitespace-nowrap">
+                          {strat.maxHold}
+                        </td>
+                        <td className="py-3.5 px-5 text-zinc-200 font-sans text-xs sm:text-sm">
+                          {strat.resolution}
+                        </td>
+                      </tr>
+                    );
+                  })
                 ))}
               </tbody>
             </table>
