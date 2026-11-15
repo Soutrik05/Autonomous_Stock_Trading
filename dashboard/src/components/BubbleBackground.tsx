@@ -53,10 +53,10 @@ const CONFIG = {
   // lags the cursor and fades in/out as the pointer enters/leaves the window.
   glowGreenColor: [16, 185, 129] as [number, number, number],
   glowGreenRadius: 220,
-  glowGreenAlpha: 0.1,
+  glowGreenAlpha: 0.065,
   glowBlueColor: [0, 63, 136] as [number, number, number],
   glowBlueRadius: 260,
-  glowBlueAlpha: 0.06,
+  glowBlueAlpha: 0.039,
   glowFollowRate: 5.5, // per second; ~9% of the remaining distance per 60fps frame
   glowFadeRate: 3, // per second
 };
