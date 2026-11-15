@@ -1,15 +1,43 @@
 import { useEffect, useRef } from 'react';
 
-const PALETTE: Array<[number, number, number]> = [
-  [79, 143, 224],
-  [79, 143, 224],
-  [0, 90, 190],
-  [0, 63, 136],
-  [16, 185, 129],
-];
+/** All tunable numbers in one place. Colors/sizes/repel/decay are unchanged from the
+ * first version; the alpha/count values here are ~1.5x the original, still subtle. */
+const CONFIG = {
+  palette: [
+    [79, 143, 224],
+    [79, 143, 224],
+    [0, 90, 190],
+    [0, 63, 136],
+    [16, 185, 129],
+  ] as Array<[number, number, number]>,
+  maxDpr: 2,
+  cursorRepelRadius: 170,
+  cursorRepelForce: 0.45,
 
-const MAX_DPR = 2;
-const CURSOR_REPEL_RADIUS = 170;
+  ambientCountDesktop: 22,
+  ambientCountTouch: 8,
+  ambientRadius: [8, 30] as [number, number],
+  ambientAlpha: [0.05, 0.11] as [number, number],
+  ambientDrift: [-0.08, 0.08] as [number, number],
+
+  twinkleCount: 60,
+  twinkleRadius: [0.6, 1.6] as [number, number],
+  twinkleBaseAlpha: 0.14,
+  twinkleAmplitude: 0.16,
+  twinkleSpeed: 1.5,
+
+  trailSpawnDistance: 16,
+  trailMaxPerMove: 2,
+  trailRadius: [2.5, 9] as [number, number],
+  trailVy: [-0.6, -0.2] as [number, number],
+  trailDecay: [0.022, 0.034] as [number, number],
+  trailAlphaScale: 0.3,
+  trailRingMinRadius: 5,
+
+  cursorGlowRadius: 60,
+  cursorGlowAlpha: 0.1,
+  cursorGlowColor: [0, 63, 136] as [number, number, number],
+};
 
 interface AmbientBubble {
   x: number;
@@ -40,16 +68,20 @@ interface TrailBubble {
 }
 
 function pickColor(): [number, number, number] {
-  return PALETTE[Math.floor(Math.random() * PALETTE.length)];
+  return CONFIG.palette[Math.floor(Math.random() * CONFIG.palette.length)];
 }
 
 function rand(min: number, max: number): number {
   return min + Math.random() * (max - min);
 }
 
+function randIn(range: [number, number]): number {
+  return rand(range[0], range[1]);
+}
+
 /**
  * Very subtle, themed, cursor-reactive bubble field rendered behind page content.
- * Mounted only on Home and the Agents Terminal (Portfolio) pages -- see those files.
+ * Mounted once at the app level (Layout.tsx) so it persists across route changes.
  * Renders nothing at all under prefers-reduced-motion. Pure canvas, no new libraries.
  */
 export default function BubbleBackground() {
@@ -78,12 +110,12 @@ export default function BubbleBackground() {
 
     let width = window.innerWidth;
     let height = window.innerHeight;
-    let dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
+    let dpr = Math.min(window.devicePixelRatio || 1, CONFIG.maxDpr);
 
     function resize() {
       width = window.innerWidth;
       height = window.innerHeight;
-      dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
+      dpr = Math.min(window.devicePixelRatio || 1, CONFIG.maxDpr);
       canvas!.width = Math.round(width * dpr);
       canvas!.height = Math.round(height * dpr);
       canvas!.style.width = `${width}px`;
@@ -93,21 +125,21 @@ export default function BubbleBackground() {
     resize();
     window.addEventListener('resize', resize);
 
-    const AMBIENT_COUNT = isTouch ? 8 : 18;
-    const ambient: AmbientBubble[] = Array.from({ length: AMBIENT_COUNT }, () => ({
+    const ambientCount = isTouch ? CONFIG.ambientCountTouch : CONFIG.ambientCountDesktop;
+    const ambient: AmbientBubble[] = Array.from({ length: ambientCount }, () => ({
       x: Math.random() * width,
       y: Math.random() * height,
-      r: rand(8, 30),
-      alpha: rand(0.03, 0.075),
-      vx: rand(-0.08, 0.08),
-      vy: rand(-0.06, 0.06),
+      r: randIn(CONFIG.ambientRadius),
+      alpha: randIn(CONFIG.ambientAlpha),
+      vx: randIn(CONFIG.ambientDrift),
+      vy: randIn(CONFIG.ambientDrift),
       color: pickColor(),
     }));
 
-    const twinkles: TwinkleDot[] = Array.from({ length: 60 }, () => ({
+    const twinkles: TwinkleDot[] = Array.from({ length: CONFIG.twinkleCount }, () => ({
       x: Math.random() * width,
       y: Math.random() * height,
-      r: rand(0.6, 1.6),
+      r: randIn(CONFIG.twinkleRadius),
       phase: Math.random() * Math.PI * 2,
       color: pickColor(),
     }));
@@ -124,18 +156,18 @@ export default function BubbleBackground() {
 
       const dx = mouse.x - lastSpawn.x;
       const dy = mouse.y - lastSpawn.y;
-      if (Math.hypot(dx, dy) < 16) return;
+      if (Math.hypot(dx, dy) < CONFIG.trailSpawnDistance) return;
       lastSpawn = { x: mouse.x, y: mouse.y };
 
-      const spawnCount = Math.min(2, 1 + Math.floor(Math.random() * 2));
+      const spawnCount = Math.min(CONFIG.trailMaxPerMove, 1 + Math.floor(Math.random() * 2));
       for (let i = 0; i < spawnCount; i++) {
         trail.push({
           x: mouse.x + rand(-4, 4),
           y: mouse.y + rand(-4, 4),
-          r: rand(2.5, 9),
-          vy: rand(-0.6, -0.2),
+          r: randIn(CONFIG.trailRadius),
+          vy: randIn(CONFIG.trailVy),
           life: 1,
-          decay: rand(0.022, 0.034),
+          decay: randIn(CONFIG.trailDecay),
           color: pickColor(),
         });
       }
@@ -190,8 +222,8 @@ export default function BubbleBackground() {
           const dx = b.x - mouse.x;
           const dy = b.y - mouse.y;
           const d = Math.hypot(dx, dy);
-          if (d < CURSOR_REPEL_RADIUS && d > 0.001) {
-            const force = 0.45 * Math.pow(1 - d / CURSOR_REPEL_RADIUS, 2);
+          if (d < CONFIG.cursorRepelRadius && d > 0.001) {
+            const force = CONFIG.cursorRepelForce * Math.pow(1 - d / CONFIG.cursorRepelRadius, 2);
             b.x += (dx / d) * force;
             b.y += (dy / d) * force;
           }
@@ -202,13 +234,13 @@ export default function BubbleBackground() {
 
       // Twinkling dots.
       for (const dot of twinkles) {
-        const alpha = Math.max(0, 0.09 + 0.12 * Math.sin(t * 1.5 + dot.phase));
+        const alpha = Math.max(0, CONFIG.twinkleBaseAlpha + CONFIG.twinkleAmplitude * Math.sin(t * CONFIG.twinkleSpeed + dot.phase));
         drawBubble(dot.x, dot.y, dot.r, alpha, dot.color);
       }
 
       // Faint glow under the cursor.
       if (!isTouch && mouse.active) {
-        drawBubble(mouse.x, mouse.y, 60, 0.07, [0, 63, 136]);
+        drawBubble(mouse.x, mouse.y, CONFIG.cursorGlowRadius, CONFIG.cursorGlowAlpha, CONFIG.cursorGlowColor);
       }
 
       // Cursor trail: rise, fade, thin ring once big enough.
@@ -217,9 +249,9 @@ export default function BubbleBackground() {
         for (const p of trail) {
           p.y += p.vy;
           p.life -= p.decay;
-          const alpha = Math.max(0, 0.2 * p.life);
+          const alpha = Math.max(0, CONFIG.trailAlphaScale * p.life);
           drawBubble(p.x, p.y, p.r, alpha, p.color);
-          if (p.r > 5) {
+          if (p.r > CONFIG.trailRingMinRadius) {
             const [cr, cg, cb] = p.color;
             ctx!.strokeStyle = `rgba(${cr}, ${cg}, ${cb}, ${alpha * 0.6})`;
             ctx!.lineWidth = 0.75;

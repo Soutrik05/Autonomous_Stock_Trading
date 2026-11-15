@@ -652,18 +652,21 @@ select:focus-visible {
   pointer-events: none;
 }
 
-/* Frosted-glass big panels that sit above the bubble field (Home hero, Agents Terminal
-   main panels). Same border/radius as before; only the background becomes translucent
-   and blurred so the bubbles read as softer/blurrier behind it than outside it. */
-.frosted-glass {
-  background: rgba(22, 22, 22, 0.8);
+/* Frosted-glass panels, applied through the one shared token every page already uses
+   for its big panels/cards (`bg-surface-inset`) rather than page-by-page copies. Same
+   border/radius as before everywhere; only the background becomes translucent and
+   blurred, so bubbles read as softer/blurrier behind a panel than outside it. Text and
+   chart lines drawn on top of a panel are unaffected by backdrop-filter -- it only
+   blurs what's behind, so readability is unchanged. */
+.bg-surface-inset {
+  background-color: rgba(22, 22, 22, 0.8);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .frosted-glass {
-    background: rgba(22, 22, 22, 0.96);
+  .bg-surface-inset {
+    background-color: rgba(22, 22, 22, 0.96);
   }
 }
 
