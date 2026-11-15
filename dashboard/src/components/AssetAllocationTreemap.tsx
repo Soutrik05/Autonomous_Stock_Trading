@@ -277,7 +277,7 @@ export default function AssetAllocationTreemap({
         <div className="overflow-x-auto">
           <table className="w-full text-left font-mono text-xs border-collapse">
             <thead>
-              <tr className="border-b border-white/10 text-[10px] text-zinc-400 font-sans uppercase tracking-wider">
+              <tr className="border-b border-white/10 text-[11px] text-zinc-400 font-sans">
                 <th className="py-2 px-2 font-medium">Asset</th>
                 <th className="py-2 px-3 text-right font-medium">Shares</th>
                 <th className="py-2 px-3 text-right font-medium">Weight</th>

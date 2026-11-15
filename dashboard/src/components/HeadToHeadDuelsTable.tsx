@@ -136,9 +136,9 @@ export default function HeadToHeadDuelsTable({ agents }: HeadToHeadDuelsTablePro
   return (
     <div className="space-y-8">
       {/* 1. AGGREGATE BENCHMARK TELEMETRY */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-5 sm:p-6 cosmic-card rounded-xl">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-5 sm:p-6 bg-surface-inset border border-border-hairline rounded-lg">
         <div>
-          <div className="flex items-center gap-1.5 text-xs font-sans uppercase tracking-wider text-zinc-400 font-medium">
+          <div className="flex items-center gap-1.5 text-xs font-mono text-zinc-400 font-medium">
             <Scale className="w-3.5 h-3.5 text-zinc-500" />
             <span>Mean Alpha Spread</span>
           </div>
@@ -155,7 +155,7 @@ export default function HeadToHeadDuelsTable({ agents }: HeadToHeadDuelsTablePro
         </div>
 
         <div>
-          <span className="text-xs font-sans uppercase tracking-wider text-zinc-400 font-medium block">
+          <span className="text-xs font-mono text-zinc-400 font-medium block">
             LLM Outperformance Rate
           </span>
           <div className="text-3xl font-mono font-bold text-white mt-1.5 tabular-nums">
@@ -167,7 +167,7 @@ export default function HeadToHeadDuelsTable({ agents }: HeadToHeadDuelsTablePro
         </div>
 
         <div>
-          <span className="text-xs font-sans uppercase tracking-wider text-zinc-400 font-medium block">
+          <span className="text-xs font-mono text-zinc-400 font-medium block">
             Benchmark Universe
           </span>
           <div className="text-base font-sans font-semibold mt-2.5 text-zinc-200">
@@ -179,7 +179,7 @@ export default function HeadToHeadDuelsTable({ agents }: HeadToHeadDuelsTablePro
         </div>
 
         <div>
-          <span className="text-xs font-sans uppercase tracking-wider text-zinc-400 font-medium block">
+          <span className="text-xs font-mono text-zinc-400 font-medium block">
             Active Heuristic Library
           </span>
           <div className="text-3xl font-mono font-bold text-white mt-1.5 tabular-nums">
@@ -203,7 +203,7 @@ export default function HeadToHeadDuelsTable({ agents }: HeadToHeadDuelsTablePro
         </div>
 
         {/* Quiet shared column reference header across matchups */}
-        <div className="hidden sm:grid grid-cols-12 px-5 py-1 text-[10px] font-mono uppercase tracking-widest text-zinc-500">
+        <div className="hidden sm:grid grid-cols-12 px-5 py-1 text-[11px] font-mono text-zinc-400 font-medium">
           <div className="col-span-4">Strategy</div>
           <div className="col-span-2 text-right">Net Return (%)</div>
           <div className="col-span-2 text-right">Δ vs Nifty (%)</div>
@@ -279,7 +279,7 @@ export default function HeadToHeadDuelsTable({ agents }: HeadToHeadDuelsTablePro
                 <div className="text-xs sm:text-[13px] text-zinc-300 font-sans leading-relaxed flex items-baseline gap-2">
                   <Target className="w-3.5 h-3.5 text-zinc-500 self-center flex-shrink-0" />
                   <span>
-                    <strong className="text-zinc-400 font-mono text-[10px] uppercase tracking-wider mr-1.5 font-semibold">
+                    <strong className="text-zinc-400 font-mono text-[11px] mr-1.5 font-medium">
                       Hypothesis:
                     </strong>
                     {pair.coreHypothesis}
@@ -296,11 +296,11 @@ export default function HeadToHeadDuelsTable({ agents }: HeadToHeadDuelsTablePro
                           <div className="flex items-center gap-2.5">
                             <Link
                               to={`/portfolio/${llm?.id || pair.llmId}`}
-                              className="font-sans font-medium text-[14px] sm:text-[15px] text-white hover:text-amber-300 transition-colors truncate max-w-[200px]"
+                              className="font-sans font-medium text-[14px] sm:text-[15px] text-white hover:text-accent transition-colors truncate max-w-[200px]"
                             >
                               {pair.llmDisplayName}
                             </Link>
-                            <span className="px-1.5 py-0.5 text-[10px] font-mono tracking-wider border border-amber-500/30 text-amber-300 bg-amber-500/10 rounded font-medium flex-shrink-0">
+                            <span className="px-1.5 py-0.5 text-[10px] font-mono border border-accent/30 text-accent bg-accent/10 rounded font-medium flex-shrink-0">
                               LLM
                             </span>
                           </div>
@@ -385,7 +385,7 @@ export default function HeadToHeadDuelsTable({ agents }: HeadToHeadDuelsTablePro
                             >
                               {pair.rulesDisplayName}
                             </Link>
-                            <span className="px-1.5 py-0.5 text-[10px] font-mono tracking-wider border border-slate-600/40 text-slate-300 bg-slate-500/10 rounded font-medium flex-shrink-0">
+                            <span className="px-1.5 py-0.5 text-[10px] font-mono border border-white/10 text-zinc-400 bg-white/5 rounded font-medium flex-shrink-0">
                               Rules
                             </span>
                           </div>

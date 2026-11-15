@@ -91,26 +91,26 @@ function BenchmarkMatrixTableComponent({
             <th className="py-2.5 px-2 font-normal w-10 text-center text-zinc-500 whitespace-nowrap">Rank</th>
             <th className="py-2.5 px-3 font-normal min-w-[150px] text-left whitespace-nowrap">Agents</th>
             <th className="py-2.5 px-2 text-center font-normal min-w-[70px] whitespace-nowrap">Trajectory</th>
-            <th className="py-2.5 px-3 text-center font-semibold min-w-[95px] text-white whitespace-nowrap">
+            <th className="py-2.5 px-3 text-right font-semibold min-w-[95px] text-white whitespace-nowrap">
               Net Return (%)
             </th>
-            <th className="py-2.5 px-3 text-center font-normal min-w-[95px] text-zinc-400 whitespace-nowrap">
+            <th className="py-2.5 px-3 text-right font-normal min-w-[95px] text-zinc-400 whitespace-nowrap">
               Alpha vs Nifty (%)
             </th>
-            <th className="py-2.5 px-3 text-center font-normal min-w-[95px] text-zinc-400 whitespace-nowrap">
+            <th className="py-2.5 px-3 text-right font-normal min-w-[95px] text-zinc-400 whitespace-nowrap">
               NAV (INR)
             </th>
-            <th className="py-2.5 px-2 text-center font-normal min-w-[55px] text-zinc-400 whitespace-nowrap">
+            <th className="py-2.5 px-2 text-right font-normal min-w-[55px] text-zinc-400 whitespace-nowrap">
               Open Pos
             </th>
-            <th className="py-2.5 px-2 text-center font-normal min-w-[55px] text-zinc-400 whitespace-nowrap">
+            <th className="py-2.5 px-2 text-right font-normal min-w-[55px] text-zinc-400 whitespace-nowrap">
               Trades
             </th>
             {!isCompact && (
               <>
-                <th className="py-2.5 px-2.5 text-center font-normal min-w-[85px] text-zinc-400 whitespace-nowrap">Sharpe</th>
-                <th className="py-2.5 px-2.5 text-center font-normal min-w-[85px] text-zinc-400 whitespace-nowrap">Max DD</th>
-                <th className="py-2.5 px-2.5 text-center font-normal min-w-[85px] text-zinc-400 whitespace-nowrap">Win Rate</th>
+                <th className="py-2.5 px-2.5 text-right font-normal min-w-[85px] text-zinc-400 whitespace-nowrap">Sharpe</th>
+                <th className="py-2.5 px-2.5 text-right font-normal min-w-[85px] text-zinc-400 whitespace-nowrap">Max DD</th>
+                <th className="py-2.5 px-2.5 text-right font-normal min-w-[85px] text-zinc-400 whitespace-nowrap">Win Rate</th>
               </>
             )}
           </tr>
@@ -118,35 +118,42 @@ function BenchmarkMatrixTableComponent({
 
         {/* Rows: Clear hierarchy with bold Return and muted supporting metrics */}
         <tbody className="divide-y divide-border-hairline text-sm font-sans whitespace-nowrap">
-          {rows.map((ag, idx) => {
-            const { name: displayName, isRules } = formatStrategyName(ag);
-            const isRankOne = idx === 0;
+          {rows.length === 0 ? (
+            <tr>
+              <td colSpan={isCompact ? 8 : 11} className="py-8 text-center text-zinc-500 font-mono text-xs">
+                No active strategy records available.
+              </td>
+            </tr>
+          ) : (
+            rows.map((ag, idx) => {
+              const { name: displayName, isRules } = formatStrategyName(ag);
+              const isRankOne = idx === 0;
 
-            // Extract historical trajectory for inline sparkline
-            const navKey = getNavKeyForAgent(ag.id);
-            const series = navHistory
-              ? navHistory.map((pt) => (pt as any)[navKey] as number).filter((v) => typeof v === 'number')
-              : [];
+              // Extract historical trajectory for inline sparkline
+              const navKey = getNavKeyForAgent(ag.id);
+              const series = navHistory
+                ? navHistory.map((pt) => (pt as any)[navKey] as number).filter((v) => typeof v === 'number')
+                : [];
 
-            return (
-              <tr
-                key={ag.id}
-                className={cn(
-                  'transition-colors group hover:bg-white/[0.03]',
-                  idx % 2 === 1 ? 'bg-white/[0.01]' : 'bg-transparent'
-                )}
-              >
-                {/* Rank Numerals (Center) */}
-                <td className="py-2.5 px-2 text-center">
-                  <span
-                    className={cn(
-                      'font-mono text-xs tabular-nums',
-                      isRankOne ? 'text-accent font-semibold' : 'text-zinc-500'
-                    )}
-                  >
-                    {idx < 9 ? `0${idx + 1}` : idx + 1}
-                  </span>
-                </td>
+              return (
+                <tr
+                  key={ag.id}
+                  className={cn(
+                    'transition-colors group hover:bg-white/[0.03]',
+                    idx % 2 === 1 ? 'bg-white/[0.01]' : 'bg-transparent'
+                  )}
+                >
+                  {/* Rank Numerals (Center) */}
+                  <td className="py-2.5 px-2 text-center">
+                    <span
+                      className={cn(
+                        'font-mono text-xs tabular-nums',
+                        isRankOne ? 'text-white font-bold' : 'text-zinc-500'
+                      )}
+                    >
+                      {idx < 9 ? `0${idx + 1}` : idx + 1}
+                    </span>
+                  </td>
 
                 {/* Strategy Name (Left Aligned for Readability) */}
                 <td className="py-2.5 px-3 text-left">
@@ -166,8 +173,8 @@ function BenchmarkMatrixTableComponent({
                   <Sparkline data={series} isPositive={ag.returnPct >= 0} />
                 </td>
 
-                {/* Net Return (%) (PRIMARY FOCUS: Center, Bold, Upsized, Full-Brightness) */}
-                <td className="py-2.5 px-3 text-center">
+                {/* Net Return (%) (PRIMARY: Right-aligned, Bold, Full-Brightness) */}
+                <td className="py-2.5 px-3 text-right">
                   <span
                     className={cn(
                       'font-mono text-sm sm:text-base font-bold tabular-nums',
@@ -182,8 +189,8 @@ function BenchmarkMatrixTableComponent({
                   </span>
                 </td>
 
-                {/* Alpha vs Nifty (%) (SECONDARY: Center, Smaller, Muted Opacity) */}
-                <td className="py-2.5 px-3 text-center">
+                {/* Alpha vs Nifty (%) (SECONDARY: Right-aligned, Muted Opacity) */}
+                <td className="py-2.5 px-3 text-right">
                   <span
                     className={cn(
                       'font-mono text-xs sm:text-sm font-medium tabular-nums',
@@ -198,28 +205,28 @@ function BenchmarkMatrixTableComponent({
                   </span>
                 </td>
 
-                {/* Portfolio NAV (Center) */}
-                <td className="py-2.5 px-3 text-center font-mono text-xs text-zinc-300 tabular-nums">
+                {/* Portfolio NAV (Right-aligned) */}
+                <td className="py-2.5 px-3 text-right font-mono text-xs text-zinc-300 tabular-nums">
                   {formatPaiseToRupees(ag.navPaise || 50000000)}
                 </td>
 
-                {/* Active Positions (Center) */}
-                <td className="py-2.5 px-2 text-center font-mono text-xs tabular-nums text-zinc-300">
+                {/* Active Positions (Right-aligned) */}
+                <td className="py-2.5 px-2 text-right font-mono text-xs tabular-nums text-zinc-300">
                   {ag.activePositionsCount}
                 </td>
 
-                {/* Closed Trades (Center) */}
-                <td className="py-2.5 px-2 text-center font-mono text-xs tabular-nums text-zinc-400">
+                {/* Closed Trades (Right-aligned) */}
+                <td className="py-2.5 px-2 text-right font-mono text-xs tabular-nums text-zinc-400">
                   {ag.closedTrades}
                   {ag.isProvisional && (
                     <span className="text-[10px] text-zinc-500 ml-1">/ 30</span>
                   )}
                 </td>
 
-                {/* Sharpe Ratio (Center) - Reusable Warmup Treatment */}
+                {/* Sharpe Ratio (Right-aligned) - Reusable Warmup Treatment */}
                 {!isCompact && (
                   <>
-                    <td className="py-2.5 px-2.5 text-center font-mono text-xs text-zinc-400 tabular-nums">
+                    <td className="py-2.5 px-2.5 text-right font-mono text-xs text-zinc-400 tabular-nums">
                       <WarmupMetric
                         value={ag.sharpeRatio}
                         closedTrades={ag.closedTrades}
@@ -228,8 +235,8 @@ function BenchmarkMatrixTableComponent({
                       />
                     </td>
 
-                    {/* Max Drawdown (Center) - Reusable Warmup Treatment */}
-                    <td className="py-2.5 px-2.5 text-center font-mono text-xs text-zinc-400 tabular-nums">
+                    {/* Max Drawdown (Right-aligned) - Reusable Warmup Treatment */}
+                    <td className="py-2.5 px-2.5 text-right font-mono text-xs text-zinc-400 tabular-nums">
                       <WarmupMetric
                         value={ag.maxDrawdownPct}
                         closedTrades={ag.closedTrades}
@@ -238,8 +245,8 @@ function BenchmarkMatrixTableComponent({
                       />
                     </td>
 
-                    {/* Win Rate (Center) - Reusable Warmup Treatment */}
-                    <td className="py-2.5 px-2.5 text-center font-mono text-xs text-zinc-400 tabular-nums">
+                    {/* Win Rate (Right-aligned) - Reusable Warmup Treatment */}
+                    <td className="py-2.5 px-2.5 text-right font-mono text-xs text-zinc-400 tabular-nums">
                       <WarmupMetric
                         value={ag.winRatePct}
                         closedTrades={ag.closedTrades}
@@ -251,7 +258,7 @@ function BenchmarkMatrixTableComponent({
                 )}
               </tr>
             );
-          })}
+          }))}
         </tbody>
       </table>
 

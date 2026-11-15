@@ -37,8 +37,8 @@ export const TrajectoryChart: React.FC<TrajectoryChartProps> = React.memo(({
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-hairline pb-3">
         <div className="flex items-center gap-2">
           <TrendingUp className="w-4 h-4 text-emerald-400" />
-          <h2 className="font-sans text-xs sm:text-sm font-semibold uppercase tracking-wider text-white">
-            Observed Cumulative Return Trajectories
+          <h2 className="font-sans text-sm font-medium text-zinc-200">
+            Observed Return Trajectory
           </h2>
         </div>
 
@@ -68,7 +68,7 @@ export const TrajectoryChart: React.FC<TrajectoryChartProps> = React.memo(({
       </div>
 
       {/* Recharts Plot */}
-      <div className="h-[230px] w-full pt-1">
+      <div className="h-[260px] w-full pt-1">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 10, right: 16, left: 8, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.05)" />
@@ -123,8 +123,9 @@ export const TrajectoryChart: React.FC<TrajectoryChartProps> = React.memo(({
                   type="monotone"
                   dataKey="nifty500"
                   name="Nifty 500 Index"
-                  stroke="#D4AF37"
+                  stroke="#64748B"
                   strokeWidth={1.5}
+                  strokeDasharray="2 2"
                   dot={false}
                 />
               </>
@@ -158,9 +159,9 @@ export const TrajectoryChart: React.FC<TrajectoryChartProps> = React.memo(({
                   type="monotone"
                   dataKey="nifty500"
                   name="Nifty 500 Index"
-                  stroke="#D4AF37"
+                  stroke="#64748B"
                   strokeWidth={1.5}
-                  strokeDasharray="3 3"
+                  strokeDasharray="2 2"
                   dot={false}
                 />
               </>
@@ -170,7 +171,7 @@ export const TrajectoryChart: React.FC<TrajectoryChartProps> = React.memo(({
       </div>
 
       {/* Chart Legend */}
-      <div className="pt-2 border-t border-border-subtle flex items-center justify-between text-[11px] text-zinc-400">
+      <div className="pt-2 border-t border-border-subtle flex flex-wrap items-center justify-between gap-2 text-[11px] text-zinc-400">
         <div className="flex items-center gap-3">
           {mode === 'COMPOSITE' ? (
             <>
@@ -183,7 +184,7 @@ export const TrajectoryChart: React.FC<TrajectoryChartProps> = React.memo(({
                 <span className="text-zinc-400">Rules Avg</span>
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-0.5 bg-accent inline-block" />
+                <span className="w-2.5 h-0.5 bg-slate-500 inline-block border-b border-dotted border-slate-500" />
                 <span className="text-zinc-400">Nifty 500</span>
               </span>
             </>
@@ -198,12 +199,17 @@ export const TrajectoryChart: React.FC<TrajectoryChartProps> = React.memo(({
                 <span className="text-zinc-400">Marks</span>
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-0.5 bg-accent inline-block" />
+                <span className="w-2.5 h-0.5 bg-slate-500 inline-block border-b border-dotted border-slate-500" />
                 <span className="text-zinc-400">Nifty 500</span>
               </span>
             </>
           )}
         </div>
+        {data.length > 0 && (
+          <div className="text-[10px] font-mono text-zinc-500">
+            {data[0]?.fullDate || data[0]?.date} → {data[data.length - 1]?.fullDate || data[data.length - 1]?.date}
+          </div>
+        )}
       </div>
     </div>
   );

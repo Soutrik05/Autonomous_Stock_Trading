@@ -139,7 +139,7 @@ export default function ExplainabilitySpotlight({ personaId = 'simons' }: Explai
 
       {/* Cited Metrics Grid with Cited vs Actual Pairing */}
       <div className="space-y-2">
-        <div className="text-[11px] text-zinc-500 font-mono uppercase tracking-wider">
+        <div className="text-[11px] text-zinc-500 font-mono">
           Mathematical Ground-Truth Snapshot Verification:
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs font-mono">
@@ -150,9 +150,9 @@ export default function ExplainabilitySpotlight({ personaId = 'simons' }: Explai
             >
               <div>
                 <span className="text-zinc-500 block text-[11px]">{cm.name}</span>
-                <span className="font-medium text-white text-xs">
+                <span className="font-medium text-white text-xs tabular-nums">
                   Cited: {cm.cited}{' '}
-                  <span className="text-zinc-500 font-normal text-[11px]">({cm.snapshot})</span>
+                  <span className="text-zinc-500 font-normal text-[11px] tabular-nums">({cm.snapshot})</span>
                 </span>
               </div>
               <CheckCircle2 className="w-4 h-4 text-purple-400 flex-shrink-0" />

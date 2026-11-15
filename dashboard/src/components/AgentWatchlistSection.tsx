@@ -40,7 +40,7 @@ export default function AgentWatchlistSection({
       <div className="overflow-x-auto">
         <table className="w-full text-left font-mono text-xs">
           <thead>
-            <tr className="bg-[#121212] border-b border-border-hairline text-[10px] text-zinc-500 uppercase tracking-wider">
+            <tr className="bg-[#121212] border-b border-border-hairline text-[11px] text-zinc-400">
               <th className="py-3 px-4 sm:px-5 font-normal">Asset</th>
               <th className="py-3 px-4 sm:px-5 font-normal">Sector</th>
               <th className="py-3 px-4 sm:px-5 font-normal text-right">Setup Intensity</th>

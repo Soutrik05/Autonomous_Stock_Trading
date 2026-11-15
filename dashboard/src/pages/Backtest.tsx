@@ -105,13 +105,16 @@ export default function Backtest() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-7 animate-hero-entrance font-sans">
       
-      {/* 1. STANDARDIZED PAGE HEADER */}
-      <div className="border-b border-border-hairline pb-4">
+      {/* 1. STANDARDIZED PAGE HEADER & OVERVIEW */}
+      <div className="space-y-3 border-b border-border-hairline pb-4">
         <SectionHeader
           title="Backtest Laboratory"
           tag="EMPIRICAL REGIME AUDIT"
           subtitle="Out-of-sample historical walk-forward simulations across divergent market regimes (Bull Rally, Sideways Chop, and Volatility Shocks)."
         />
+        <p className="text-sm sm:text-base text-zinc-400 font-sans leading-relaxed max-w-3xl">
+          Three non-overlapping historical windows evaluate agent resilience. All strategies start with matched ₹5,00,000 seed capital and undergo identical statutory charges and slippage under strict point-in-time constraints.
+        </p>
       </div>
 
       {/* 2. REGIME WINDOW SELECTOR CARDS */}
@@ -126,76 +129,88 @@ export default function Backtest() {
               key={win.id}
               onClick={() => setSelectedWindowId(win.id)}
               className={cn(
-                "p-3.5 rounded-lg border text-left transition-colors cursor-pointer flex items-center justify-between font-mono text-xs",
+                "p-4 rounded border text-left cursor-pointer transition-colors flex flex-col justify-between",
                 isSelected
-                  ? "border-accent bg-[#161616]"
-                  : "border-border-hairline bg-[#161616]/60 hover:border-white/20"
+                  ? "border-accent bg-surface-inset"
+                  : "border-border-hairline bg-[#141414] hover:border-white/20 hover:bg-surface-inset"
               )}
             >
-              <span className={cn("text-sm font-sans truncate pr-2", isSelected ? "text-white font-semibold" : "text-zinc-300")}>
-                {win.name}
-              </span>
+              <div>
+                <div className="flex items-center justify-between mb-2.5">
+                  <span
+                    className={cn(
+                      "text-[10px] px-2 py-0.5 rounded border uppercase font-mono font-semibold",
+                      isBull
+                        ? "bg-emerald-500/10 text-positive border-emerald-500/25"
+                        : isCorrection
+                        ? "bg-rose-500/10 text-negative border-rose-500/25"
+                        : "bg-amber-500/10 text-amber-400 border-amber-500/25"
+                    )}
+                  >
+                    {win.regime}
+                  </span>
+                  <span className={cn("font-mono font-bold text-xs sm:text-sm tabular-nums", win.nifty500ReturnPct >= 0 ? 'text-positive' : 'text-negative')}>
+                    Nifty {win.nifty500ReturnPct >= 0 ? '+' : ''}{win.nifty500ReturnPct.toFixed(2)}%
+                  </span>
+                </div>
 
-              <span
-                className={cn(
-                  "text-[9px] px-1.5 py-0.5 rounded border uppercase font-semibold flex-shrink-0",
-                  isBull
-                    ? "bg-emerald-500/10 text-positive border-emerald-500/25"
-                    : isCorrection
-                    ? "bg-rose-500/10 text-negative border-rose-500/25"
-                    : "bg-amber-500/10 text-amber-400 border-amber-500/25"
-                )}
-              >
-                {win.regime}
-              </span>
+                <div className={cn("text-sm font-sans font-medium mb-1", isSelected ? "text-white" : "text-zinc-200")}>
+                  {win.name}
+                </div>
+              </div>
+
+              <div className="mt-3 pt-2.5 border-t border-border-hairline font-mono text-[11px] text-zinc-500 space-y-0.5">
+                <div>{win.period}</div>
+                <div>{win.sessions} sessions · VIX {win.vix.toFixed(1)}</div>
+              </div>
             </button>
           );
         })}
       </div>
 
       {/* 3. ACTIVE REGIME TELEMETRY DETAILS */}
-      <div className="border border-border-hairline bg-[#161616] rounded-lg p-4 font-mono text-xs space-y-3">
+      <div className="border border-border-hairline bg-surface-inset rounded-lg p-4 font-mono text-xs space-y-3">
         <div className="grid grid-cols-2 sm:grid-cols-5 divide-y sm:divide-y-0 sm:divide-x divide-border-hairline">
           <div className="py-1 sm:px-3">
-            <span className="text-[10px] uppercase tracking-wider text-zinc-500 block font-sans">Period</span>
+            <span className="text-[11px] text-zinc-500 block font-sans">Period</span>
             <div className="text-zinc-200 font-medium mt-0.5">{activeWindow.period}</div>
           </div>
           <div className="py-1 sm:px-3">
-            <span className="text-[10px] uppercase tracking-wider text-zinc-500 block font-sans">Sessions</span>
+            <span className="text-[11px] text-zinc-500 block font-sans">Sessions</span>
             <div className="text-white font-medium mt-0.5">{activeWindow.sessions} Trading Days</div>
           </div>
           <div className="py-1 sm:px-3">
-            <span className="text-[10px] uppercase tracking-wider text-zinc-500 block font-sans">India VIX</span>
+            <span className="text-[11px] text-zinc-500 block font-sans">India VIX</span>
             <div className="text-white font-medium mt-0.5 tabular-nums">{activeWindow.vix.toFixed(1)} ({activeWindow.vixBadge})</div>
           </div>
           <div className="py-1 sm:px-3">
-            <span className="text-[10px] uppercase tracking-wider text-zinc-500 block font-sans">Nifty 500 Index</span>
+            <span className="text-[11px] text-zinc-500 block font-sans">Nifty 500 Index</span>
             <div className={cn("font-semibold mt-0.5 tabular-nums", activeWindow.nifty500ReturnPct >= 0 ? "text-positive" : "text-negative")}>
               {formatPct(activeWindow.nifty500ReturnPct)}
             </div>
           </div>
           <div className="py-1 sm:px-3">
-            <span className="text-[10px] uppercase tracking-wider text-zinc-500 block font-sans">Seed Capital</span>
+            <span className="text-[11px] text-zinc-500 block font-sans">Seed Capital</span>
             <div className="text-accent font-semibold mt-0.5">₹5,00,000 / Agent</div>
           </div>
         </div>
 
         <div className="pt-2.5 border-t border-border-hairline flex flex-wrap items-center justify-between gap-2 text-[11px] text-zinc-400">
           <div>
-            <span className="text-zinc-500 mr-1.5 uppercase font-semibold text-[10px] font-sans">Empirical Focus:</span>
+            <span className="text-zinc-500 mr-1.5 font-medium text-[11px] font-sans">Empirical Focus:</span>
             <span className="text-zinc-300 font-sans">{activeWindow.empiricalHighlight}</span>
           </div>
-          <span className="text-zinc-500">Run ID: <code className="text-zinc-400">{activeWindow.runId}</code></span>
+          <span className="text-zinc-500 font-mono">Run ID: <code className="text-zinc-400">{activeWindow.runId}</code></span>
         </div>
       </div>
 
       {/* 4. MULTI-AGENT EQUITY GROWTH COMBAT CURVES */}
       <section className="space-y-3">
-        <div className="flex items-center justify-between border-b border-border-hairline pb-2 text-xs font-mono">
-          <h2 className="font-sans text-sm font-semibold uppercase tracking-wider text-zinc-400">
+        <div className="flex items-center justify-between border-b border-border-hairline pb-2 font-mono">
+          <h2 className="font-sans text-base font-medium text-zinc-200">
             Equity Trajectories · {activeWindow.name}
           </h2>
-          <span className="text-zinc-500 text-[11px]">
+          <span className="text-zinc-500 text-xs">
             {activeWindow.sessions} Sessions
           </span>
         </div>
@@ -216,20 +231,20 @@ export default function Backtest() {
 
       {/* 5. EMPIRICAL HOLDING DURATION & THESIS RESOLUTION */}
       <section className="space-y-3 pt-2">
-        <div className="flex items-center justify-between border-b border-border-hairline pb-2 text-xs font-mono">
-          <h2 className="font-sans text-sm font-semibold uppercase tracking-wider text-zinc-400">
+        <div className="flex items-center justify-between border-b border-border-hairline pb-2 font-mono">
+          <h2 className="font-sans text-base font-medium text-zinc-200">
             Empirical Holding Duration & Thesis Resolution
           </h2>
-          <span className="text-zinc-500 text-[11px]">
+          <span className="text-zinc-500 text-xs">
             5 Autonomous Agents vs. 5 Rules Baselines
           </span>
         </div>
 
-        <div className="border border-border-hairline bg-[#161616] rounded-lg overflow-hidden">
+        <div className="border border-border-hairline bg-surface-inset rounded-lg overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left font-mono text-xs">
+            <table className="w-full text-left font-mono text-xs sm:text-sm">
               <thead>
-                <tr className="bg-[#121212] border-b border-border-hairline text-[10px] text-zinc-500 uppercase tracking-wider">
+                <tr className="bg-surface-well border-b border-border-hairline text-[11px] text-zinc-400">
                   <th className="py-2.5 px-3 font-normal">Strategy / Persona</th>
                   <th className="py-2.5 px-3 font-normal">Classification</th>
                   <th className="py-2.5 px-3 font-normal">School</th>

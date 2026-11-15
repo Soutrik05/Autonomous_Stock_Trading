@@ -123,7 +123,7 @@ export default function SystemHealthDrawer({ isOpen, onClose }: SystemHealthDraw
 
           {/* Job Register Table */}
           <div className="flex-1 overflow-y-auto p-4 space-y-2">
-            <div className="flex items-center justify-between text-[11px] font-mono text-zinc-500 px-1 uppercase tracking-wider">
+            <div className="flex items-center justify-between text-[11px] font-mono text-zinc-500 px-1">
               <span>Pipeline Stage</span>
               <span>Last Execution</span>
             </div>

@@ -13,8 +13,8 @@ export default function PodiumCards({ topAgents }: PodiumCardsProps) {
   const rankAccents = [
     {
       label: 'Rank 1 · Top Alpha',
-      badgeClass: 'bg-[#D4AF37]/10 text-[#D4AF37] border-[#D4AF37]/30',
-      borderClass: 'border-[#D4AF37]/50',
+      badgeClass: 'bg-white/10 text-white border-white/20 font-semibold',
+      borderClass: 'border-white/30',
     },
     {
       label: 'Rank 2 · Runner Up',
@@ -44,12 +44,12 @@ export default function PodiumCards({ topAgents }: PodiumCardsProps) {
               {/* Rank Label & Closed Trades */}
               <div className="flex justify-between items-center pb-2 border-b border-white/[0.06]">
                 <span
-                  className={`px-1.5 py-0.2 rounded text-[10px] font-medium border uppercase tracking-wider ${style.badgeClass}`}
+                  className={`px-2 py-0.5 rounded text-[10px] font-mono font-medium border ${style.badgeClass}`}
                 >
                   {style.label}
                 </span>
 
-                <span className="text-[11px] text-zinc-500">
+                <span className="text-[11px] text-zinc-500 font-mono">
                   {agent.closedTrades} trades
                 </span>
               </div>
@@ -60,20 +60,20 @@ export default function PodiumCards({ topAgents }: PodiumCardsProps) {
                 className="group flex items-start justify-between mt-2.5"
               >
                 <div>
-                  <h4 className="font-display font-medium text-base text-white group-hover:text-[#D4AF37] transition-colors leading-tight font-sans">
+                  <h4 className="font-display font-medium text-base text-white group-hover:text-accent transition-colors leading-tight font-sans">
                     {agent.name}
                   </h4>
-                  <span className="text-[11px] text-zinc-400 block mt-0.5">
+                  <span className="text-[11px] text-zinc-400 block mt-0.5 font-mono">
                     {agent.horizonDays} Horizon
                   </span>
                 </div>
-                <ArrowUpRight className="w-3.5 h-3.5 text-zinc-500 group-hover:text-[#D4AF37] transition-colors" />
+                <ArrowUpRight className="w-3.5 h-3.5 text-zinc-500 group-hover:text-accent transition-colors" />
               </Link>
 
               {/* Return Metrics */}
-              <div className="mt-3 pt-2.5 border-t border-white/[0.06] flex items-baseline justify-between">
+              <div className="mt-3 pt-2.5 border-t border-white/[0.06] flex items-baseline justify-between font-mono">
                 <div>
-                  <div className="text-[10px] uppercase tracking-wider text-zinc-500">Return</div>
+                  <div className="text-[11px] text-zinc-500">Return</div>
                   <div
                     className={`text-xl font-bold tabular-nums tracking-tight ${
                       isPositiveReturn ? 'text-emerald-400' : 'text-rose-400'
@@ -84,7 +84,7 @@ export default function PodiumCards({ topAgents }: PodiumCardsProps) {
                 </div>
 
                 <div className="text-right">
-                  <div className="text-[10px] uppercase tracking-wider text-zinc-500">Alpha vs Index</div>
+                  <div className="text-[11px] text-zinc-500">Alpha vs Index</div>
                   <div
                     className={`text-sm font-semibold tabular-nums ${
                       isPositiveAlpha ? 'text-emerald-400' : 'text-rose-400'

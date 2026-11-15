@@ -371,18 +371,20 @@ export default function Portfolio() {
           <div className="relative" ref={dropdownRef}>
             <button
               type="button"
+              aria-haspopup="true"
+              aria-expanded={dropdownOpen}
               onClick={() => setDropdownOpen(!dropdownOpen)}
-              className="flex items-center gap-2 bg-[#161616] border border-border-hairline hover:border-white/25 rounded px-3 py-1.5 font-mono text-xs cursor-pointer transition-colors text-zinc-300 hover:text-white"
+              className="flex items-center gap-2 bg-surface-inset border border-border-hairline hover:border-white/25 rounded px-3 py-1.5 font-mono text-xs cursor-pointer transition-colors text-zinc-300 hover:text-white"
             >
               <span>Switch Agent</span>
               <ChevronDown className={cn("w-3.5 h-3.5 text-zinc-400 transition-transform duration-150", dropdownOpen && "rotate-180")} />
             </button>
 
             {dropdownOpen && (
-              <div className="absolute right-0 top-full mt-1.5 w-72 sm:w-80 bg-[#161616] border border-border-hairline rounded shadow-2xl z-50 py-1 divide-y divide-border-hairline animate-hero-entrance">
+              <div className="absolute right-0 top-full mt-1.5 w-72 sm:w-80 bg-surface-inset border border-border-hairline rounded shadow-2xl z-50 py-1 divide-y divide-border-hairline animate-hero-entrance">
                 {/* Group 1: Autonomous LLM Agents */}
                 <div className="p-1.5 space-y-0.5">
-                  <div className="px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider text-zinc-500">
+                  <div className="px-2.5 py-1 text-[11px] font-mono text-zinc-500">
                     Autonomous LLM Agents (5)
                   </div>
                   {llmAgents.map((ag) => {
@@ -413,7 +415,7 @@ export default function Portfolio() {
 
                 {/* Group 2: Deterministic Rules Baselines */}
                 <div className="p-1.5 space-y-0.5">
-                  <div className="px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider text-zinc-500">
+                  <div className="px-2.5 py-1 text-[11px] font-mono text-zinc-500">
                     Deterministic Rules Baselines (5)
                   </div>
                   {rulesAgents.map((ag) => {
@@ -454,7 +456,7 @@ export default function Portfolio() {
 
       {/* 2. PENDING ORDERS STATUS STRIP (IF ANY) */}
       {pendingOrders.length > 0 && (
-        <div className="border border-border-hairline bg-[#161616] rounded-lg px-4 py-2.5 font-mono text-xs space-y-3">
+        <div className="border border-border-hairline bg-surface-inset rounded-lg px-4 py-2.5 font-mono text-xs space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
               <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
@@ -479,7 +481,7 @@ export default function Portfolio() {
             <div className="pt-2 border-t border-border-hairline overflow-x-auto">
               <table className="w-full text-left font-mono text-xs">
                 <thead>
-                  <tr className="text-zinc-500 border-b border-border-hairline text-[10px] uppercase tracking-wider">
+                  <tr className="text-zinc-500 border-b border-border-hairline text-[11px]">
                     <th className="py-2 pr-4 font-normal">Side</th>
                     <th className="py-2 pr-4 font-normal">Symbol</th>
                     <th className="py-2 pr-4 font-normal text-right">Shares</th>
@@ -521,8 +523,14 @@ export default function Portfolio() {
       )}
 
       {/* 3. PRIMARY TABBED WORKSPACE CONTROLS */}
-      <div className="flex items-center gap-1 border-b border-border-hairline pb-2 font-mono text-xs overflow-x-auto">
+      <div
+        role="tablist"
+        aria-label="Portfolio analytical workspaces"
+        className="flex items-center gap-1 border-b border-border-hairline pb-2 font-mono text-xs overflow-x-auto"
+      >
         <button
+          role="tab"
+          aria-selected={currentTab === 'holdings'}
           onClick={() => setActiveTab('holdings')}
           className={cn(
             "px-4 py-2 rounded font-medium transition-colors cursor-pointer flex items-center gap-2 whitespace-nowrap",
@@ -538,6 +546,8 @@ export default function Portfolio() {
         </button>
 
         <button
+          role="tab"
+          aria-selected={currentTab === 'performance'}
           onClick={() => setActiveTab('performance')}
           className={cn(
             "px-4 py-2 rounded font-medium transition-colors cursor-pointer flex items-center gap-2 whitespace-nowrap",
@@ -553,6 +563,8 @@ export default function Portfolio() {
         </button>
 
         <button
+          role="tab"
+          aria-selected={currentTab === 'watchlist'}
           onClick={() => setActiveTab('watchlist')}
           className={cn(
             "px-4 py-2 rounded font-medium transition-colors cursor-pointer flex items-center gap-2 whitespace-nowrap",
@@ -568,6 +580,8 @@ export default function Portfolio() {
         </button>
 
         <button
+          role="tab"
+          aria-selected={currentTab === 'intel'}
           onClick={() => setActiveTab('intel')}
           className={cn(
             "px-4 py-2 rounded font-medium transition-colors cursor-pointer flex items-center gap-2 whitespace-nowrap",
@@ -604,7 +618,7 @@ export default function Portfolio() {
       {currentTab === 'performance' && (
         <div className="space-y-6 animate-hero-entrance">
           {/* Main Trajectory Curve */}
-          <div className="bg-[#161616] border border-border-hairline p-5 rounded-lg space-y-4">
+          <div className="bg-surface-inset border border-border-hairline p-5 rounded-lg space-y-4">
             <PortfolioDualCurve
               navPoints={dualCurvePoints}
               color="#818CF8"
@@ -613,9 +627,9 @@ export default function Portfolio() {
           </div>
 
           {/* Key Quantitative Metrics Strip with Reusable Warm-Up State */}
-          <div className="border border-border-hairline bg-[#161616] rounded-lg p-3 sm:p-4 grid grid-cols-2 md:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border-hairline font-mono text-xs">
+          <div className="border border-border-hairline bg-surface-inset rounded-lg p-3 sm:p-4 grid grid-cols-2 md:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border-hairline font-mono text-xs">
             <div className="p-3 sm:px-4">
-              <span className="text-[10px] uppercase tracking-wider text-zinc-500 block font-sans">Sharpe Ratio</span>
+              <span className="text-[11px] text-zinc-500 block font-sans">Sharpe Ratio</span>
               <div className="text-xl font-bold text-white mt-1 tabular-nums">
                 <WarmupMetric
                   value={agent?.sharpeRatio}
@@ -626,7 +640,7 @@ export default function Portfolio() {
             </div>
 
             <div className="p-3 sm:px-4">
-              <span className="text-[10px] uppercase tracking-wider text-zinc-500 block font-sans">Max Drawdown</span>
+              <span className="text-[11px] text-zinc-500 block font-sans">Max Drawdown</span>
               <div className="text-xl font-bold text-negative mt-1 tabular-nums">
                 <WarmupMetric
                   value={agent?.maxDrawdownPct}
@@ -637,7 +651,7 @@ export default function Portfolio() {
             </div>
 
             <div className="p-3 sm:px-4">
-              <span className="text-[10px] uppercase tracking-wider text-zinc-500 block font-sans">Win Rate</span>
+              <span className="text-[11px] text-zinc-500 block font-sans">Win Rate</span>
               <div className="text-xl font-bold text-white mt-1 tabular-nums">
                 <WarmupMetric
                   value={agent?.winRatePct}
@@ -648,7 +662,7 @@ export default function Portfolio() {
             </div>
 
             <div className="p-3 sm:px-4">
-              <span className="text-[10px] uppercase tracking-wider text-zinc-500 block font-sans">Alpha vs Nifty 500</span>
+              <span className="text-[11px] text-zinc-500 block font-sans">Alpha vs Nifty 500</span>
               <div
                 className={cn(
                   "text-xl font-bold mt-1 tabular-nums",

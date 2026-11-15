@@ -194,61 +194,77 @@ export default function Comparison() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-7 animate-hero-entrance font-sans">
       
       {/* 1. STANDARDIZED PAGE HEADER & PAIR SELECTOR */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-border-hairline pb-4">
-        <SectionHeader
-          title="Cognitive Alpha Benchmark"
-          tag="SYMMETRIC DELTA AUDIT"
-          subtitle="Direct comparison isolating cognitive LLM inference against deterministic Python rules on identical candidates."
-        />
+      <div className="space-y-4 border-b border-border-hairline pb-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <SectionHeader
+            title="Cognitive Alpha Benchmark"
+            tag="SYMMETRIC DELTA AUDIT"
+            subtitle="Direct comparison isolating cognitive LLM inference against deterministic Python rules on identical candidates."
+          />
 
-        {/* Strategy Selector Tabs */}
-        <div className="flex items-center p-0.5 rounded bg-[#121212] border border-border-hairline text-xs font-mono overflow-x-auto max-w-full">
-          {PHILOSOPHY_PAIRS.map((pair) => (
-            <button
-              key={pair.id}
-              onClick={() => setSelectedPairId(pair.id)}
-              className={cn(
-                "px-3 py-1.5 rounded transition-colors cursor-pointer whitespace-nowrap",
-                selectedPairId === pair.id
-                  ? "bg-white/10 text-accent font-semibold"
-                  : "text-zinc-400 hover:text-white"
-              )}
-            >
-              {pair.name}
-            </button>
-          ))}
+          {/* Strategy Selector Tabs */}
+          <div
+            role="tablist"
+            aria-label="Philosophy matchup pairs"
+            className="flex items-center p-0.5 rounded bg-surface-well border border-border-hairline text-xs font-mono overflow-x-auto max-w-full"
+          >
+            {PHILOSOPHY_PAIRS.map((pair) => (
+              <button
+                key={pair.id}
+                role="tab"
+                aria-selected={selectedPairId === pair.id}
+                onClick={() => setSelectedPairId(pair.id)}
+                className={cn(
+                  "px-3 py-1.5 rounded transition-colors cursor-pointer whitespace-nowrap",
+                  selectedPairId === pair.id
+                    ? "bg-white/10 text-accent font-semibold"
+                    : "text-zinc-400 hover:text-white"
+                )}
+              >
+                {pair.name}
+              </button>
+            ))}
+          </div>
         </div>
+
+        <p className="text-sm sm:text-base text-zinc-400 font-sans leading-relaxed max-w-3xl">
+          Each pair shares identical candidate pools, starting capital (₹5,00,000), and statutory charges.
+          The single isolated experimental variable is cognition: autonomous generative inference versus deterministic Python rules.
+        </p>
       </div>
 
-      {/* 2. PHILOSOPHY BRIEFING BAR */}
-      <div className="border border-border-hairline bg-[#161616] rounded-lg p-3 sm:px-4 flex flex-wrap items-center justify-between gap-3 font-mono text-xs">
-        <div className="flex flex-wrap items-center gap-2.5">
-          <span className="px-2 py-0.5 rounded bg-white/[0.04] text-zinc-200 border border-border-hairline text-[11px] font-semibold uppercase">
-            {currentPair.name}
-          </span>
-          <span className="text-zinc-600">·</span>
-          <span className="text-zinc-400">Horizon: <strong className="text-zinc-200 font-normal">{currentPair.horizon}</strong></span>
-          <span className="text-zinc-600">·</span>
-          <span className="text-zinc-400">{currentPair.school}</span>
+      {/* 2. PHILOSOPHY BRIEFING BAR & CORE HYPOTHESIS */}
+      <div className="space-y-3">
+        <div className="py-3 border-y border-border-hairline flex flex-wrap items-center justify-between gap-x-6 gap-y-2 font-mono text-xs sm:text-sm">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span className="text-white font-semibold">{currentPair.name}</span>
+            <span className="text-zinc-600">·</span>
+            <span className="text-zinc-400">Horizon: <span className="text-zinc-200">{currentPair.horizon}</span></span>
+            <span className="text-zinc-600">·</span>
+            <span className="text-zinc-400">{currentPair.school}</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-zinc-500 text-xs">Cognitive Δ:</span>
+            <span className={cn("font-bold font-mono tabular-nums text-sm sm:text-base", alphaSpreadPct >= 0 ? "text-accent" : "text-negative")}>
+              {alphaSpreadPct >= 0 ? '+' : ''}{alphaSpreadPct.toFixed(2)}%
+            </span>
+          </div>
         </div>
 
-        {/* Cognitive Spread Metric */}
-        <div className="flex items-center gap-2 text-xs">
-          <span className="text-zinc-500 uppercase text-[10px]">Net Cognitive Delta:</span>
-          <span className={cn("font-bold tabular-nums text-sm sm:text-base", alphaSpreadPct >= 0 ? "text-accent" : "text-negative")}>
-            {alphaSpreadPct >= 0 ? '+' : ''}{alphaSpreadPct.toFixed(2)}%
-          </span>
-        </div>
+        <blockquote className="font-mono text-xs sm:text-sm text-zinc-300 italic border-l-2 border-accent/40 pl-4 py-1 leading-relaxed">
+          "{currentPair.coreHypothesis}"
+        </blockquote>
       </div>
 
       {/* Provisional Sample Notice */}
       <SmallSampleNotice closedTradesCount={llmTrades} threshold={30} />
 
       {/* 3. SYMMETRIC PERFORMANCE MATRIX: DELTA AS HERO */}
-      <div className="border border-border-hairline bg-[#161616] rounded-lg overflow-hidden">
-        <div className="px-4 py-3 bg-[#121212] border-b border-border-hairline flex items-center justify-between font-mono text-xs">
-          <span className="uppercase tracking-wider text-zinc-400 font-semibold">
-            Symmetric Performance Matrix
+      <div className="border border-border-hairline bg-surface-inset rounded-lg overflow-hidden">
+        <div className="px-4 py-3 bg-surface-well border-b border-border-hairline flex flex-wrap items-center justify-between gap-2 font-mono text-xs">
+          <span className="text-zinc-300 font-medium">
+            Symmetric Risk & Return Performance Matrix
           </span>
           <span className="text-[11px] text-zinc-500">
             Identical Market Inputs · ₹5,00,000 Starting Seed
@@ -256,9 +272,9 @@ export default function Comparison() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left font-mono text-xs">
+          <table className="w-full text-left font-mono text-xs sm:text-sm">
             <thead>
-              <tr className="bg-[#121212] border-b border-border-hairline text-[11px] text-zinc-400 uppercase tracking-wider">
+              <tr className="bg-surface-well border-b border-border-hairline text-[11px] text-zinc-400">
                 <th className="py-3 px-4 font-normal">Metric</th>
                 <th className="py-3 px-4 font-normal text-right text-zinc-300">
                   <div className="flex items-center justify-end gap-1.5">
@@ -386,7 +402,7 @@ export default function Comparison() {
       </div>
 
       {/* 4. FORWARD-RETURN BAR CHART + COLLAPSIBLE HORIZON BREAKDOWN */}
-      <div className="border border-border-hairline bg-[#161616] rounded-lg p-5 sm:p-6 space-y-4">
+      <div className="border border-border-hairline bg-surface-inset rounded-lg p-5 sm:p-6 space-y-4">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-border-hairline pb-3">
           <div>
             <h3 className="font-serif font-medium text-base sm:text-lg text-white">
@@ -425,8 +441,8 @@ export default function Comparison() {
               <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px', fontFamily: 'monospace' }} />
               <Bar dataKey={`${currentPair.llmDisplayName} (BUY)`} fill="#10B981" radius={[2, 2, 0, 0]} />
               <Bar dataKey={`${currentPair.llmDisplayName} (HOLD)`} fill="#71717A" radius={[2, 2, 0, 0]} />
-              <Bar dataKey={`${currentPair.rulesDisplayName} (BUY)`} fill="#38BDF8" radius={[2, 2, 0, 0]} />
-              <Bar dataKey="Nifty 500 Index" fill="#D4AF37" radius={[2, 2, 0, 0]} />
+              <Bar dataKey={`${currentPair.rulesDisplayName} (BUY)`} fill="#06B6D4" radius={[2, 2, 0, 0]} />
+              <Bar dataKey="Nifty 500 Index" fill="#64748B" radius={[2, 2, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -436,6 +452,7 @@ export default function Comparison() {
           <div className="flex items-center justify-between">
             <button
               onClick={() => setShowHorizonTable(!showHorizonTable)}
+              aria-expanded={showHorizonTable}
               className="inline-flex items-center gap-1.5 text-zinc-400 hover:text-white transition-colors cursor-pointer text-xs"
             >
               <span>{showHorizonTable ? 'Hide Detailed Horizon Figures' : 'View Detailed Horizon Figures (5 Windows)'}</span>
@@ -447,7 +464,7 @@ export default function Comparison() {
           {showHorizonTable && (
             <div className="overflow-x-auto pt-2 border-t border-border-hairline animate-hero-entrance">
               <table className="w-full text-left text-xs font-mono text-zinc-300">
-                <thead className="text-[11px] text-zinc-500 uppercase tracking-wider bg-[#121212]">
+                <thead className="text-[11px] text-zinc-400 bg-surface-well">
                   <tr className="border-b border-border-hairline">
                     <th className="py-2.5 px-3 font-normal">Holding Horizon</th>
                     <th className="py-2.5 px-3 text-right font-normal text-positive">LLM BUY Avg</th>

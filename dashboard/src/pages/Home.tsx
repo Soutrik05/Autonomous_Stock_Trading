@@ -237,60 +237,56 @@ export default function Home() {
           [Left: Masthead thesis, narrative, 4-point protocol matrix, action links]
           [Right: Cumulative return plot + seamlessly docked Top 3 standings strip]
           ========================================================================= */}
-      <section className="border border-border-hairline bg-[#161616] rounded-lg overflow-hidden">
+      <section className="border border-border-hairline bg-surface-inset rounded-lg overflow-hidden">
         <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-border-hairline">
 
           {/* Left Column: Editorial Thesis, Protocol Matrix & Primary CTAs */}
-          <div className="lg:col-span-5 p-6 sm:p-8 lg:p-9 flex flex-col justify-between space-y-6">
+          <div className="lg:col-span-5 p-6 sm:p-8 lg:p-9 flex flex-col justify-between space-y-7">
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-accent flex-shrink-0" />
+                <span className="w-1.5 h-1.5 rounded-full bg-accent flex-shrink-0 animate-ping opacity-75" />
                 <MetaList
                   items={[
-                    { label: 'Platform', value: 'Live Paper Trading' },
-                    { label: 'Pilot', value: 'NSE Nifty 500' },
+                    { label: 'Trial', value: 'Live Paper Trading' },
+                    { label: 'Universe', value: 'NSE Nifty 500' },
                   ]}
-                  className="text-[10px]"
+                  className="text-[11px]"
                 />
               </div>
 
-              <h1 className="font-display text-3xl sm:text-4xl lg:text-[44px] font-medium tracking-tight text-white leading-[1.08]">
-                Can AI judgment beat its own rulebook?
+              <h1 className="font-display text-3xl sm:text-4xl lg:text-[42px] font-medium tracking-tight text-white leading-[1.08]">
+                Can generative reasoning generate real alpha?
               </h1>
 
-              <p className="text-sm sm:text-base text-zinc-300 font-sans leading-relaxed pt-1">
-                Five autonomous LLM agents trade India's top equities live alongside matched deterministic rulebooks, each pair personifying a distinct investing philosophy to test whether generative reasoning creates authentic alpha.
+              <p className="text-base sm:text-lg text-zinc-300 font-sans leading-relaxed pt-1">
+                Five autonomous LLM agents trade Indian equities live alongside matched, deterministic Python rules. Each pair embodies a distinct investing school of thought—pitted under identical capital and statutory friction to measure whether generative judgment outperforms mechanical execution.
               </p>
             </div>
 
-            {/* 4-Point Institutional Protocol Matrix */}
-            <div className="grid grid-cols-2 gap-x-4 gap-y-3 py-4 border-y border-white/[0.06] text-xs font-mono">
-              <div>
-                <span className="text-[10px] uppercase tracking-wider text-zinc-500 block">Universe</span>
-                <span className="text-zinc-200 font-sans font-medium mt-0.5 block">NSE Nifty 500</span>
-              </div>
-              <div>
-                <span className="text-[10px] uppercase tracking-wider text-zinc-500 block">Agent Cohort</span>
-                <span className="text-zinc-200 font-sans font-medium mt-0.5 block">10 Active (1:1 Matched)</span>
-              </div>
-              <div>
-                <span className="text-[10px] uppercase tracking-wider text-zinc-500 block">Lookahead Bias</span>
-                <span className="text-zinc-200 font-sans font-medium mt-0.5 block">Zero (Strict EOD Cutoff)</span>
-              </div>
-              <div>
-                <span className="text-[10px] uppercase tracking-wider text-zinc-500 block">Audit Standard</span>
-                <span className="text-zinc-200 font-sans font-medium mt-0.5 block">Public Forensic Ledger</span>
-              </div>
+            {/* Edge-Ruled Key-Value Protocol Ledger */}
+            <div className="space-y-2.5 py-4 border-y border-white/[0.08]">
+              {[
+                { label: 'Universe', value: 'NSE Nifty 500 Index' },
+                { label: 'Cohort', value: '10 Agents · 5 Philosophies' },
+                { label: 'Lookahead', value: 'Zero · Strict EOD Cutoff' },
+                { label: 'Execution', value: 'Audited Fills (STT, Slippage)' },
+              ].map(({ label, value }) => (
+                <div key={label} className="flex items-baseline gap-3 text-xs sm:text-sm font-mono">
+                  <span className="text-zinc-500 flex-shrink-0 w-20 sm:w-24">{label}</span>
+                  <span className="w-px h-3 bg-white/10 flex-shrink-0 self-center" />
+                  <span className="text-zinc-200">{value}</span>
+                </div>
+              ))}
             </div>
 
             {/* Navigation Action Links */}
-            <div className="pt-2 flex flex-wrap items-center gap-6 text-sm font-sans font-medium">
+            <div className="pt-1 flex flex-wrap items-center gap-6 text-sm font-sans font-medium">
               <ActionLink to="/leaderboard" variant="primary">
                 Explore Standings Table
               </ActionLink>
 
               <ActionLink to="/comparison" variant="secondary">
-                Inspect Head-to-Head Duels
+                Inspect Philosophy Matchups
               </ActionLink>
             </div>
           </div>
@@ -306,9 +302,9 @@ export default function Home() {
             />
 
             {/* Lower Chamber: Docked Top 3 Standings Strip */}
-            <div className="p-5 sm:p-6 space-y-3 font-mono text-xs bg-[#121212]">
+            <div className="p-5 sm:p-6 space-y-3 font-mono text-xs bg-surface-well">
               <div className="flex items-center justify-between border-b border-white/[0.06] pb-2 text-[11px]">
-                <span className="uppercase tracking-wider font-medium text-zinc-400">
+                <span className="font-medium text-zinc-400">
                   Live Standings · Top 3 Agents Today
                 </span>
                 <span className="text-zinc-500 text-[10px]">Daily MTM</span>
@@ -387,7 +383,7 @@ export default function Home() {
 
         {/* Connected Horizontal Timeline Rail */}
         <div className="relative pt-2 pb-2">
-          <div className="hidden md:block absolute top-[16px] left-[5%] right-[5%] h-[1px] bg-white/10 z-0" />
+          <div className="hidden md:block absolute top-[16px] left-[5%] right-[5%] h-[1px] bg-white/20 z-0" />
 
           <div className="grid grid-cols-1 md:grid-cols-5 gap-8 md:gap-6 relative z-10">
             {EXPERIMENT_STAGES.map((st) => (
@@ -396,7 +392,7 @@ export default function Home() {
                 {/* Node on Rail */}
                 <div className="flex items-center gap-3 md:block">
                   {st.isCore ? (
-                    <div className="w-6 h-6 rounded-full bg-accent/20 border-2 border-accent flex items-center justify-center bg-[#121212] z-10">
+                    <div className="w-6 h-6 rounded-full bg-accent/20 border-2 border-accent flex items-center justify-center bg-surface-well z-10 shadow-[0_0_16px_rgba(212,175,55,0.25)]">
                       <div className="w-2 h-2 rounded-full bg-accent" />
                     </div>
                   ) : (
@@ -405,15 +401,15 @@ export default function Home() {
                     </div>
                   )}
 
-                  <span className="md:hidden text-zinc-500 text-[10px] font-mono">
+                  <span className={cn("md:hidden text-[10px] font-mono", st.isCore ? "text-accent font-bold" : "text-zinc-500")}>
                     {st.step}
                   </span>
                 </div>
 
                 {/* Typography below node */}
                 <div className="space-y-1.5 pl-7 md:pl-0">
-                  <div className="hidden md:flex items-center justify-between text-zinc-500 text-[10px] font-mono">
-                    <span>{st.step}</span>
+                  <div className="hidden md:flex items-center justify-between text-[10px] font-mono">
+                    <span className={st.isCore ? "text-accent font-bold" : "text-zinc-500"}>{st.step}</span>
                   </div>
 
                   <h3
@@ -427,13 +423,13 @@ export default function Home() {
 
                   {st.subtitle && (
                     <div>
-                      <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono text-accent bg-accent/10 border border-accent/20 uppercase tracking-wider">
+                      <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono text-accent bg-accent/10 border border-accent/20">
                         {st.subtitle}
                       </span>
                     </div>
                   )}
 
-                  <p className="text-xs sm:text-sm text-zinc-400 font-sans leading-relaxed pt-0.5">
+                  <p className="text-sm text-zinc-400 font-sans leading-relaxed pt-0.5">
                     {st.detail}
                   </p>
                 </div>
@@ -454,13 +450,13 @@ export default function Home() {
         <SectionHeader title="Built for Rigor" />
 
         {/* Numbered definition list in 2-column grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-7">
           {TRUST_PILLARS.map((tp, i) => (
             <div key={tp.title} className="flex gap-5">
-              <span className="font-mono text-xs text-zinc-500 pt-0.5 flex-shrink-0 w-5">0{i+1}</span>
+              <span className="font-mono text-sm text-zinc-500 pt-0.5 flex-shrink-0 w-6">0{i+1}</span>
               <div>
-                <h3 className="font-sans text-sm font-medium text-white mb-1">{tp.title}</h3>
-                <p className="text-xs text-zinc-400 leading-relaxed">{tp.detail}</p>
+                <h3 className="font-sans text-base font-medium text-white mb-1.5">{tp.title}</h3>
+                <p className="text-sm text-zinc-400 leading-relaxed">{tp.detail}</p>
               </div>
             </div>
           ))}
@@ -484,7 +480,7 @@ export default function Home() {
             1. Can Autonomous Agent Personas Generate Real Equity Alpha?
           </h3>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 text-sm sm:text-base text-zinc-300 font-sans leading-relaxed">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 text-base text-zinc-300 font-sans leading-relaxed">
             <div className="lg:col-span-6 space-y-3">
               <p>
                 <strong className="text-white font-medium">Core Hypothesis:</strong> Testing whether autonomous LLM agents embodying distinct investment schools of thought can independently analyze market momentum, valuation filings, and corporate balance sheets to execute profitable trades without human intervention.
@@ -511,7 +507,7 @@ export default function Home() {
             2. Does Heavy Inference Outperform Matched Rules?
           </h3>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 text-sm sm:text-base text-zinc-300 font-sans leading-relaxed">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 text-base text-zinc-300 font-sans leading-relaxed">
             <div className="lg:col-span-6 space-y-3">
               <p>
                 <strong className="text-white font-medium">Core Hypothesis:</strong> Evaluating whether the significant computational overhead, token expenditure, and execution latency of an LLM decision layer produce demonstrable excess return over identical, deterministic Python rules executing on the exact same market bars.
@@ -568,7 +564,7 @@ export default function Home() {
                   {phi.mandate}
                 </div>
 
-                <p className="text-xs sm:text-sm text-zinc-400 font-sans leading-relaxed">
+                <p className="text-sm text-zinc-400 font-sans leading-relaxed">
                   {phi.profile}
                 </p>
               </div>
@@ -613,7 +609,7 @@ export default function Home() {
                 <div className="flex items-center gap-3">
                   <span
                     className={cn(
-                      'px-1.5 py-0.5 rounded text-[10px] font-semibold tracking-wider border',
+                      'px-1.5 py-0.5 rounded text-[10px] font-mono font-medium border',
                       evt.eventType.includes('FILL')
                         ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10'
                         : evt.eventType.includes('EXPIRED')
@@ -661,12 +657,12 @@ export default function Home() {
         <div className="pt-4 space-y-4 font-sans">
           <div className="flex items-center gap-3">
             <span className="text-accent font-mono">·</span>
-            <h3 className="font-display text-2xl sm:text-3xl font-medium text-white tracking-tight leading-tight">
+            <h3 className="font-display text-3xl sm:text-4xl font-medium text-white tracking-tight leading-tight">
               The empirical observation trial is actively underway.
             </h3>
           </div>
 
-          <p className="text-sm sm:text-base text-zinc-300 leading-relaxed max-w-4xl">
+          <p className="text-base sm:text-lg text-zinc-300 leading-relaxed max-w-4xl">
             Statistical conclusions require a rigorous threshold of approximately 30 closed round-trip trades per agent across contrasting market regimes. While initial pilot mark-to-market positions are live, we do not declare premature alpha superiority. Daily order execution, prompt adherence, and thesis forensics remain continuously audited and open for inspection.
           </p>
 
@@ -676,7 +672,7 @@ export default function Home() {
             </ActionLink>
 
             <ActionLink to="/comparison" variant="secondary">
-              Inspect Head-to-Head Duels
+              Inspect Philosophy Matchups
             </ActionLink>
 
             <ActionLink to="/pulse" variant="secondary">

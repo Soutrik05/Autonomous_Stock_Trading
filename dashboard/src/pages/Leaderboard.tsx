@@ -165,7 +165,7 @@ export default function Leaderboard() {
 
           <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
             {/* Market Conditions Compact Inline Ribbon */}
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#161616] border border-border-hairline text-[12px] font-mono">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-surface-inset border border-border-hairline text-[12px] font-mono">
               <span className="text-zinc-500 text-[11px]">Nifty 500 Trend:</span>
               <span className={cn("font-medium", trendColorClass)}>{niftyTrendLabel}</span>
               <span className="text-zinc-600">·</span>
@@ -177,10 +177,16 @@ export default function Leaderboard() {
             </div>
 
             {/* Strategy Filter Tabs */}
-            <div className="flex items-center gap-1 p-0.5 rounded-md bg-[#121212] border border-border-hairline text-xs font-mono flex-shrink-0">
+            <div
+              role="tablist"
+              aria-label="Strategy cohort filters"
+              className="flex items-center gap-1 p-0.5 rounded-md bg-surface-well border border-border-hairline text-xs font-mono flex-shrink-0"
+            >
               {(['ALL', 'LLM', 'RULES'] as const).map((filter) => (
                 <button
                   key={filter}
+                  role="tab"
+                  aria-selected={strategyFilter === filter}
                   onClick={() => setStrategyFilter(filter)}
                   className={cn(
                     'px-3 py-1.5 rounded transition-colors cursor-pointer text-xs',
@@ -210,7 +216,7 @@ export default function Leaderboard() {
           subtitle="Walk-forward daily equity trajectories from inception seed (₹5L per agent) against the NSE Nifty 500 index."
         />
 
-        <div className="border border-border-hairline bg-[#161616] rounded-lg overflow-hidden">
+        <div className="border border-border-hairline bg-surface-inset rounded-lg overflow-hidden">
           <TrajectoryChart
             data={chartData}
             mode={chartMode}

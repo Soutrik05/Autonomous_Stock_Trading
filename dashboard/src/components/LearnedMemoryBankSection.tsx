@@ -41,7 +41,7 @@ export default function LearnedMemoryBankSection({ heuristics }: LearnedMemoryBa
                     <div className="flex items-center justify-between text-xs font-mono">
                       <span
                         className={cn(
-                          "px-2 py-0.5 rounded text-[10px] font-mono tracking-wider font-semibold border",
+                          "px-2 py-0.5 rounded text-[10px] font-mono font-medium border",
                           isSeek
                             ? "bg-emerald-500/10 text-positive border-emerald-500/25"
                             : "bg-rose-500/10 text-negative border-rose-500/25"

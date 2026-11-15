@@ -178,13 +178,13 @@ export default function PortfolioDualCurve({
                       </div>
                       <div className="flex justify-between gap-4">
                         <span className="text-zinc-400">Current NAV:</span>
-                        <span className="font-semibold text-white">
+                        <span className="font-semibold text-white tabular-nums">
                           {formatPaiseToRupees(data.portfolioValuePaise)}
                         </span>
                       </div>
                       <div className="flex justify-between gap-4">
                         <span className="text-zinc-500">Invested:</span>
-                        <span className="text-zinc-300">
+                        <span className="text-zinc-300 tabular-nums">
                           {formatPaiseToRupees(data.investedCapitalPaise)}
                         </span>
                       </div>
@@ -192,7 +192,7 @@ export default function PortfolioDualCurve({
                         <span className="text-zinc-400">Net Return:</span>
                         <span
                           className={cn(
-                            "font-bold",
+                            "font-bold tabular-nums",
                             deltaPaise > 0
                               ? "text-positive"
                               : deltaPaise < 0

@@ -27,7 +27,7 @@ export const MetaList: React.FC<MetaListProps> = ({
         return (
           <span key={i} className="inline-flex items-center">
             {i > 0 && <span className="text-zinc-600 mx-2 select-none">{separator}</span>}
-            {label && <span className="text-zinc-500 uppercase tracking-wider mr-1">{label}:</span>}
+            {label && <span className="text-zinc-500 mr-1.5">{label}:</span>}
             <span className={cn(label ? 'text-zinc-200' : (i % 2 === 1 ? 'text-zinc-300' : 'text-zinc-400'))}>
               {val}
             </span>

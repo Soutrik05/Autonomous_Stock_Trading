@@ -26,7 +26,7 @@ export default function Footer() {
 
           {/* Col 2: Navigation Links */}
           <div className="md:col-span-5 space-y-3">
-            <div className="text-[10px] font-mono uppercase tracking-widest text-zinc-500">
+            <div className="text-[11px] font-mono text-zinc-400 font-medium">
               Benchmark Navigation
             </div>
             <div className="grid grid-cols-2 gap-2 text-xs font-mono">
@@ -43,9 +43,9 @@ export default function Footer() {
 
         {/* Bottom Cardless Advisory & Copyright */}
         <div className="border-t border-border-hairline pt-6 space-y-3">
-          <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-widest text-zinc-500">
+          <div className="flex items-center justify-between text-[11px] font-mono text-zinc-400 font-medium">
             <span>Research Disclaimer</span>
-            <span className="text-amber-400/90 font-medium">Paper Trading Only</span>
+            <span className="text-accent font-medium">Paper Trading Only</span>
           </div>
           <p className="text-xs text-zinc-500 leading-relaxed font-sans max-w-3xl">
             StockMinds is an academic research platform for empirical market evaluation. All trades, orders, and portfolio NAVs are strictly simulated. Not registered with SEBI; does not offer financial or investment advice.

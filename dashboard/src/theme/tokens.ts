@@ -1,8 +1,8 @@
 /**
  * Single Source of Truth (SSOT) for StockMinds Design System
  * 
- * Visual intent: OpenRouter-inspired Deep Obsidian Arena, translucent glassmorphic panels,
- * razor-sharp micro-borders, electric cyan/cobalt accents, and vivid telemetry signals.
+ * Visual intent: Modern Editorial Terminal — High-precision quantitative research
+ * benchmark, card-free hairline monolithic grid, and strict semantic data polarity.
  */
 
 import type { ForensicTag, EventSeverity } from '../types';
@@ -27,10 +27,10 @@ export const THEME_COLORS = {
   inkSubdued: '#757575',                      // Zinc-500 captions & units
 
   // Functional Signals (No neon glows)
-  accent: '#2563EB',                          // Institutional cobalt
-  accentHover: '#1D4ED8',                     // Cobalt hover
-  accentSubdued: 'rgba(37, 99, 235, 0.12)',   // Subtle cobalt background
-  accentBorder: 'rgba(37, 99, 235, 0.30)',   // Subtle cobalt border
+  accent: '#D4AF37',                          // Restrained Antique Gold
+  accentHover: '#B8972E',                     // Gold hover
+  accentSubdued: 'rgba(212, 175, 55, 0.12)',   // Subtle gold background
+  accentBorder: 'rgba(212, 175, 55, 0.30)',   // Subtle gold border
 
   profit: '#10B981',                          // Tabular emerald
   profitSubdued: 'rgba(16, 185, 129, 0.10)',

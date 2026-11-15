@@ -157,7 +157,7 @@ export default function HoldingsLinearStack({
             <span className="text-zinc-500 font-mono text-[12px]">Cash Available</span>
             <div className="text-[12px] text-zinc-400 font-sans flex items-center gap-1.5 md:justify-end">
               <div className="flex items-baseline md:justify-end gap-2.5 flex-wrap">
-                <span className="text-xl sm:text-2xl font font-mono text-white tabular-nums">
+                <span className="text-xl sm:text-2xl font-mono text-white tabular-nums">
                   {formatPaiseToRupees(availableCashPaise)}
                 </span>
               </div>
@@ -165,7 +165,7 @@ export default function HoldingsLinearStack({
 
               {/* Available Capital Number */}
             </div>
-            <span className="text-white 500 font-mono text-[12px]">({availableCashPctOfSeed.toFixed(1)}%)</span>
+            <span className="text-zinc-400 font-mono text-[12px]">({availableCashPctOfSeed.toFixed(1)}%)</span>
           </div>
         </div>
       </div>
@@ -238,7 +238,7 @@ export default function HoldingsLinearStack({
                 {/* 2. Center Column: LTP & 1D Move (col-span-3 text-left md:text-center) */}
                 <div className="md:col-span-3 space-y-0.5 font-mono">
                   <div className="flex items-baseline md:justify-center gap-1.5">
-                    <span className="text-[11px] text-zinc-500 uppercase tracking-wider font-sans">LTP</span>
+                    <span className="text-[11px] text-zinc-500 font-sans">LTP</span>
                     <span className="text-[14px] sm:text-[15px] font-bold text-white tabular-nums">
                       {formatPaiseToRupees(pos.currentPricePaise)}
                     </span>

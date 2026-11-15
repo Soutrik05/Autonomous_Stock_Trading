@@ -138,7 +138,7 @@ export default function Pulse() {
 
         {/* Action Controls & Health Status Badge */}
         <div className="flex flex-wrap items-center gap-3">
-          <div className="px-2.5 py-1 rounded bg-[#161616] border border-border-hairline text-xs font-mono flex items-center gap-2">
+          <div className="px-2.5 py-1 rounded bg-surface-inset border border-border-hairline text-xs font-mono flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-positive animate-pulse" />
             <span className="text-zinc-400">Pipelines:</span>
             <strong className="text-positive font-semibold tabular-nums">{successfulJobsCount} / {jobs.length} Nominal</strong>
@@ -170,20 +170,20 @@ export default function Pulse() {
 
       {/* 2. SCHEDULED CRON PIPELINES */}
       <section className="space-y-3">
-        <div className="flex items-center justify-between border-b border-border-hairline pb-2 text-xs font-mono">
-          <h2 className="font-sans text-sm font-semibold uppercase tracking-wider text-zinc-400">
+        <div className="flex items-center justify-between border-b border-border-hairline pb-2 font-mono">
+          <h2 className="font-sans text-base font-medium text-zinc-200">
             Pipeline Registers
           </h2>
-          <span className="text-zinc-500 text-[11px]">
+          <span className="text-zinc-500 text-xs">
             APScheduler · Asia/Kolkata (IST)
           </span>
         </div>
 
-        <div className="border border-border-hairline bg-[#161616] rounded-lg overflow-hidden">
+        <div className="border border-border-hairline bg-surface-inset rounded-lg overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left font-mono text-xs">
               <thead>
-                <tr className="bg-[#121212] border-b border-border-hairline text-[10px] text-zinc-500 uppercase tracking-wider">
+                <tr className="bg-surface-well border-b border-border-hairline text-[11px] text-zinc-400">
                   <th className="py-2.5 px-3 font-normal">Pipeline / Job</th>
                   <th className="py-2.5 px-3 font-normal">Category</th>
                   <th className="py-2.5 px-3 font-normal">Schedule</th>
@@ -271,8 +271,8 @@ export default function Pulse() {
 
       {/* 3. ACTIVITY & AUDIT EVENT LOG */}
       <section className="space-y-3 pt-2">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-border-hairline pb-2 text-xs font-mono">
-          <h2 className="font-sans text-sm font-semibold uppercase tracking-wider text-zinc-400">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-border-hairline pb-2 font-mono">
+          <h2 className="font-sans text-base font-medium text-zinc-200">
             System Event Ledger
           </h2>
 
@@ -285,14 +285,14 @@ export default function Pulse() {
                 placeholder="Search events..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8 pr-3 py-1 bg-[#121212] border border-border-hairline rounded text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-accent/50 w-36 sm:w-48"
+                className="pl-8 pr-3 py-1 bg-surface-well border border-border-hairline rounded text-xs text-white placeholder-zinc-500 focus:border-accent w-36 sm:w-48"
               />
             </div>
 
             <select
               value={selectedAgent}
               onChange={(e) => setSelectedAgent(e.target.value)}
-              className="py-1 px-2 bg-[#121212] border border-border-hairline rounded text-xs text-zinc-300 cursor-pointer focus:outline-none"
+              className="py-1 px-2 bg-surface-well border border-border-hairline rounded text-xs text-zinc-300 cursor-pointer focus:border-accent"
             >
               {AGENT_OPTIONS.map((opt) => (
                 <option key={opt.id} value={opt.id}>
@@ -304,7 +304,7 @@ export default function Pulse() {
             <select
               value={selectedSeverity}
               onChange={(e) => setSelectedSeverity(e.target.value)}
-              className="py-1 px-2 bg-[#121212] border border-border-hairline rounded text-xs text-zinc-300 cursor-pointer focus:outline-none"
+              className="py-1 px-2 bg-surface-well border border-border-hairline rounded text-xs text-zinc-300 cursor-pointer focus:border-accent"
             >
               <option value="ALL">All Severities</option>
               <option value="SUCCESS">Success</option>
@@ -316,11 +316,11 @@ export default function Pulse() {
         </div>
 
         {/* Ledger Table */}
-        <div className="border border-border-hairline bg-[#161616] rounded-lg overflow-hidden">
+        <div className="border border-border-hairline bg-surface-inset rounded-lg overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left font-mono text-xs">
               <thead>
-                <tr className="bg-[#121212] border-b border-border-hairline text-[10px] text-zinc-500 uppercase tracking-wider">
+                <tr className="bg-surface-well border-b border-border-hairline text-[11px] text-zinc-400">
                   <th className="py-2.5 px-3 font-normal">Timestamp (IST)</th>
                   <th className="py-2.5 px-3 font-normal">Event Type</th>
                   <th className="py-2.5 px-3 font-normal">Agent</th>

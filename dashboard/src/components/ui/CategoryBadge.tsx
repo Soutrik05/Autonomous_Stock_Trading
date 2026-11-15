@@ -13,7 +13,7 @@ export const CategoryBadge: React.FC<CategoryBadgeProps> = ({ type, className })
   return (
     <span
       className={cn(
-        'px-1.5 py-0.2 rounded border text-[9px] font-mono uppercase tracking-wider flex-shrink-0 transition-colors',
+        'px-1.5 py-0.5 rounded border text-[10px] font-mono flex-shrink-0 transition-colors',
         isRules
           ? 'border-white/15 text-zinc-400 bg-white/[0.02]'
           : 'border-white/20 text-zinc-300 bg-white/[0.04]',

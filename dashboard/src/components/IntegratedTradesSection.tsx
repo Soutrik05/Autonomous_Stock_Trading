@@ -139,7 +139,7 @@ export default function IntegratedTradesSection({
             <div className="overflow-x-auto">
               <table className="w-full text-left font-mono text-xs">
                 <thead>
-                  <tr className="bg-[#121212] border-b border-border-hairline text-[10px] text-zinc-500 uppercase tracking-wider">
+                  <tr className="bg-[#121212] border-b border-border-hairline text-[11px] text-zinc-400">
                     <th className="py-2.5 px-4 font-normal">Status</th>
                     <th className="py-2.5 px-4 font-normal">Symbol</th>
                     <th className="py-2.5 px-4 font-normal text-right">Shares</th>
@@ -174,14 +174,23 @@ export default function IntegratedTradesSection({
                     return (
                       <React.Fragment key={pos.id}>
                         <tr
+                          role="button"
+                          tabIndex={0}
+                          aria-expanded={isExpanded}
                           onClick={() => setExpandedTradeId(isExpanded ? null : pos.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              setExpandedTradeId(isExpanded ? null : pos.id);
+                            }
+                          }}
                           className="hover:bg-white/[0.02] transition-colors cursor-pointer"
                         >
                           {/* Status */}
                           <td className="py-3 px-4">
                             <span
                               className={cn(
-                                "inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono tracking-wider font-medium border",
+                                "inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono font-medium border",
                                 isClosed
                                   ? "border-border-hairline text-zinc-400 bg-transparent"
                                   : "border-white/20 text-zinc-200 bg-white/[0.04]"
@@ -261,7 +270,7 @@ export default function IntegratedTradesSection({
                           <tr className="bg-[#121212]/80">
                             <td colSpan={9} className="p-4 border-b border-border-hairline space-y-3">
                               {/* Rationale Prose */}
-                              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-l-2 border-accent pl-3 py-1">
+                              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 bg-white/[0.02] border border-border-hairline rounded p-3">
                                 <p className="text-xs text-zinc-200 italic leading-relaxed font-sans">
                                   "{rationaleText}"
                                 </p>
@@ -345,7 +354,7 @@ export default function IntegratedTradesSection({
             <div className="overflow-x-auto">
               <table className="w-full text-left font-mono text-xs">
                 <thead>
-                  <tr className="bg-[#121212] border-b border-border-hairline text-[10px] text-zinc-500 uppercase tracking-wider">
+                  <tr className="bg-[#121212] border-b border-border-hairline text-[11px] text-zinc-400">
                     <th className="py-2.5 px-4 font-normal">Action</th>
                     <th className="py-2.5 px-4 font-normal">Symbol</th>
                     <th className="py-2.5 px-4 font-normal">Date</th>
@@ -363,14 +372,23 @@ export default function IntegratedTradesSection({
                     return (
                       <React.Fragment key={dec.id}>
                         <tr
+                          role="button"
+                          tabIndex={0}
+                          aria-expanded={isExpanded}
                           onClick={() => setExpandedDecisionId(isExpanded ? null : dec.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              setExpandedDecisionId(isExpanded ? null : dec.id);
+                            }
+                          }}
                           className="hover:bg-white/[0.02] transition-colors cursor-pointer"
                         >
                           {/* Action */}
                           <td className="py-3 px-4">
                             <span
                               className={cn(
-                                "px-2 py-0.5 rounded text-[10px] font-semibold tracking-wider border",
+                                "px-2 py-0.5 rounded text-[10px] font-mono font-medium border",
                                 isBuy
                                   ? "border-emerald-500/30 text-positive bg-emerald-500/10"
                                   : isHold
@@ -414,7 +432,7 @@ export default function IntegratedTradesSection({
                         {isExpanded && (
                           <tr className="bg-[#121212]/80">
                             <td colSpan={6} className="p-4 border-b border-border-hairline space-y-2.5">
-                              <div className="border-l-2 border-accent pl-3 py-1">
+                              <div className="bg-white/[0.02] border border-border-hairline rounded p-3">
                                 <p className="text-xs text-zinc-200 italic leading-relaxed font-sans">
                                   "{dec.rationale}"
                                 </p>

@@ -142,7 +142,7 @@ function EquityCurveComponent({
                               />
                               <span>{config.shortName}:</span>
                             </span>
-                            <span className="font-semibold text-white">
+                            <span className="font-semibold text-white tabular-nums">
                               {formatPaiseToRupees(Number(item.value) * 100)}
                             </span>
                           </div>

@@ -398,8 +398,8 @@ export default function WatchlistFunnel({ initialAgentId }: WatchlistFunnelProps
                     : "bg-[#141414] border-border-hairline hover:border-white/15 hover:bg-white/[0.02]"
                 )}
               >
-                <div className="flex items-center justify-between text-[10px] text-zinc-500">
-                  <span className="font-semibold uppercase tracking-wider">
+                <div className="flex items-center justify-between text-[11px] text-zinc-500">
+                  <span className="font-semibold text-zinc-400">
                     Stage {st.step}
                   </span>
                   {idx > 0 && st.droppedCount > 0 && (
@@ -434,7 +434,7 @@ export default function WatchlistFunnel({ initialAgentId }: WatchlistFunnelProps
         {/* Stage Hurdle Summary Bar */}
         <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 pb-2.5 border-b border-border-hairline">
           <div className="space-y-0.5">
-            <span className="text-[10px] uppercase text-zinc-500 font-sans tracking-wider block">
+            <span className="text-[11px] text-zinc-500 font-mono block">
               Stage {selectedStage.step} Hurdle · {selectedStage.name}
             </span>
             <code className="text-xs text-zinc-200 font-mono">
@@ -452,7 +452,7 @@ export default function WatchlistFunnel({ initialAgentId }: WatchlistFunnelProps
         {/* Flat Eliminated Candidates List (Hairline Separated, No Boxed Cards) */}
         {selectedStage.sampleDropped.length > 0 && (
           <div className="space-y-1.5 pt-1">
-            <span className="text-[10px] uppercase text-zinc-500 block font-sans tracking-wider">
+            <span className="text-[11px] text-zinc-500 block font-mono">
               Sample Elimination Telemetry
             </span>
             <div className="divide-y divide-border-hairline border-t border-b border-border-hairline">

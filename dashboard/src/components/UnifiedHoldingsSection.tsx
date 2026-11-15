@@ -225,7 +225,7 @@ export default function UnifiedHoldingsSection({
       <div className="border border-white/[0.08] overflow-hidden bg-[#1E1E1E]">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs font-mono text-zinc-300 border-collapse">
-            <thead className="bg-white/[0.02] text-[11px] text-zinc-400 border-b border-white/10 uppercase tracking-wider font-sans">
+            <thead className="bg-white/[0.02] text-[11px] text-zinc-400 border-b border-white/10 font-mono">
               <tr>
                 <th className="py-3 px-4 font-medium min-w-[200px]">Security / Sector</th>
                 <th className="py-3 px-3 text-right font-medium">Qty</th>

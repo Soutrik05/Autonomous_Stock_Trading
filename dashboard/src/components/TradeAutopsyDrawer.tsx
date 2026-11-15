@@ -54,17 +54,17 @@ export default function TradeAutopsyDrawer({ trade, onClose }: TradeAutopsyDrawe
             {/* P&L & Financial Summary Banner */}
             <div className="p-4 rounded-lg border border-border-hairline bg-[#121212] grid grid-cols-2 gap-4">
               <div>
-                <span className="text-zinc-500 text-[10px] uppercase tracking-wider block">Realized Return</span>
+                <span className="text-zinc-500 text-[11px] block font-sans">Realized Return</span>
                 <span className={`text-xl font-bold tabular-nums ${isProfit ? 'text-positive' : 'text-negative'}`}>
                   {formatPaiseToRupees(trade.realizedPnlPaise)}
                 </span>
-                <span className={`text-xs ml-1 font-semibold ${isProfit ? 'text-positive' : 'text-negative'}`}>
+                <span className={`text-xs ml-1 font-semibold tabular-nums ${isProfit ? 'text-positive' : 'text-negative'}`}>
                   ({formatPct(trade.realizedPnlPct)})
                 </span>
               </div>
 
               <div>
-                <span className="text-zinc-500 text-[10px] uppercase tracking-wider block">Hold Duration</span>
+                <span className="text-zinc-500 text-[11px] block font-sans">Hold Duration</span>
                 <span className="text-xl font-bold text-white tabular-nums">{trade.holdDays} days</span>
                 <span className="text-zinc-500 text-[10px] block mt-0.5">
                   Closed: {trade.closedAt ? formatISTDateTime(trade.closedAt) : 'Market Close'}
@@ -74,7 +74,7 @@ export default function TradeAutopsyDrawer({ trade, onClose }: TradeAutopsyDrawe
 
             {/* Price Execution Milestones */}
             <div className="border border-border-hairline bg-[#121212] p-4 rounded-lg space-y-3">
-              <h4 className="font-medium text-xs text-zinc-300 uppercase tracking-wider">
+              <h4 className="font-medium text-xs text-zinc-300">
                 Execution Milestones & Price Path
               </h4>
 
@@ -117,7 +117,7 @@ export default function TradeAutopsyDrawer({ trade, onClose }: TradeAutopsyDrawe
 
             {/* Verbatim Entry Thesis */}
             <div className="border border-border-hairline bg-[#121212] p-4 rounded-lg space-y-2">
-              <h4 className="font-medium text-xs text-zinc-300 uppercase tracking-wider">
+              <h4 className="font-medium text-xs text-zinc-300">
                 Original LLM Entry Thesis
               </h4>
               <p className="text-zinc-300 text-xs leading-relaxed italic bg-[#161616] p-3 rounded border border-border-hairline font-sans">
