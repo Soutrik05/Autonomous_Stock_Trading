@@ -104,7 +104,7 @@ export default function ExplainabilitySpotlight({ personaId = 'simons' }: Explai
             <Brain className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="font-serif font-medium text-base sm:text-lg text-white">
+            <h3 className="font-display font-medium text-base sm:text-lg text-white">
               Explainability & Faithfulness Audit Spotlight
             </h3>
             <p className="text-xs text-zinc-400 font-sans">

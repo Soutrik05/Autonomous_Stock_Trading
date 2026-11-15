@@ -212,7 +212,7 @@ export default function HoldingsLinearStack({
                     <span className="font-bold text-white text-[15px] sm:text-base tracking-tight font-mono">
                       {pos.symbol}
                     </span>
-                    <span className="text-[11px] px-1.5 py-0.2 rounded bg-white/5 text-zinc-300 border border-border-hairline font-mono">
+                    <span className="text-[11px] px-1.5 py-0.5 rounded bg-white/5 text-zinc-300 border border-border-hairline font-mono">
                       {weightPct.toFixed(1)}%
                     </span>
                     {pos.companyName && (

@@ -310,7 +310,7 @@ export default function IntegratedTradesSection({
                                           <td className="py-1 px-2">
                                             <span
                                               className={cn(
-                                                "px-1.5 py-0.2 rounded text-[9px] font-semibold",
+                                                "px-1.5 py-0.5 rounded text-[9px] font-semibold",
                                                 ord.side === 'BUY' ? "text-positive" : "text-negative"
                                               )}
                                             >

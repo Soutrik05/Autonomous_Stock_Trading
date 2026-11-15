@@ -227,7 +227,7 @@ export default function Comparison() {
           </div>
         </div>
 
-        <p className="text-sm sm:text-base text-zinc-400 font-sans leading-relaxed max-w-3xl">
+        <p className="text-base sm:text-lg text-zinc-300 font-sans leading-relaxed max-w-3xl">
           Each pair shares identical candidate pools, starting capital (₹5,00,000), and statutory charges.
           The single isolated experimental variable is cognition: autonomous generative inference versus deterministic Python rules.
         </p>
@@ -252,7 +252,7 @@ export default function Comparison() {
           </div>
         </div>
 
-        <blockquote className="font-mono text-xs sm:text-sm text-zinc-300 italic border-l-2 border-accent/40 pl-4 py-1 leading-relaxed">
+        <blockquote className="font-mono text-sm sm:text-base text-zinc-200 italic border-l-2 border-accent/40 pl-4 py-1.5 leading-relaxed">
           "{currentPair.coreHypothesis}"
         </blockquote>
       </div>
@@ -405,7 +405,7 @@ export default function Comparison() {
       <div className="border border-border-hairline bg-surface-inset rounded-lg p-5 sm:p-6 space-y-4">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-border-hairline pb-3">
           <div>
-            <h3 className="font-serif font-medium text-base sm:text-lg text-white">
+            <h3 className="font-display font-medium text-base sm:text-lg text-white">
               Forward-Return Trajectory by Holding Horizon
             </h3>
             <p className="text-xs text-zinc-400 font-mono">

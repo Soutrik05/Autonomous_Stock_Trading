@@ -17,7 +17,7 @@ export default function ClosedTradesList({ positions }: ClosedTradesListProps) {
       {/* Header */}
       <div className="p-4 sm:p-5 border-b border-border-hairline flex items-center justify-between font-mono text-xs">
         <div className="flex items-center gap-2">
-          <h3 className="font-serif text-lg font-medium text-white tracking-tight">
+          <h3 className="font-display text-lg font-medium text-white tracking-tight">
             Past Closed Trades
           </h3>
           <span className="px-2 py-0.5 rounded bg-white/[0.04] text-zinc-300 border border-border-hairline text-[11px]">
@@ -58,7 +58,7 @@ export default function ClosedTradesList({ positions }: ClosedTradesListProps) {
                       </span>
                     )}
                     {pos.forensicTag && pos.forensicTag !== 'NONE' && (
-                      <span className={cn("px-1.5 py-0.2 rounded text-[10px] font-mono border", forensic.bg, forensic.text, forensic.border)}>
+                      <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-mono border", forensic.bg, forensic.text, forensic.border)}>
                         {forensic.label}
                       </span>
                     )}

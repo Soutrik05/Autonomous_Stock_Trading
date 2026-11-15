@@ -258,7 +258,7 @@ export default function Home() {
                 Can generative reasoning generate real alpha?
               </h1>
 
-              <p className="text-base sm:text-lg text-zinc-300 font-sans leading-relaxed pt-1">
+              <p className="text-lg sm:text-xl text-zinc-200 font-sans leading-relaxed pt-1">
                 Five autonomous LLM agents trade Indian equities live alongside matched, deterministic Python rules. Each pair embodies a distinct investing school of thought—pitted under identical capital and statutory friction to measure whether generative judgment outperforms mechanical execution.
               </p>
             </div>
@@ -414,8 +414,8 @@ export default function Home() {
 
                   <h3
                     className={cn(
-                      'font-sans text-sm font-medium',
-                      st.isCore ? 'text-white font-semibold text-base' : 'text-zinc-200'
+                      'font-sans text-sm sm:text-base font-medium',
+                      st.isCore ? 'text-white font-semibold' : 'text-zinc-200'
                     )}
                   >
                     {st.title}
@@ -429,7 +429,7 @@ export default function Home() {
                     </div>
                   )}
 
-                  <p className="text-sm text-zinc-400 font-sans leading-relaxed pt-0.5">
+                  <p className="text-[15px] sm:text-base text-zinc-300 font-sans leading-relaxed pt-0.5">
                     {st.detail}
                   </p>
                 </div>
@@ -455,8 +455,8 @@ export default function Home() {
             <div key={tp.title} className="flex gap-5">
               <span className="font-mono text-sm text-zinc-500 pt-0.5 flex-shrink-0 w-6">0{i+1}</span>
               <div>
-                <h3 className="font-sans text-base font-medium text-white mb-1.5">{tp.title}</h3>
-                <p className="text-sm text-zinc-400 leading-relaxed">{tp.detail}</p>
+                <h3 className="font-sans text-base sm:text-lg font-medium text-white mb-1.5">{tp.title}</h3>
+                <p className="text-base text-zinc-300 leading-relaxed">{tp.detail}</p>
               </div>
             </div>
           ))}
@@ -476,7 +476,7 @@ export default function Home() {
 
         {/* Question 01 */}
         <div className="space-y-4 pt-2">
-          <h3 className="font-display text-2xl sm:text-3xl font-medium tracking-tight text-white">
+          <h3 className="font-display text-xl sm:text-2xl font-medium tracking-tight text-white">
             1. Can Autonomous Agent Personas Generate Real Equity Alpha?
           </h3>
 
@@ -503,7 +503,7 @@ export default function Home() {
 
         {/* Question 02 */}
         <div className="space-y-4 pt-4 border-t border-white/[0.06]">
-          <h3 className="font-display text-2xl sm:text-3xl font-medium tracking-tight text-white">
+          <h3 className="font-display text-xl sm:text-2xl font-medium tracking-tight text-white">
             2. Does Heavy Inference Outperform Matched Rules?
           </h3>
 
@@ -555,16 +555,16 @@ export default function Home() {
                   <h3 className="font-display text-lg font-medium text-white">
                     {phi.name}
                   </h3>
-                  <div className="text-xs text-zinc-400 mt-0.5">
+                  <div className="text-xs sm:text-sm text-zinc-400 mt-0.5">
                     Inspired by {phi.inspiration}
                   </div>
                 </div>
 
-                <div className="text-xs font-mono text-accent min-h-[32px] flex items-center">
+                <div className="text-sm font-sans font-medium text-zinc-200 min-h-[36px] flex items-center">
                   {phi.mandate}
                 </div>
 
-                <p className="text-sm text-zinc-400 font-sans leading-relaxed">
+                <p className="text-[15px] sm:text-base text-zinc-300 font-sans leading-relaxed">
                   {phi.profile}
                 </p>
               </div>
@@ -623,7 +623,7 @@ export default function Home() {
                     {(evt.agentId || 'SYSTEM').replace('baseline-', '').toUpperCase()}
                   </span>
                   {evt.symbol && (
-                    <span className="px-1.5 py-0.2 rounded bg-white/[0.04] text-zinc-300 border border-white/5 font-sans">
+                    <span className="px-1.5 py-0.5 rounded bg-white/[0.04] text-zinc-300 border border-white/5 font-mono text-[11px]">
                       {evt.symbol}
                     </span>
                   )}
@@ -657,12 +657,12 @@ export default function Home() {
         <div className="pt-4 space-y-4 font-sans">
           <div className="flex items-center gap-3">
             <span className="text-accent font-mono">·</span>
-            <h3 className="font-display text-3xl sm:text-4xl font-medium text-white tracking-tight leading-tight">
+            <h3 className="font-display text-2xl sm:text-3xl font-medium text-white tracking-tight leading-tight">
               The empirical observation trial is actively underway.
             </h3>
           </div>
 
-          <p className="text-base sm:text-lg text-zinc-300 leading-relaxed max-w-4xl">
+          <p className="text-lg sm:text-xl text-zinc-200 leading-relaxed max-w-4xl">
             Statistical conclusions require a rigorous threshold of approximately 30 closed round-trip trades per agent across contrasting market regimes. While initial pilot mark-to-market positions are live, we do not declare premature alpha superiority. Daily order execution, prompt adherence, and thesis forensics remain continuously audited and open for inspection.
           </p>
 

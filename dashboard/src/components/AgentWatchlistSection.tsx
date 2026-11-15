@@ -19,7 +19,7 @@ export default function AgentWatchlistSection({
       {/* Header */}
       <div className="p-4 sm:p-5 border-b border-border-hairline flex flex-col sm:flex-row sm:items-center justify-between gap-2 font-mono text-xs">
         <div className="flex items-center gap-2">
-          <h3 className="font-serif text-lg font-medium text-white tracking-tight">
+          <h3 className="font-display text-lg font-medium text-white tracking-tight">
             Active Watchlist
           </h3>
           <span className="px-2 py-0.5 rounded bg-white/[0.04] text-zinc-300 border border-border-hairline text-[11px]">

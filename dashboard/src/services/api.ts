@@ -33,7 +33,7 @@ import {
   MOCK_WATCHLISTS,
 } from './mockData';
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://16.178.137.108/api';
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 /**
  * Cadence for dynamic telemetry polling across all pages.

@@ -345,7 +345,7 @@ export default function WatchlistFunnel({ initialAgentId }: WatchlistFunnelProps
       {/* 1. Header with Persona Switcher */}
       <div className="p-4 sm:p-5 border-b border-border-hairline flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 font-mono text-xs">
         <div className="flex items-center gap-2">
-          <h3 className="font-serif text-lg font-medium text-white tracking-tight">
+          <h3 className="font-display text-lg font-medium text-white tracking-tight">
             Screening Pipeline
           </h3>
           {isLiveLoaded && liveEntry && (

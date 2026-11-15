@@ -1,58 +1,46 @@
-import { Link } from 'react-router-dom';
-
 export default function Footer() {
   return (
     <footer className="border-t border-border-hairline bg-[#141414] text-zinc-400 font-sans mt-28 pt-12 pb-14">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
-        {/* Top Grid: Masthead & Navigation */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-10 items-start">
+        {/* Top Tier: Dominant Brand Masthead & Right-Aligned Fact Anchor */}
+        <div className="flex flex-col md:flex-row md:items-start justify-between gap-8 pb-8 sm:pb-9">
 
-          {/* Col 1: Wordmark & Core Mandate */}
-          <div className="md:col-span-7 space-y-3">
-            <div className="flex items-center gap-2">
-              <span className="font-serif text-2xl font-normal text-white tracking-tight">StockMinds Benchmark</span>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded border border-[#D4AF37]/30 text-[#D4AF37] bg-[#D4AF37]/5">
-                NIFTY 500
-              </span>
-            </div>
-            <p className="text-xs text-zinc-400 leading-relaxed font-sans max-w-lg">
-              An empirical benchmark testing whether LLM judgment adds measurable value over matched rules-based baselines — tracked, scored, and shown in full.
+          {/* Left Column: Wordmark & Narrative Tagline */}
+          <div className="space-y-3 max-w-xl">
+            <h2 className="font-display text-3xl sm:text-4xl font-semibold tracking-tight text-white">
+              StockMinds
+            </h2>
+            <p className="text-base sm:text-lg text-zinc-200 font-sans leading-relaxed">
+              A live experiment testing whether LLM judgment beats matched rules-based baselines on real Nifty 500 data.
             </p>
-            <div className="text-[11px] font-mono text-zinc-500 pt-1">
-              Zero-float integer paise accounting · Complete execution audit trail
-            </div>
           </div>
 
-          {/* Col 2: Navigation Links */}
-          <div className="md:col-span-5 space-y-3">
-            <div className="text-[11px] font-mono text-zinc-400 font-medium">
-              Benchmark Navigation
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-xs font-mono">
-              <Link to="/" className="text-zinc-400 hover:text-white transition-colors">Overview</Link>
-              <Link to="/leaderboard" className="text-zinc-400 hover:text-white transition-colors">Master Standings (10 Agents)</Link>
-              <Link to="/portfolio/simons" className="text-zinc-400 hover:text-white transition-colors">Strategy Dossiers & Blotter</Link>
-              <Link to="/comparison" className="text-zinc-400 hover:text-white transition-colors">Cognitive Alpha Duels</Link>
-              <Link to="/backtest" className="text-zinc-400 hover:text-white transition-colors">Walk-Forward Backtest Lab</Link>
-              <Link to="/pulse" className="text-zinc-400 hover:text-white transition-colors">Telemetry Pulse</Link>
+          {/* Right Column: Status Badge & Compact Credibility Ledger */}
+          <div className="flex flex-col md:items-end space-y-3 flex-shrink-0">
+            <span className="inline-flex items-center gap-2 px-3 py-1 rounded text-xs font-mono font-medium border border-accent/40 text-accent bg-accent/10">
+              <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+              Paper Trading Only
+            </span>
+            <div className="text-xs sm:text-[13px] font-mono text-zinc-400 space-y-1 md:text-right">
+              <div>10 Agents · Live Since Nov 2026</div>
             </div>
           </div>
 
         </div>
 
-        {/* Bottom Cardless Advisory & Copyright */}
-        <div className="border-t border-border-hairline pt-6 space-y-3">
-          <div className="flex items-center justify-between text-[11px] font-mono text-zinc-400 font-medium">
-            <span>Research Disclaimer</span>
-            <span className="text-accent font-medium">Paper Trading Only</span>
-          </div>
-          <p className="text-xs text-zinc-500 leading-relaxed font-sans max-w-3xl">
-            StockMinds is an academic research platform for empirical market evaluation. All trades, orders, and portfolio NAVs are strictly simulated. Not registered with SEBI; does not offer financial or investment advice.
+        {/* Hairline Structural Divider */}
+        <div className="border-t border-border-hairline" />
+
+        {/* Bottom Tier: Compliance Statement & Colophon (Bumped Up) */}
+        <div className="pt-6 space-y-4">
+          <p className="text-sm sm:text-base text-zinc-300 font-sans leading-relaxed max-w-3xl">
+            Research use only. All trades and portfolio values are simulated with paper capital. StockMinds is not registered with SEBI and does not provide investment advice.
           </p>
-          <div className="pt-2 flex flex-wrap justify-between items-center text-[10px] font-mono text-zinc-600">
-            <span>StockMinds Benchmark © 2026 · Built for NSE Nifty 500 Benchmark</span>
-            <span>All costs and charges accounted in integer paise</span>
+
+          <div className="flex flex-wrap items-center justify-between gap-y-2 text-xs sm:text-sm font-mono text-zinc-400 pt-1">
+            <span>© 2026 StockMinds</span>
+            <span>Built on NSE Nifty 500 · Live Data</span>
           </div>
         </div>
 
