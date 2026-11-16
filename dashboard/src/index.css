@@ -70,10 +70,10 @@
 
   /* Static glow around big container panels (.glow-box). Kept as variables so the
      strength can be tuned in one place later. */
-  --glow-box-ring: rgba(16, 185, 129, 0.06);
-  --glow-box-green: rgba(16, 185, 129, 0.10);
-  --glow-box-blue: rgba(0, 63, 136, 0.14);
-  --glow-box-border: rgba(60, 90, 80, 0.45);
+  --glow-box-ring: rgba(16, 185, 129, 0.04);
+  --glow-box-green: rgba(16, 185, 129, 0.065);
+  --glow-box-blue: rgba(0, 63, 136, 0.09);
+  --glow-box-border: rgba(60, 90, 80, 0.35);
 }
 
 .font-display {
@@ -690,8 +690,8 @@ select:focus-visible {
 .glow-box {
   box-shadow:
     0 0 0 1px var(--glow-box-ring),
-    0 0 28px var(--glow-box-green),
-    0 0 60px var(--glow-box-blue);
+    0 0 24px var(--glow-box-green),
+    0 0 50px var(--glow-box-blue);
   border-color: var(--glow-box-border);
 }
 
