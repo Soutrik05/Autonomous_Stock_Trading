@@ -27,10 +27,10 @@ export const THEME_COLORS = {
   inkSubdued: '#757575',                      // Zinc-500 captions & units
 
   // Functional Signals (No neon glows)
-  accent: '#003F88',                          // Brand Blue
-  accentHover: '#4F8FE0',                     // Brand Blue (light text tint) hover
-  accentSubdued: 'rgba(0, 63, 136, 0.22)',    // Brand Blue soft background
-  accentBorder: 'rgba(0, 63, 136, 0.30)',     // Brand Blue border
+  accent: '#1E5EAE',                          // Brand Blue (Slate Steel Blue)
+  accentHover: '#7CB3F3',                     // Brand Blue (light text tint) hover
+  accentSubdued: 'rgba(30, 94, 174, 0.18)',   // Brand Blue soft background
+  accentBorder: 'rgba(30, 94, 174, 0.30)',    // Brand Blue border
 
   profit: '#10B981',                          // Tabular emerald
   profitSubdued: 'rgba(16, 185, 129, 0.10)',

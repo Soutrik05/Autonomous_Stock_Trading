@@ -4,6 +4,11 @@ import {
   Scale,
   Clock,
   Receipt,
+  Database,
+  Cpu,
+  Filter,
+  Brain,
+  CheckCircle2,
 } from 'lucide-react';
 import type { NavHistoryPoint, AgentLeaderboardEntry, ActivityEvent } from '../types';
 import { apiService, TELEMETRY_POLL_INTERVAL_MS } from '../services/api';
@@ -83,33 +88,43 @@ const SCHOOLS_OF_THOUGHT = [
 const EXPERIMENT_STAGES = [
   {
     step: '01',
+    icon: Database,
     title: 'Universe Ingestion',
-    detail: 'Daily closing OHLCV, market depth, and balance-sheet filings ingested across the broad investment universe.',
+    detail: 'Daily closing OHLCV, market depth, and corporate filings across Nifty 500.',
+    tag: 'NSE EOD',
     isCore: false,
   },
   {
     step: '02',
-    title: 'Point-in-Time Features',
-    detail: 'Technical indicators and fundamental solvency metrics computed at EOD. Zero lookahead bias permitted.',
+    icon: Cpu,
+    title: 'Feature Engine',
+    detail: 'Technical and solvency metrics computed with strict 15:30 EOD cutoff.',
+    tag: '0 Lookahead',
     isCore: false,
   },
   {
     step: '03',
+    icon: Filter,
     title: 'Candidate Screening',
-    detail: 'Quantitative screening hurdles filter universe down to 10–12 qualified candidate equities per persona.',
+    detail: 'Quantitative filters isolate 10–12 qualified candidate equities per persona.',
+    tag: 'Hurdle Filter',
     isCore: false,
   },
   {
     step: '04',
-    title: 'Parallel Decision Engines',
-    subtitle: 'Core Pivot',
-    detail: 'Autonomous LLM agents and deterministic rules evaluate identical candidate data simultaneously under matched capital.',
+    icon: Brain,
+    title: 'Parallel Decision',
+    subtitle: 'Core Arena',
+    detail: 'Autonomous LLM agents and deterministic Python rules evaluate candidates simultaneously.',
+    tag: 'AI vs Rules',
     isCore: true,
   },
   {
     step: '05',
-    title: 'Broker Execution & Audit',
-    detail: 'Simulated fills deduct statutory STT, GST, and slippage. Metric citations audited against ground truth.',
+    icon: CheckCircle2,
+    title: 'Audited Execution',
+    detail: 'Statutory STT, GST, and slippage deducted; metric citations audited.',
+    tag: 'Fills Audited',
     isCore: false,
   },
 ];
@@ -117,23 +132,27 @@ const EXPERIMENT_STAGES = [
 const TRUST_PILLARS = [
   {
     icon: Clock,
+    badge: 'STRICT EOD',
     title: 'Zero Lookahead Bias',
-    detail: 'Point-in-time indicators computed on historical bars with strict EOD cutoff. Future data cannot leak into decision context.',
+    detail: 'Historical price bars sealed at 15:30 IST cutoff. Future price data cannot leak into decision context.',
   },
   {
     icon: Scale,
-    title: 'Matched Control Baselines',
-    detail: 'Every LLM persona is paired 1:1 against a deterministic Python rulebook receiving identical candidates and starting capital.',
+    badge: '1:1 RATIO',
+    title: 'Matched Baselines',
+    detail: 'Every LLM persona is paired against Python rules receiving identical candidate bars and starting capital.',
   },
   {
     icon: ShieldCheck,
-    title: 'Audited Metric Citations',
-    detail: 'Zero hallucination tolerance. Every metric value cited in an LLM decision memo is independently verified against raw price feeds.',
+    badge: '100% AUDIT',
+    title: 'Audited Citations',
+    detail: 'Every numeric metric cited in agent reasoning memos is independently verified against raw market feeds.',
   },
   {
     icon: Receipt,
-    title: 'Real Statutory Friction',
-    detail: 'Exact STT, exchange turnover fees, SEBI charges, and empirical slippage are deducted from all order fills. No friction-free illusions.',
+    badge: 'EXACT FEES',
+    title: 'Statutory Friction',
+    detail: 'Real statutory STT, GST, exchange turnover fees, and empirical slippage are deducted from all order fills.',
   },
 ];
 
@@ -333,166 +352,247 @@ export default function Home() {
 
 
       {/* =========================================================================
-          SECTION 2 · THE EXPERIMENT PIPELINE (CONNECTED RAIL TIMELINE: ZERO BOXES)
-          [No outer card, Stage 04 subtitle bounded, zero dangling lines]
+          SECTION 2 · THE EXPERIMENT PIPELINE (CONNECTED WORKFLOW NODES)
+          [Interactive cards with icons, step indices, subtle hover lift & core highlight]
           ========================================================================= */}
-      <section className="pt-8 sm:pt-10 border-t border-border-hairline space-y-6">
-        <SectionHeader title="The Experiment Pipeline" />
+      <Reveal as="section" className="pt-8 sm:pt-10 border-t border-border-hairline space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2">
+          <SectionHeader
+            title="The Experiment Pipeline"
+            subtitle="Deterministic point-in-time sequence executing daily at NSE close"
+          />
+          <span className="font-mono text-[11px] text-zinc-500 flex items-center gap-1.5 self-start sm:self-auto">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            5-Stage Automated Sequence
+          </span>
+        </div>
 
-        {/* Connected Horizontal Timeline Rail */}
-        <div className="relative pt-2 pb-2">
-          <div className="hidden md:block absolute top-[16px] left-[5%] right-[5%] h-[1px] bg-white/20 z-0" />
-
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-8 md:gap-6 relative z-10">
-            {EXPERIMENT_STAGES.map((st) => (
-              <div key={st.step} className="space-y-3 font-mono text-xs">
-
-                {/* Node on Rail */}
-                <div className="flex items-center gap-3 md:block">
-                  {st.isCore ? (
-                    <div className="w-6 h-6 rounded-full bg-brand-blue-soft border-2 border-brand-blue flex items-center justify-center bg-surface-well z-10 shadow-[0_0_16px_rgba(0,63,136,0.35)]">
-                      <div className="w-2 h-2 rounded-full bg-brand-blue" />
-                    </div>
-                  ) : (
-                    <div className="w-4 h-4 rounded-full bg-[#181818] border border-zinc-600 z-10 my-1 flex items-center justify-center">
-                      <div className="w-1 h-1 rounded-full bg-zinc-500" />
-                    </div>
-                  )}
-
-                  <span className={cn("md:hidden text-[10px] font-mono", st.isCore ? "text-brand-blue-text font-bold" : "text-zinc-500")}>
-                    {st.step}
-                  </span>
+        {/* 5-Stage Interactive Card Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+          {EXPERIMENT_STAGES.map((st, i) => {
+            const Icon = st.icon;
+            return (
+              <div
+                key={st.step}
+                className={cn(
+                  "p-4 rounded-lg border transition-all duration-200 group flex flex-col justify-between space-y-3 relative overflow-hidden",
+                  st.isCore
+                    ? "border-brand-blue/50 bg-brand-blue-soft/20 hover:border-brand-blue hover:bg-brand-blue-soft/30 shadow-[0_0_24px_rgba(30,94,174,0.15)]"
+                    : "border-border-hairline bg-surface-inset/70 hover:border-white/20 hover:bg-surface-l1"
+                )}
+              >
+                {/* Header row: Step & Icon */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className={cn(
+                      "font-mono text-xs font-bold",
+                      st.isCore ? "text-brand-blue-text" : "text-zinc-500 group-hover:text-zinc-300"
+                    )}>
+                      {st.step}
+                    </span>
+                    <span className="w-1 h-1 rounded-full bg-white/20" />
+                    <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">
+                      {st.tag}
+                    </span>
+                  </div>
+                  <div className={cn(
+                    "w-7 h-7 rounded flex items-center justify-center transition-colors",
+                    st.isCore
+                      ? "bg-brand-blue-soft text-brand-blue-text border border-brand-blue/40"
+                      : "bg-white/[0.03] text-zinc-400 group-hover:text-white border border-white/5"
+                  )}>
+                    <Icon className="w-3.5 h-3.5" />
+                  </div>
                 </div>
 
-                {/* Typography below node */}
-                <div className="space-y-1.5 pl-7 md:pl-0">
-                  <div className="hidden md:flex items-center justify-between text-[10px] font-mono">
-                    <span className={st.isCore ? "text-brand-blue-text font-bold" : "text-zinc-500"}>{st.step}</span>
-                  </div>
-
-                  <h3
-                    className={cn(
-                      'font-sans text-sm font-medium',
-                      st.isCore ? 'text-white font-semibold text-base' : 'text-zinc-200'
-                    )}
-                  >
+                {/* Content */}
+                <div className="space-y-1.5">
+                  <h3 className={cn(
+                    "font-sans text-sm font-semibold tracking-tight",
+                    st.isCore ? "text-white" : "text-zinc-200 group-hover:text-white"
+                  )}>
                     {st.title}
                   </h3>
 
                   {st.subtitle && (
-                    <div>
-                      <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono text-brand-blue-text bg-brand-blue-soft border border-brand-blue">
-                        {st.subtitle}
-                      </span>
-                    </div>
+                    <span className="inline-block px-1.5 py-0.2 rounded text-[10px] font-mono font-medium text-brand-blue-text bg-brand-blue-soft border border-brand-blue/40">
+                      {st.subtitle}
+                    </span>
                   )}
 
-                  <p className="text-sm text-zinc-400 font-sans leading-relaxed pt-0.5">
+                  <p className="text-xs text-zinc-400 leading-relaxed font-sans pt-0.5">
                     {st.detail}
                   </p>
                 </div>
 
+                {/* Bottom stage connector bar */}
+                <div className="pt-2 border-t border-white/[0.04] flex items-center justify-between text-[10px] font-mono text-zinc-500">
+                  <span>Stage {i + 1} of 5</span>
+                  {i < 4 ? (
+                    <span className="text-zinc-600 group-hover:text-zinc-400 transition-colors">Next →</span>
+                  ) : (
+                    <span className="text-emerald-500 font-medium">Fills Audited ✓</span>
+                  )}
+                </div>
               </div>
-            ))}
-          </div>
-
+            );
+          })}
         </div>
-      </section>
+      </Reveal>
 
 
       {/* =========================================================================
-          SECTION 3 · BUILT FOR RIGOR (FLAT COLUMNS: APPLE PRODUCT SPEC STYLE)
-          [Zero container chrome, whitespace separated]
+          SECTION 3 · BUILT FOR RIGOR (INTERACTIVE AUDIT CARDS)
           ========================================================================= */}
-      <section className="pt-8 sm:pt-10 border-t border-border-hairline space-y-6">
-        <SectionHeader title="Built for Rigor" />
+      <Reveal as="section" className="pt-8 sm:pt-10 border-t border-border-hairline space-y-6">
+        <SectionHeader
+          title="Built for Rigor"
+          subtitle="Non-negotiable empirical safeguards ensuring authentic out-of-sample validity"
+        />
 
-        {/* Numbered definition list in 2-column grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-7">
-          {TRUST_PILLARS.map((tp, i) => (
-            <div key={tp.title} className="flex gap-5">
-              <span className="font-mono text-sm text-zinc-500 pt-0.5 flex-shrink-0 w-6">0{i+1}</span>
-              <div>
-                <h3 className="font-sans text-base font-medium text-white mb-1.5">{tp.title}</h3>
-                <p className="text-sm text-zinc-400 leading-relaxed">{tp.detail}</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {TRUST_PILLARS.map((tp, i) => {
+            const Icon = tp.icon;
+            return (
+              <div
+                key={tp.title}
+                className="p-5 rounded-lg border border-border-hairline bg-surface-inset/60 hover:bg-surface-l1 hover:border-brand-blue/30 transition-all duration-200 group flex flex-col justify-between space-y-4 hover:-translate-y-0.5"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="w-9 h-9 rounded bg-white/[0.03] border border-white/10 flex items-center justify-center text-brand-blue-text group-hover:border-brand-blue/50 group-hover:text-white transition-colors">
+                    <Icon className="w-4 h-4" />
+                  </div>
+                  <span className="font-mono text-[10px] font-medium text-zinc-400 px-2 py-0.5 rounded bg-white/[0.03] border border-white/5">
+                    {tp.badge}
+                  </span>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs text-zinc-500">0{i + 1}</span>
+                    <h3 className="font-sans text-sm font-semibold text-white group-hover:text-brand-blue-text transition-colors">
+                      {tp.title}
+                    </h3>
+                  </div>
+                  <p className="text-xs text-zinc-400 font-sans leading-relaxed">
+                    {tp.detail}
+                  </p>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
-      </section>
+      </Reveal>
 
 
       {/* =========================================================================
-          SECTION 4 · THE CORE RESEARCH INQUIRIES
-          [Dedicated Chapter Header, unconstrained text, clean hairline dividers, bottom-right links]
+          SECTION 4 · THE CORE RESEARCH INQUIRIES (DUAL INTERACTIVE HYPOTHESIS BOXES)
+          [Concise one-liners, interactive hover cards, subtle glow, clear CTAs]
           ========================================================================= */}
-      <section className="pt-8 sm:pt-10 border-t border-border-hairline space-y-8">
+      <Reveal as="section" className="pt-8 sm:pt-10 border-t border-border-hairline space-y-6">
         <SectionHeader
           title="The Core Research Inquiries"
           subtitle="Empirical hypotheses evaluated under strict out-of-sample discipline"
         />
 
-        {/* Question 01 */}
-        <div className="space-y-4 pt-2">
-          <h3 className="font-display text-2xl sm:text-3xl font-medium tracking-tight text-white">
-            1. Can Autonomous Agent Personas Generate Real Equity Alpha?
-          </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Question Box 01 */}
+          <div className="p-6 sm:p-7 rounded-lg border border-border-hairline bg-surface-inset hover:border-brand-blue/40 hover:bg-surface-l1 transition-all duration-300 group hover:-translate-y-1 relative overflow-hidden flex flex-col justify-between space-y-6">
+            <div className="absolute -right-10 -top-10 w-32 h-32 bg-brand-blue-soft/30 blur-2xl pointer-events-none rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 text-base text-zinc-300 font-sans leading-relaxed">
-            <div className="lg:col-span-6 space-y-3">
-              <p>
-                <strong className="text-white font-medium">Core Hypothesis:</strong> Testing whether autonomous LLM agents embodying distinct investment schools of thought can independently analyze market momentum, valuation filings, and corporate balance sheets to execute profitable trades without human intervention.
-              </p>
+            <div className="space-y-4 relative z-10">
+              <div className="flex items-center justify-between">
+                <span className="px-2 py-0.5 rounded font-mono text-[11px] font-semibold text-brand-blue-text bg-brand-blue-soft border border-brand-blue/30">
+                  INQUIRY 01 · ALPHA VALIDITY
+                </span>
+                <span className="text-[11px] font-mono text-zinc-500">Live Paper Trading</span>
+              </div>
+
+              <h3 className="font-display text-2xl sm:text-[26px] font-medium tracking-tight text-white leading-snug group-hover:text-brand-blue-text transition-colors">
+                Can Autonomous Agent Personas Generate Real Equity Alpha?
+              </h3>
+
+              <div className="p-3.5 rounded bg-surface-well/80 border border-white/[0.06] space-y-1.5">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 block">Core Mandate</span>
+                <p className="text-sm text-zinc-200 font-sans leading-relaxed">
+                  Testing whether generative LLM reasoning independently uncovers profitable market anomalies and executes disciplined trades without human intervention.
+                </p>
+              </div>
+
+              {/* Protocol Spec Badges */}
+              <div className="flex flex-wrap gap-2 pt-1 font-mono text-[11px]">
+                <span className="px-2 py-1 rounded bg-white/[0.03] text-zinc-400 border border-white/5">
+                  5 Diverse Personas
+                </span>
+                <span className="px-2 py-1 rounded bg-white/[0.03] text-zinc-400 border border-white/5">
+                  Point-in-Time Fills
+                </span>
+                <span className="px-2 py-1 rounded bg-white/[0.03] text-zinc-400 border border-white/5">
+                  Audited Citations
+                </span>
+              </div>
             </div>
-            <div className="lg:col-span-6 space-y-3">
-              <p>
-                <strong className="text-white font-medium">Evaluation Protocol:</strong> Rather than relying solely on realized portfolio returns, the trial evaluates selection alpha across all active recommendations, forward-return distributions on HOLD decisions, and prompt faithfulness audited against ground-truth market data.
-              </p>
+
+            <div className="pt-4 border-t border-white/[0.06] flex items-center justify-between relative z-10">
+              <span className="text-xs text-zinc-500 font-mono">Dossiers & Holdings</span>
+              <ActionLink to="/portfolio/simons" variant="primary">
+                Inspect Persona Portfolios
+              </ActionLink>
             </div>
           </div>
 
-          {/* Bottom-Right Navigation Link */}
-          <div className="pt-2 border-t border-white/[0.06] flex justify-end">
-            <ActionLink to="/portfolio/simons" variant="primary">
-              Inspect Persona Portfolios
-            </ActionLink>
+          {/* Question Box 02 */}
+          <div className="p-6 sm:p-7 rounded-lg border border-border-hairline bg-surface-inset hover:border-brand-blue/40 hover:bg-surface-l1 transition-all duration-300 group hover:-translate-y-1 relative overflow-hidden flex flex-col justify-between space-y-6">
+            <div className="absolute -right-10 -top-10 w-32 h-32 bg-brand-blue-soft/30 blur-2xl pointer-events-none rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+
+            <div className="space-y-4 relative z-10">
+              <div className="flex items-center justify-between">
+                <span className="px-2 py-0.5 rounded font-mono text-[11px] font-semibold text-brand-blue-text bg-brand-blue-soft border border-brand-blue/30">
+                  INQUIRY 02 · BENCHMARK CONFLUENCE
+                </span>
+                <span className="text-[11px] font-mono text-zinc-500">Matched Controls</span>
+              </div>
+
+              <h3 className="font-display text-2xl sm:text-[26px] font-medium tracking-tight text-white leading-snug group-hover:text-brand-blue-text transition-colors">
+                Does Heavy LLM Inference Outperform Matched Rules?
+              </h3>
+
+              <div className="p-3.5 rounded bg-surface-well/80 border border-white/[0.06] space-y-1.5">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 block">Core Mandate</span>
+                <p className="text-sm text-zinc-200 font-sans leading-relaxed">
+                  Evaluating whether multi-billion-parameter LLM reasoning delivers genuine cognitive excess return over identical, deterministic Python rulebooks.
+                </p>
+              </div>
+
+              {/* Protocol Spec Badges */}
+              <div className="flex flex-wrap gap-2 pt-1 font-mono text-[11px]">
+                <span className="px-2 py-1 rounded bg-white/[0.03] text-zinc-400 border border-white/5">
+                  1:1 Matched Pairs
+                </span>
+                <span className="px-2 py-1 rounded bg-white/[0.03] text-zinc-400 border border-white/5">
+                  ₹5,00,000 Matched Seed
+                </span>
+                <span className="px-2 py-1 rounded bg-white/[0.03] text-zinc-400 border border-white/5">
+                  Equal Friction
+                </span>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-white/[0.06] flex items-center justify-between relative z-10">
+              <span className="text-xs text-zinc-500 font-mono">Head-to-Head Alpha</span>
+              <ActionLink to="/comparison" variant="primary">
+                Compare 5 Matched Pairs
+              </ActionLink>
+            </div>
           </div>
         </div>
-
-        {/* Question 02 */}
-        <div className="space-y-4 pt-4 border-t border-white/[0.06]">
-          <h3 className="font-display text-2xl sm:text-3xl font-medium tracking-tight text-white">
-            2. Does Heavy Inference Outperform Matched Rules?
-          </h3>
-
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 text-base text-zinc-300 font-sans leading-relaxed">
-            <div className="lg:col-span-6 space-y-3">
-              <p>
-                <strong className="text-white font-medium">Core Hypothesis:</strong> Evaluating whether the significant computational overhead, token expenditure, and execution latency of an LLM decision layer produce demonstrable excess return over identical, deterministic Python rules executing on the exact same market bars.
-              </p>
-            </div>
-            <div className="lg:col-span-6 space-y-3">
-              <p>
-                <strong className="text-white font-medium">Evaluation Protocol:</strong> Every LLM agent is paired symmetrically against a rules control executing through the identical simulated broker with identical starting capital (₹5,00,000 per agent) and identical statutory charges, isolating reasoning value from market drift.
-              </p>
-            </div>
-          </div>
-
-          {/* Bottom-Right Navigation Link */}
-          <div className="pt-2 border-t border-white/[0.06] flex justify-end">
-            <ActionLink to="/comparison" variant="primary">
-              Compare 5 Matched Pairs in Detail
-            </ActionLink>
-          </div>
-        </div>
-
-      </section>
+      </Reveal>
 
 
       {/* =========================================================================
           SECTION 5 · THE FIVE OBSERVED PERSONAS (CLICKABLE PERSONA CARDS)
           ========================================================================= */}
-      <section className="pt-8 sm:pt-10 border-t border-border-hairline space-y-6">
+      <Reveal as="section" className="pt-8 sm:pt-10 border-t border-border-hairline space-y-6">
         <SectionHeader
           title="The Five Observed Personas"
           subtitle="Click any card to open that agent's portfolio and dossier"
@@ -519,32 +619,41 @@ export default function Home() {
             Compare All 5 Schools of Thought
           </ActionLink>
         </div>
-      </section>
+      </Reveal>
 
 
       {/* =========================================================================
           SECTION 6 · LIVE ACTIVITY FEED (MINIMALIST TERMINAL LOG STREAM)
-          [Clean divided rows without box, bottom-right link]
+          [Clean divided rows inside structured card, bottom-right link]
           ========================================================================= */}
-      <section className="pt-8 sm:pt-10 border-t border-border-hairline space-y-6">
-        <SectionHeader title="Latest Live Activity" />
+      <Reveal as="section" className="pt-8 sm:pt-10 border-t border-border-hairline space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2">
+          <SectionHeader
+            title="Latest Live Activity"
+            subtitle="Autonomous order dispatches, simulated broker fills, and audit logs"
+          />
+          <div className="flex items-center gap-2 font-mono text-[11px] text-zinc-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Continuous NSE Feed</span>
+          </div>
+        </div>
 
-        {/* Minimalist Log Stream */}
-        <div className="divide-y divide-white/[0.06] border-y border-border-hairline font-mono text-xs">
+        {/* Minimalist Log Stream Box */}
+        <div className="rounded-lg border border-border-hairline bg-surface-inset divide-y divide-white/[0.05] overflow-hidden font-mono text-xs">
           {recentEvents.length === 0 ? (
-            <div className="py-6 text-center text-zinc-500">
+            <div className="py-8 text-center text-zinc-500">
               No recent execution events recorded today.
             </div>
           ) : (
             recentEvents.map((evt) => (
               <div
                 key={evt.id}
-                className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-white/[0.02] transition-colors"
+                className="p-3.5 sm:px-5 sm:py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-white/[0.02] transition-colors"
               >
                 <div className="flex items-center gap-3">
                   <span
                     className={cn(
-                      'px-1.5 py-0.5 rounded text-[10px] font-mono font-medium border',
+                      'px-1.5 py-0.5 rounded text-[10px] font-mono font-medium border flex-shrink-0',
                       evt.eventType.includes('FILL')
                         ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10'
                         : evt.eventType.includes('EXPIRED')
@@ -558,7 +667,7 @@ export default function Home() {
                     {(evt.agentId || 'SYSTEM').replace('baseline-', '').toUpperCase()}
                   </span>
                   {evt.symbol && (
-                    <span className="px-1.5 py-0.2 rounded bg-white/[0.04] text-zinc-300 border border-white/5 font-sans">
+                    <span className="px-1.5 py-0.2 rounded bg-white/[0.04] text-zinc-300 border border-white/5 font-sans font-medium">
                       {evt.symbol}
                     </span>
                   )}
@@ -575,47 +684,76 @@ export default function Home() {
           )}
         </div>
 
-        {/* Bottom-Right Navigation Link */}
+        {/* Bottom Navigation */}
         <div className="flex justify-end pt-1">
           <ActionLink to="/pulse" variant="primary">
             Full Activity Ledger
           </ActionLink>
         </div>
-      </section>
+      </Reveal>
 
 
       {/* =========================================================================
-          SECTION 7 · CLOSING VERDICT & PROTOCOL STANDING
-          [Editorial callout with clean whitespace and typographic detail]
+          SECTION 7 · CLOSING VERDICT & PROTOCOL STANDING (TELEMETRY LEDGER)
           ========================================================================= */}
-      <section className="pt-8 sm:pt-10 border-t border-border-hairline">
-        <div className="pt-4 space-y-4 font-sans">
-          <div className="flex items-center gap-3">
-            <span className="text-brand-blue-text font-mono">·</span>
-            <h3 className="font-display text-3xl sm:text-4xl font-medium text-white tracking-tight leading-tight">
-              The empirical observation trial is actively underway.
+      <Reveal as="section" className="pt-8 sm:pt-10 border-t border-border-hairline">
+        <div className="p-6 sm:p-8 rounded-lg border border-border-hairline bg-surface-inset grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+          
+          {/* Left Column: Verdict Narrative */}
+          <div className="lg:col-span-7 space-y-4 font-sans">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-brand-blue animate-pulse" />
+              <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-brand-blue-text">
+                Protocol Integrity Mandate
+              </span>
+            </div>
+
+            <h3 className="font-display text-2xl sm:text-3xl font-medium text-white tracking-tight leading-tight">
+              Statistical conclusions require 30 round-trip trades per agent.
             </h3>
+
+            <p className="text-sm sm:text-base text-zinc-300 leading-relaxed font-sans max-w-2xl">
+              To eliminate regime luck and sample noise, alpha superiority is withheld until 30 closed round-trips are recorded across contrasting macroeconomic cycles. All daily order executions, thesis memos, and cited data remain publicly audited.
+            </p>
+
+            <div className="pt-2 flex flex-wrap items-center gap-5 text-sm font-sans font-medium">
+              <ActionLink to="/leaderboard" variant="primary">
+                Explore Standings Table
+              </ActionLink>
+
+              <ActionLink to="/comparison" variant="secondary">
+                Inspect Philosophy Matchups
+              </ActionLink>
+
+              <ActionLink to="/pulse" variant="secondary">
+                System Telemetry & Health
+              </ActionLink>
+            </div>
           </div>
 
-          <p className="text-base sm:text-lg text-zinc-300 leading-relaxed max-w-4xl">
-            Statistical conclusions require a rigorous threshold of approximately 30 closed round-trip trades per agent across contrasting market regimes. While initial pilot mark-to-market positions are live, we do not declare premature alpha superiority. Daily order execution, prompt adherence, and thesis forensics remain continuously audited and open for inspection.
-          </p>
+          {/* Right Column: 3 Metric Telemetry Blocks */}
+          <div className="lg:col-span-5 grid grid-cols-3 gap-3 font-mono">
+            <div className="p-4 rounded border border-border-hairline bg-surface-well text-center space-y-1">
+              <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">Cohort</span>
+              <span className="text-xl sm:text-2xl font-bold text-white block">10</span>
+              <span className="text-[10px] text-zinc-400 block">5 LLM · 5 Rules</span>
+            </div>
 
-          <div className="pt-3 flex flex-wrap items-center gap-6 text-sm font-sans font-medium">
-            <ActionLink to="/leaderboard" variant="primary">
-              Full Leaderboard Standings
-            </ActionLink>
+            <div className="p-4 rounded border border-border-hairline bg-surface-well text-center space-y-1">
+              <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">Regimes</span>
+              <span className="text-xl sm:text-2xl font-bold text-brand-blue-text block">411</span>
+              <span className="text-[10px] text-zinc-400 block">Market Sessions</span>
+            </div>
 
-            <ActionLink to="/comparison" variant="secondary">
-              Inspect Philosophy Matchups
-            </ActionLink>
-
-            <ActionLink to="/pulse" variant="secondary">
-              System Telemetry & Health
-            </ActionLink>
+            <div className="p-4 rounded border border-border-hairline bg-surface-well text-center space-y-1">
+              <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">Seed AUM</span>
+              <span className="text-xl sm:text-2xl font-bold text-white block">₹50L</span>
+              <span className="text-[10px] text-zinc-400 block">₹5L per Agent</span>
+            </div>
           </div>
+
         </div>
-      </section>
+      </Reveal>
 
     </div>
   );

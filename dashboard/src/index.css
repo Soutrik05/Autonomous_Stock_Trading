@@ -19,9 +19,9 @@
   --color-ink-secondary: #A0A0A0;
   --color-ink-muted: #757575;
 
-  --color-brand-blue: #003F88;
-  --color-brand-blue-text: #4F8FE0;
-  --color-brand-blue-soft: rgba(0, 63, 136, 0.22);
+  --color-brand-blue: #1E5EAE;
+  --color-brand-blue-text: #7CB3F3;
+  --color-brand-blue-soft: rgba(30, 94, 174, 0.18);
   --color-profit: #10B981;
   --color-positive: #10B981;
   --color-loss: #C4553F;
@@ -53,9 +53,9 @@
   --ink-muted: #757575;
   --ink-subdued: #666666;
 
-  --brand-blue: #003F88;
-  --brand-blue-text: #4F8FE0;
-  --brand-blue-soft: rgba(0, 63, 136, 0.22);
+  --brand-blue: #1E5EAE;
+  --brand-blue-text: #7CB3F3;
+  --brand-blue-soft: rgba(30, 94, 174, 0.18);
   --profit-color: #10B981;
   --loss-color: #C4553F;
   --control-color: #94A3B8;
@@ -231,7 +231,7 @@ select:focus-visible {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 63, 136, 0.5);
+  background: rgba(30, 94, 174, 0.5);
 }
 
 /* Brand Wordmark (Logo.tsx) */
@@ -436,7 +436,7 @@ select:focus-visible {
   transform: translateY(-8px);
   border-color: var(--brand-blue);
   background: linear-gradient(180deg, #1b2230 0%, #171a20 100%);
-  box-shadow: 0 16px 36px rgba(0, 63, 136, 0.32), 0 0 0 1px rgba(79, 143, 224, 0.18);
+  box-shadow: 0 16px 36px rgba(30, 94, 174, 0.32), 0 0 0 1px rgba(124, 179, 243, 0.22);
 }
 
 .persona-card:focus-visible {
@@ -564,17 +564,17 @@ select:focus-visible {
 }
 
 .market-pill--open {
-  border-color: rgba(0, 63, 136, 0.9);
-  background: rgba(0, 63, 136, 0.2);
+  border-color: rgba(30, 94, 174, 0.9);
+  background: rgba(30, 94, 174, 0.18);
   animation: market-pill-breathe 3.2s ease-in-out infinite;
 }
 
 @keyframes market-pill-breathe {
   0%, 100% {
-    box-shadow: 0 0 18px rgba(0, 63, 136, 0.35);
+    box-shadow: 0 0 18px rgba(30, 94, 174, 0.35);
   }
   50% {
-    box-shadow: 0 0 9px rgba(0, 63, 136, 0.18);
+    box-shadow: 0 0 9px rgba(30, 94, 174, 0.18);
   }
 }
 
@@ -596,7 +596,7 @@ select:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   .market-pill--open {
     animation: none;
-    box-shadow: 0 0 18px rgba(0, 63, 136, 0.35);
+    box-shadow: 0 0 18px rgba(30, 94, 174, 0.35);
   }
   .market-pill__ring {
     animation: none;
