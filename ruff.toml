@@ -1,0 +1,43 @@
+# Ruff configuration for StockMinds
+target-version = "py311"
+line-length = 120
+
+[lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort (import sorting)
+    "UP",  # pyupgrade (modern Python 3.11 syntax)
+]
+ignore = [
+    "E501",  # Line length (handled by formatter)
+    "E402",  # Module-level imports not at top of file (needed for sys.path bootstrapping in scripts)
+]
+
+[lint.per-file-ignores]
+"tests/*" = ["F811", "F841"]
+
+
+[lint.isort]
+known-first-party = [
+    "agents",
+    "api",
+    "backtest",
+    "baselines",
+    "broker",
+    "core",
+    "evaluation",
+    "features",
+    "ingestion",
+    "learning",
+    "llm",
+    "notifications",
+    "watchlist",
+]
+
+[format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+

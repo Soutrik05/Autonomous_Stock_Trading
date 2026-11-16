@@ -1,26 +1,58 @@
 # Credentials
 .env
+.env.*
+*.pem
+*.key
 
-# Data
+# Data & SQLite Databases
 *.xlsx
 *.xls
 *.csv
-!data/nifty500_constituents.csv
+!storage/market/nifty500_constituents.csv
+*.db
+*.sqlite
+*.db-wal
+*.db-shm
+storage/market/*.db
+storage/market/*_backup.db
+storage/ledger/*.db
+backups/*.db
+data/
+storage/
 
-# Cache
-fundamental_agent/cache
+# Artifacts
+docs/
+reports/
+*.md
+!README.md
+*.zip
+
+# Private / local-only project files
+CLAUDE.md
+.claude/
+handover_for_claude/
 
 # Python
 __pycache__/
 *.pyc
 *.pyo
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
 # Virtual environment
 venv/
 .venv/
 
-# RAG Data
-rag_db/*.json
-rag_db/*.index
-rag_db/*.pkl
+# Frontend
+node_modules/
+dist/
+dashboard/.vite/
+
+# Editors
+.idea/
+.vscode/
+
+# Coding Agent Skills
+skills-lock.json
+.agents/

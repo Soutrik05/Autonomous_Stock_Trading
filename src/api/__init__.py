@@ -1,0 +1,3 @@
+"""
+StockMinds FastAPI Backend Application.
+"""
