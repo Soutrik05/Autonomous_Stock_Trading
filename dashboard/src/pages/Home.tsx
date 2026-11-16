@@ -258,7 +258,7 @@ export default function Home() {
           [Left: Masthead thesis, narrative, 4-point protocol matrix, action links]
           [Right: Cumulative return plot + seamlessly docked Top 3 standings strip]
           ========================================================================= */}
-      <section className="border border-border-hairline bg-surface-inset rounded-lg overflow-hidden">
+      <section className="bg-surface-inset border border-border-hairline rounded-lg overflow-hidden">
         <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-border-hairline">
 
           {/* Left Column: Editorial Thesis, Protocol Matrix & Primary CTAs */}
@@ -275,7 +275,7 @@ export default function Home() {
                 />
               </div>
 
-              <h1 className="font-display text-3xl sm:text-4xl lg:text-[42px] font-medium tracking-tight text-white leading-[1.08]">
+              <h1 className="hero-headline text-white">
                 Can AI judgment survive a <span className="hl">live market</span>?
               </h1>
 

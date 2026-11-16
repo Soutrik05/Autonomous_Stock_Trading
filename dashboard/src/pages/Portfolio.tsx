@@ -627,7 +627,7 @@ export default function Portfolio() {
           </div>
 
           {/* Key Quantitative Metrics Strip with Reusable Warm-Up State */}
-          <div className="border border-border-hairline bg-surface-inset rounded-lg p-3 sm:p-4 grid grid-cols-2 md:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border-hairline font-mono text-xs">
+          <div className="bg-surface-inset border border-border-hairline rounded-lg p-3 sm:p-4 grid grid-cols-2 md:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border-hairline font-mono text-xs">
             <div className="p-3 sm:px-4">
               <span className="text-[11px] text-zinc-500 block font-sans">Sharpe Ratio</span>
               <div className="text-xl font-bold text-white mt-1 tabular-nums">

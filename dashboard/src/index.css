@@ -64,6 +64,9 @@
   --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-serif: 'Newsreader', Georgia, 'Times New Roman', serif;
   --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+
+  --font-headline: 'Red Hat Display', 'Inter', system-ui, sans-serif;
+  --font-headline-accent: 'Sora', 'Inter', system-ui, sans-serif;
 }
 
 .font-display {
@@ -352,7 +355,9 @@ select:focus-visible {
   left: 0;
   right: 0;
   z-index: 40;
-  background-color: #141414;
+  background-color: rgba(22, 22, 22, 0.6);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   transform: translateY(0);
   transition:
@@ -363,15 +368,18 @@ select:focus-visible {
 }
 
 .site-header--scrolled {
-  background-color: rgba(22, 22, 22, 0.55);
-  backdrop-filter: blur(14px) saturate(140%);
-  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  background-color: rgba(22, 22, 22, 0.75);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
   border-bottom-color: rgba(255, 255, 255, 0.07);
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .site-header--scrolled {
+  .site-header {
     background-color: rgba(22, 22, 22, 0.92);
+  }
+  .site-header--scrolled {
+    background-color: rgba(22, 22, 22, 0.96);
   }
 }
 
@@ -484,8 +492,45 @@ select:focus-visible {
   }
 }
 
-/* Home hero headline accent */
+/* Home hero headline: self-hosted Red Hat Display + Sora, metric-matched fallbacks to
+   avoid a layout shift while the real webfonts load (font-display: swap on both). */
+@font-face {
+  font-family: 'Red Hat Display Fallback';
+  src: local('Arial');
+  size-adjust: 104%;
+  ascent-override: 95%;
+  descent-override: 25%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: 'Sora Fallback';
+  src: local('Arial');
+  size-adjust: 97%;
+  ascent-override: 95%;
+  descent-override: 25%;
+  line-gap-override: 0%;
+}
+
+.hero-headline {
+  font-family: var(--font-headline), 'Red Hat Display Fallback', system-ui, sans-serif;
+  font-weight: 600;
+  /* Tuned so the font stays close to its old size right at the lg (1024px) breakpoint,
+     where the hero switches from one column to a narrow 5/12 column and most needs the
+     room -- then ramps up to the full +10% (46.2px) by typical desktop widths. */
+  font-size: clamp(2.4rem, 21.285px + 1.73vw, 46.2px);
+  letter-spacing: -0.025em;
+  line-height: 1.08;
+  text-wrap: balance;
+}
+
+/* Home hero headline accent ("live market") */
 .hl {
+  font-family: var(--font-headline-accent), 'Sora Fallback', system-ui, sans-serif;
+  font-weight: 500;
+  /* Sora runs visually larger than Red Hat Display at the same font-size (wider glyphs,
+     taller x-height); 0.97em brings it back into optical balance with the rest of the line. */
+  font-size: 0.97em;
   color: #10b981;
 }
 
@@ -601,6 +646,47 @@ select:focus-visible {
   .market-pill__ring {
     animation: none;
     display: none;
+  }
+}
+
+/* Cursor bubble background (BubbleBackground.tsx) -- Home and Agents Terminal only */
+.bubble-background {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Frosted-glass panels, applied through the one shared token every page already uses
+   for its big panels/cards (`bg-surface-inset`) rather than page-by-page copies. Same
+   border/radius as before everywhere; only the background becomes translucent and
+   blurred, so bubbles read as softer/blurrier behind a panel than outside it. Text and
+   chart lines drawn on top of a panel are unaffected by backdrop-filter -- it only
+   blurs what's behind, so readability is unchanged. */
+.bg-surface-inset {
+  background-color: rgba(22, 22, 22, 0.8);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .bg-surface-inset {
+    background-color: rgba(22, 22, 22, 0.96);
+  }
+}
+
+/* Footer: only its background becomes translucent/blurred so the bubble field shows
+   through behind it, same frosted treatment as the other big panels. Layout, text,
+   links, border and spacing are untouched. */
+.footer-frosted {
+  background-color: rgba(22, 22, 22, 0.8);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .footer-frosted {
+    background-color: rgba(22, 22, 22, 0.96);
   }
 }
 
