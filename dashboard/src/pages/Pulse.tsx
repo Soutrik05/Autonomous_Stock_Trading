@@ -179,6 +179,7 @@ export default function Pulse() {
           </span>
         </div>
 
+        <div className="glow-box rounded-lg">
         <div className="border border-border-hairline bg-surface-inset rounded-lg overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left font-mono text-xs">
@@ -267,6 +268,7 @@ export default function Pulse() {
             </table>
           </div>
         </div>
+        </div>
       </section>
 
       {/* 3. ACTIVITY & AUDIT EVENT LOG */}
@@ -316,6 +318,7 @@ export default function Pulse() {
         </div>
 
         {/* Ledger Table */}
+        <div className="glow-box rounded-lg">
         <div className="border border-border-hairline bg-surface-inset rounded-lg overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left font-mono text-xs">
@@ -358,6 +361,7 @@ export default function Pulse() {
               </tbody>
             </table>
           </div>
+        </div>
         </div>
       </section>
 

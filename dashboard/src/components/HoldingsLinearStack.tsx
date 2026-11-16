@@ -85,6 +85,7 @@ export default function HoldingsLinearStack({
   const isDayProfit = effectiveDayChangePaise >= 0;
 
   return (
+    <div className="glow-box rounded-lg">
     <div className="bg-[#161616] border border-border-hairline rounded-lg font-sans overflow-hidden">
       {/* 1. Header: Balanced LHS (Deployed Capital) vs RHS (Available Capital) */}
       <div className="p-4 sm:p-5 border-b border-border-hairline space-y-3.5 font-mono">
@@ -283,6 +284,7 @@ export default function HoldingsLinearStack({
           })
         )}
       </div>
+    </div>
     </div>
   );
 }

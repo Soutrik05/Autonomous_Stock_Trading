@@ -83,6 +83,7 @@ function BenchmarkMatrixTableComponent({
   const rows = isCompact ? sorted.slice(0, 5) : sorted;
 
   return (
+    <div className="glow-box rounded-lg">
     <div className="overflow-x-auto border border-border-hairline bg-[#161616] rounded-lg">
       <table className="w-full text-left border-collapse">
         {/* Table Header: whitespace-nowrap prevents two-row wrap */}
@@ -267,6 +268,7 @@ function BenchmarkMatrixTableComponent({
         <span>* Returns and Alpha are benchmarked against ₹5,00,000 initial seed capital per agent.</span>
         <span>Metrics marked 'Warming up' require 30 closed trades for statistical validity.</span>
       </div>
+    </div>
     </div>
   );
 }

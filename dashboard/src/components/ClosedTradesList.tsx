@@ -13,6 +13,7 @@ export default function ClosedTradesList({ positions }: ClosedTradesListProps) {
   const closedPositions = positions.filter((p) => p.status === 'CLOSED');
 
   return (
+    <div className="glow-box rounded-lg">
     <div className="bg-[#161616] border border-border-hairline rounded-lg font-sans overflow-hidden">
       {/* Header */}
       <div className="p-4 sm:p-5 border-b border-border-hairline flex items-center justify-between font-mono text-xs">
@@ -116,6 +117,7 @@ export default function ClosedTradesList({ positions }: ClosedTradesListProps) {
           onClose={() => setAutopsyTrade(null)}
         />
       )}
+    </div>
     </div>
   );
 }

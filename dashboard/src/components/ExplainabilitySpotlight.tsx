@@ -139,6 +139,7 @@ export default function ExplainabilitySpotlight({ personaId = 'simons' }: Explai
   };
 
   return (
+    <div className="glow-box rounded-lg">
     <div className="border border-border-hairline bg-surface-inset rounded-lg overflow-hidden font-sans">
       
       {/* 1. Header with Audit Status */}
@@ -231,6 +232,7 @@ export default function ExplainabilitySpotlight({ personaId = 'simons' }: Explai
         </table>
       </div>
 
+    </div>
     </div>
   );
 }

@@ -67,6 +67,13 @@
 
   --font-headline: 'Red Hat Display', 'Inter', system-ui, sans-serif;
   --font-headline-accent: 'Sora', 'Inter', system-ui, sans-serif;
+
+  /* Static glow around big container panels (.glow-box). Kept as variables so the
+     strength can be tuned in one place later. */
+  --glow-box-ring: rgba(16, 185, 129, 0.06);
+  --glow-box-green: rgba(16, 185, 129, 0.10);
+  --glow-box-blue: rgba(0, 63, 136, 0.14);
+  --glow-box-border: rgba(60, 90, 80, 0.45);
 }
 
 .font-display {
@@ -673,6 +680,19 @@ select:focus-visible {
   .bg-surface-inset {
     background-color: rgba(22, 22, 22, 0.96);
   }
+}
+
+/* Static, non-animated greenish-blue glow around the outside edge of big container
+   panels only (full tables/charts/standings sections) -- never inside the box, never on
+   small cards/chips/tiles/rows. One shared class so the values live in one place
+   (CONFIG-style, via the --glow-box-* variables above). A parent needs overflow: visible
+   (or extra margin) for the glow to show uncut if it would otherwise be clipped. */
+.glow-box {
+  box-shadow:
+    0 0 0 1px var(--glow-box-ring),
+    0 0 28px var(--glow-box-green),
+    0 0 60px var(--glow-box-blue);
+  border-color: var(--glow-box-border);
 }
 
 /* Footer: only its background becomes translucent/blurred so the bubble field shows

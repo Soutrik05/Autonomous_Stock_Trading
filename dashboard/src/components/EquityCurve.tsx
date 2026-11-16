@@ -50,7 +50,7 @@ function EquityCurveComponent({
   };
 
   return (
-    <div className="border border-border-hairline bg-surface-inset rounded-lg p-5 sm:p-6 space-y-4 font-sans">
+    <div className="glow-box border border-border-hairline bg-surface-inset rounded-lg p-5 sm:p-6 space-y-4 font-sans">
       
       {/* 1. Header with Title & Compact Cohort Selector */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-border-hairline pb-3.5">

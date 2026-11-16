@@ -216,12 +216,14 @@ export default function Leaderboard() {
           subtitle="Walk-forward daily equity trajectories from inception seed (₹5L per agent) against the NSE Nifty 500 index."
         />
 
+        <div className="glow-box rounded-lg">
         <div className="border border-border-hairline bg-surface-inset rounded-lg overflow-hidden">
           <TrajectoryChart
             data={chartData}
             mode={chartMode}
             onModeChange={handleChartModeChange}
           />
+        </div>
         </div>
       </section>
     </div>

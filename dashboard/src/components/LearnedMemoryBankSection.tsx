@@ -7,6 +7,7 @@ interface LearnedMemoryBankSectionProps {
 
 export default function LearnedMemoryBankSection({ heuristics }: LearnedMemoryBankSectionProps) {
   return (
+    <div className="glow-box rounded-lg">
     <div className="bg-[#161616] border border-border-hairline rounded-lg font-sans overflow-hidden">
       {/* Header */}
       <div className="p-4 sm:p-5 border-b border-border-hairline flex items-center justify-between font-mono text-xs">
@@ -95,6 +96,7 @@ export default function LearnedMemoryBankSection({ heuristics }: LearnedMemoryBa
           </div>
         )}
       </div>
+    </div>
     </div>
   );
 }

@@ -258,6 +258,7 @@ export default function Home() {
           [Left: Masthead thesis, narrative, 4-point protocol matrix, action links]
           [Right: Cumulative return plot + seamlessly docked Top 3 standings strip]
           ========================================================================= */}
+      <div className="glow-box rounded-lg">
       <section className="bg-surface-inset border border-border-hairline rounded-lg overflow-hidden">
         <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-border-hairline">
 
@@ -349,6 +350,7 @@ export default function Home() {
 
         </div>
       </section>
+      </div>
 
 
       {/* =========================================================================
@@ -639,6 +641,7 @@ export default function Home() {
         </div>
 
         {/* Minimalist Log Stream Box */}
+        <div className="glow-box rounded-lg">
         <div className="rounded-lg border border-border-hairline bg-surface-inset divide-y divide-white/[0.05] overflow-hidden font-mono text-xs">
           {recentEvents.length === 0 ? (
             <div className="py-8 text-center text-zinc-500">
@@ -683,6 +686,7 @@ export default function Home() {
             ))
           )}
         </div>
+        </div>
 
         {/* Bottom Navigation */}
         <div className="flex justify-end pt-1">
@@ -697,7 +701,7 @@ export default function Home() {
           SECTION 7 · CLOSING VERDICT & PROTOCOL STANDING (TELEMETRY LEDGER)
           ========================================================================= */}
       <Reveal as="section" className="pt-8 sm:pt-10 border-t border-border-hairline">
-        <div className="p-6 sm:p-8 rounded-lg border border-border-hairline bg-surface-inset grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+        <div className="glow-box p-6 sm:p-8 rounded-lg border border-border-hairline bg-surface-inset grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
           
           {/* Left Column: Verdict Narrative */}
           <div className="lg:col-span-7 space-y-4 font-sans">

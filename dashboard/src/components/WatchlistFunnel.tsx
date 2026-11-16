@@ -341,6 +341,7 @@ export default function WatchlistFunnel({ initialAgentId }: WatchlistFunnelProps
   const selectedStage = effectiveStages[activeStep] || effectiveStages[1];
 
   return (
+    <div className="glow-box rounded-lg">
     <div className="bg-[#161616] border border-border-hairline rounded-lg font-sans overflow-hidden">
       {/* 1. Header with Persona Switcher */}
       <div className="p-4 sm:p-5 border-b border-border-hairline flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 font-mono text-xs">
@@ -470,6 +471,7 @@ export default function WatchlistFunnel({ initialAgentId }: WatchlistFunnelProps
           </div>
         )}
       </div>
+    </div>
     </div>
   );
 }

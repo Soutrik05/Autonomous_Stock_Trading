@@ -15,6 +15,7 @@ export default function AgentWatchlistSection({
   const maxScore = Math.max(...sorted.map((item) => item.intensityScore), 1);
 
   return (
+    <div className="glow-box rounded-lg">
     <section className="border border-border-hairline bg-[#161616] rounded-lg overflow-hidden font-sans">
       {/* Header */}
       <div className="p-4 sm:p-5 border-b border-border-hairline flex flex-col sm:flex-row sm:items-center justify-between gap-2 font-mono text-xs">
@@ -104,5 +105,6 @@ export default function AgentWatchlistSection({
         </table>
       </div>
     </section>
+    </div>
   );
 }

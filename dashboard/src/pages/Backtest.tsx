@@ -223,6 +223,7 @@ export default function Backtest() {
           </span>
         </div>
 
+        <div className="glow-box rounded-lg">
         <div className="border border-border-hairline bg-surface-inset rounded-lg overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left font-mono text-sm sm:text-base">
@@ -274,6 +275,7 @@ export default function Backtest() {
               </tbody>
             </table>
           </div>
+        </div>
         </div>
       </section>
 
