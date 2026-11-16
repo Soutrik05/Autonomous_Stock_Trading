@@ -123,16 +123,8 @@ function normalizePosition(r: any): Position {
     quantity: r.quantity ?? r.shares ?? 0,
     entryPricePaise: r.entry_price_paise ?? r.entryPricePaise ?? 0,
     currentPricePaise: r.current_price_paise ?? r.currentPricePaise ?? r.entry_price_paise ?? 0,
-    dayChangePaise: r.day_change_paise ?? r.dayChangePaise ?? (
-      r.current_price_paise && r.entry_price_paise
-        ? r.current_price_paise - r.entry_price_paise
-        : undefined
-    ),
-    dayChangePct: r.day_change_pct ?? r.dayChangePct ?? (
-      r.current_price_paise && r.entry_price_paise
-        ? Number((((r.current_price_paise - r.entry_price_paise) / r.entry_price_paise) * 100).toFixed(2))
-        : undefined
-    ),
+    dayChangePaise: r.day_change_paise ?? r.dayChangePaise,
+    dayChangePct: r.day_change_pct ?? r.dayChangePct,
     exitPricePaise: r.exit_price_paise ?? r.exitPricePaise,
     stopLossPaise: r.stop_loss_paise ?? r.stopLossPaise ?? r.stop_paise ?? 0,
     targetPricePaise: r.target_price_paise ?? r.targetPricePaise ?? r.target_paise,

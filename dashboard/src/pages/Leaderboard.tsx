@@ -149,7 +149,7 @@ export default function Leaderboard() {
       <div className="max-w-7xl mx-auto px-4 py-28 flex justify-center items-center">
         <div className="flex items-center gap-3 text-zinc-500 font-mono text-xs">
           <div className="w-4 h-4 border-2 border-brand-blue border-t-transparent rounded-full animate-spin" />
-          <span>Synchronizing live agent telemetry...</span>
+          <span>Synchronizing leaderboard data...</span>
         </div>
       </div>
     );

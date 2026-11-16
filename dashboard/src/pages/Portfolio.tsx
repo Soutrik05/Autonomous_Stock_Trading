@@ -240,7 +240,7 @@ export default function Portfolio() {
       <div className="max-w-7xl mx-auto px-4 py-28 flex justify-center items-center">
         <div className="flex items-center gap-3 text-zinc-500 font-mono text-xs">
           <div className="w-4 h-4 border-2 border-brand-blue border-t-transparent rounded-full animate-spin" />
-          <span>Synchronizing strategy ledger telemetry...</span>
+          <span>Synchronizing agents data...</span>
         </div>
       </div>
     );
