@@ -8,7 +8,7 @@ const Leaderboard = lazy(() => import('./pages/Leaderboard'));
 const Portfolio = lazy(() => import('./pages/Portfolio'));
 const Comparison = lazy(() => import('./pages/Comparison'));
 const Backtest = lazy(() => import('./pages/Backtest'));
-const Pulse = lazy(() => import('./pages/Pulse'));
+const Telemetry = lazy(() => import('./pages/Telemetry'));
 
 // Subtle, low-CLS loading fallback matching the OpenRouter dark glass arena palette
 function PageLoadingFallback() {
@@ -76,14 +76,15 @@ function App() {
             }
           />
           <Route
-            path="pulse"
+            path="telemetry"
             element={
               <Suspense fallback={<PageLoadingFallback />}>
-                <Pulse />
+                <Telemetry />
               </Suspense>
             }
           />
-          <Route path="activity" element={<Navigate to="/pulse" replace />} />
+          <Route path="pulse" element={<Navigate to="/telemetry" replace />} />
+          <Route path="activity" element={<Navigate to="/telemetry" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

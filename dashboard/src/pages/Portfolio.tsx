@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { ChevronDown, ChevronUp, Check, ExternalLink } from 'lucide-react';
+import { ChevronDown, ChevronUp, Check, ExternalLink, ShieldCheck } from 'lucide-react';
 import type {
   AgentId,
   AgentLeaderboardEntry,
@@ -14,6 +14,7 @@ import { apiService, getIsMockMode, TELEMETRY_POLL_INTERVAL_MS } from '../servic
 import { formatPaiseToRupees, formatPct, formatISTDateTime } from '../utils/formatters';
 import { CategoryBadge } from '../components/ui/CategoryBadge';
 import { WarmupMetric } from '../components/ui/WarmupMetric';
+import { getAgentDisplayName, isRulesStrategy } from '../constants/personas';
 import { cn } from '../utils/cn';
 import PortfolioDualCurve from '../components/PortfolioDualCurve';
 import HoldingsLinearStack from '../components/HoldingsLinearStack';
@@ -21,6 +22,7 @@ import ClosedTradesList from '../components/ClosedTradesList';
 import LearnedMemoryBankSection from '../components/LearnedMemoryBankSection';
 import WatchlistFunnel from '../components/WatchlistFunnel';
 import AgentWatchlistSection from '../components/AgentWatchlistSection';
+import ExplainabilitySpotlight from '../components/ExplainabilitySpotlight';
 
 interface PersonaProfile {
   school: string;
@@ -33,31 +35,31 @@ const PERSONA_PROFILES: Record<string, PersonaProfile> = {
     school: 'Quantitative Statistical Momentum',
     horizon: '1–10 Trading Days',
     description:
-      "Modeled on Jim Simons's systematic framework at Renaissance Technologies, this agent identifies confirmed statistical momentum breakouts, trend efficiency, and volume surges across the Nifty 500 universe. Positions are sized mathematically via volatility parity rather than subjective conviction. Stalled or decaying trades are pruned aggressively to continually recycle capital into fresh mathematical edges.",
+      "Operating on a quantitative statistical momentum framework, Jimmy identifies confirmed trend breakouts, efficiency ratios, and volume surges across the Nifty 500 universe. Positions are sized mathematically via volatility parity rather than subjective conviction. Stalled or decaying trades are pruned aggressively to continually recycle capital into fresh mathematical edges.",
   },
   lynch: {
     school: 'Growth-at-a-Reasonable-Price (GARP) & Cash Conversion',
     horizon: '30–90 Trading Days',
     description:
-      "Embodying Peter Lynch's classic GARP methodology (One Up On Wall Street), this agent targets understandable compounding franchises with durable operational margins, high return on capital (ROCE), and clean cash conversion (CFO/PAT). Positions are anchored to strict valuation hurdles (PEG <= 1.0) and held through interim market noise to let underlying earnings growth drive returns.",
+      "Operating on a GARP compounding framework, Pete targets understandable franchises with durable operational margins, high return on capital (ROCE), and clean cash conversion (CFO/PAT). Positions are anchored to strict valuation hurdles (PEG <= 1.0) and held through interim market noise to let underlying earnings growth drive returns.",
   },
   marks: {
     school: 'Second-Level Contrarian Value & Margin of Safety',
     horizon: '60–120 Trading Days',
     description:
-      "Rooted in Howard Marks's second-level thinking (The Most Important Thing), this agent hunts for solvent, high-quality businesses experiencing extreme cyclical despair or forced institutional selling. It demands an asymmetric margin of safety, controlling downside risk through deep valuation buffers and sector diversification rather than tight mechanical stop losses.",
+      "Operating on contrarian value and second-level thinking, Howie hunts for solvent, high-quality businesses experiencing extreme cyclical despair or forced institutional selling. It demands an asymmetric margin of safety, controlling downside risk through deep valuation buffers and sector diversification rather than tight mechanical stop losses.",
   },
   jhunjhunwala: {
     school: 'High-Conviction Structural Growth & Pyramiding',
     horizon: '90–180 Trading Days',
     description:
-      "Inspired by Rakesh Jhunjhunwala's compounding philosophy in Indian equities, this agent backs ambitious promoters with substantial skin-in-the-game riding multi-year capex and consumption tailwinds. It takes concentrated high-conviction positions and pyramids into winning structural themes, patiently absorbing interim drawdowns to capture multi-quarter upside.",
+      "Operating on high-conviction structural compounding in Indian equities, RJ backs ambitious promoters with substantial skin-in-the-game riding multi-year capex and consumption tailwinds. It takes concentrated high-conviction positions and pyramids into winning structural themes, patiently absorbing interim drawdowns to capture multi-quarter upside.",
   },
   varsity: {
     school: 'Textbook Dual-Confluence Investing',
     horizon: '20–75 Trading Days',
     description:
-      "Operating on the Zerodha Varsity framework, this agent enforces a strict dual-confluence mandate: fundamental balance sheet solvency and DCF cash flow conservatism determine what to buy, while classical technical momentum dictates when to execute. Neither discipline trades in isolation.",
+      "Operating on the Varsity dual-confluence framework, this strategy enforces a strict dual mandate: fundamental balance sheet solvency and DCF cash flow conservatism determine what to buy, while classical technical momentum dictates when to execute. Neither discipline trades in isolation.",
   }
 };
 
@@ -88,17 +90,17 @@ interface AgentItem {
 
 const AGENT_CATALOG: AgentItem[] = [
   // Autonomous LLM Agents
-  { id: 'simons', name: 'Jim Simons', isRules: false, strategy: 'Quantitative Statistical Momentum' },
-  { id: 'lynch', name: 'Peter Lynch', isRules: false, strategy: 'GARP & Cash Conversion' },
-  { id: 'marks', name: 'Howard Marks', isRules: false, strategy: 'Second-Level Contrarian Value' },
-  { id: 'jhunjhunwala', name: 'Rakesh Jhunjhunwala', isRules: false, strategy: 'Structural Growth & Pyramiding' },
-  { id: 'varsity', name: 'StockMinds Core', isRules: false, strategy: 'Dual-Confluence Varsity Swing' },
+  { id: 'simons', name: getAgentDisplayName('simons'), isRules: false, strategy: 'Quantitative Statistical Momentum' },
+  { id: 'lynch', name: getAgentDisplayName('lynch'), isRules: false, strategy: 'GARP & Cash Conversion' },
+  { id: 'marks', name: getAgentDisplayName('marks'), isRules: false, strategy: 'Second-Level Contrarian Value' },
+  { id: 'jhunjhunwala', name: getAgentDisplayName('jhunjhunwala'), isRules: false, strategy: 'Structural Growth & Pyramiding' },
+  { id: 'varsity', name: getAgentDisplayName('varsity'), isRules: false, strategy: 'Dual-Confluence Swing' },
   // Deterministic Rules Baselines
-  { id: 'baseline-simons-rules', name: 'Simons Rules Baseline', isRules: true, strategy: 'Quantitative Statistical Momentum' },
-  { id: 'baseline-lynch-rules', name: 'Lynch Rules Baseline', isRules: true, strategy: 'GARP & Cash Conversion' },
-  { id: 'baseline-marks-rules', name: 'Marks Rules Baseline', isRules: true, strategy: 'Second-Level Contrarian Value' },
-  { id: 'baseline-rj-rules', name: 'Jhunjhunwala Rules Baseline', isRules: true, strategy: 'Structural Growth & Pyramiding' },
-  { id: 'baseline-varsity-rules', name: 'Varsity Rules Baseline', isRules: true, strategy: 'Dual-Confluence Varsity Swing' },
+  { id: 'baseline-simons-rules', name: getAgentDisplayName('baseline-simons-rules'), isRules: true, strategy: 'Quantitative Statistical Momentum' },
+  { id: 'baseline-lynch-rules', name: getAgentDisplayName('baseline-lynch-rules'), isRules: true, strategy: 'GARP & Cash Conversion' },
+  { id: 'baseline-marks-rules', name: getAgentDisplayName('baseline-marks-rules'), isRules: true, strategy: 'Second-Level Contrarian Value' },
+  { id: 'baseline-rj-rules', name: getAgentDisplayName('baseline-rj-rules'), isRules: true, strategy: 'Structural Growth & Pyramiding' },
+  { id: 'baseline-varsity-rules', name: getAgentDisplayName('baseline-varsity-rules'), isRules: true, strategy: 'Dual-Confluence Swing' },
 ];
 
 function getNavKeyForAgent(agentId: string): string {
@@ -262,19 +264,17 @@ export default function Portfolio() {
   const alphaPct = agent?.alphaVsBenchmarkPct ?? totalReturnPct;
 
   const isRulesControl = currentAgentId.startsWith('baseline-') || currentAgentId.includes('rules');
-  const currentAgentItem = AGENT_CATALOG.find((a) => a.id === currentAgentId) || {
-    id: currentAgentId,
-    name: agent?.name || currentAgentId,
-    isRules: isRulesControl,
-    strategy: '',
-  };
 
-  const cleanAgentName = (agent?.name || currentAgentItem.name)
-    .replace(/\s*\((LLM|Rules Control|Rules Baseline|Rules|Algorithmic Control Benchmark)\)/gi, '')
-    .trim();
+  const cleanAgentName = getAgentDisplayName(currentAgentId);
 
   const personaProfile = getPersonaProfile(currentAgentId);
   const twinInfo = getTwinAgentInfo(currentAgentId);
+  const isRules = isRulesStrategy(currentAgentId);
+  const basePersonaKey = currentAgentId
+    .replace('baseline-', '')
+    .replace('-rules', '')
+    .replace('rj', 'jhunjhunwala')
+    .replace('stockminds-core', 'varsity');
 
   // Dual-curve points
   const dualCurvePoints = (() => {
@@ -385,7 +385,7 @@ export default function Portfolio() {
                 {/* Group 1: Autonomous LLM Agents */}
                 <div className="p-1.5 space-y-0.5">
                   <div className="px-2.5 py-1 text-[11px] font-mono text-zinc-500">
-                    Autonomous LLM Agents (5)
+                    LLM Agents (5)
                   </div>
                   {llmAgents.map((ag) => {
                     const isSelected = ag.id === currentAgentId;
@@ -416,7 +416,7 @@ export default function Portfolio() {
                 {/* Group 2: Deterministic Rules Baselines */}
                 <div className="p-1.5 space-y-0.5">
                   <div className="px-2.5 py-1 text-[11px] font-mono text-zinc-500">
-                    Deterministic Rules Baselines (5)
+                    Rules Baselines (5)
                   </div>
                   {rulesAgents.map((ag) => {
                     const isSelected = ag.id === currentAgentId;
@@ -449,10 +449,31 @@ export default function Portfolio() {
         </div>
       </div>
 
-      {/* Persona Mandate Prose (Optimal Web Readability) */}
-      <p className="text-base sm:text-lg font-sans text-zinc-200 leading-relaxed max-w-4xl -mt-1">
-        {personaProfile.description}
-      </p>
+      {/* 1.5. STRATEGY IDENTITY & HORIZON PILL BAR (HIGH SCANNABILITY) */}
+      {/* <div className="flex flex-wrap items-center justify-between gap-3 font-mono text-xs -mt-1 pb-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="px-2.5 py-1 rounded bg-surface-well border border-border-hairline text-zinc-300">
+            <span className="text-zinc-500 mr-1.5">Horizon:</span>
+            <strong className="text-zinc-200 font-medium">{personaProfile.horizon}</strong>
+          </span>
+          <span className="px-2.5 py-1 rounded bg-surface-well border border-border-hairline text-zinc-300">
+            <span className="text-zinc-500 mr-1.5">Strategy:</span>
+            <strong className="text-zinc-200 font-medium">{personaProfile.school}</strong>
+          </span>
+          <span className="px-2.5 py-1 rounded bg-surface-well border border-border-hairline text-zinc-400 hidden sm:inline-flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            <span>Point-in-Time Audited</span>
+          </span>
+        </div>
+
+        <button
+          onClick={() => setActiveTab('intel')}
+          className="text-xs font-mono text-brand-blue-text hover:underline cursor-pointer flex items-center gap-1"
+        >
+          <span>View Mandate & Audit</span>
+          <span>→</span>
+        </button>
+      </div> */}
 
       {/* 2. PENDING ORDERS STATUS STRIP (IF ANY) */}
       {pendingOrders.length > 0 && (
@@ -478,38 +499,44 @@ export default function Portfolio() {
           </div>
 
           {showPendingOrders && (
-            <div className="pt-2 border-t border-border-hairline overflow-x-auto">
-              <table className="w-full text-left font-mono text-xs">
+            <div className="overflow-x-auto border border-border-hairline bg-[#161616] rounded-lg mt-2">
+              <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="text-zinc-500 border-b border-border-hairline text-[11px]">
-                    <th className="py-2 pr-4 font-normal">Side</th>
-                    <th className="py-2 pr-4 font-normal">Symbol</th>
-                    <th className="py-2 pr-4 font-normal text-right">Shares</th>
-                    <th className="py-2 pr-4 font-normal text-right">Limit Price</th>
-                    <th className="py-2 pr-4 font-normal text-right">Est. Outlay</th>
-                    <th className="py-2 font-normal text-right">Queued At</th>
+                  <tr className="border-b border-border-hairline text-zinc-400 text-xs sm:text-sm font-mono bg-[#121212] whitespace-nowrap">
+                    <th className="py-3 px-3.5 font-normal">Side</th>
+                    <th className="py-3 px-3.5 font-normal">Symbol</th>
+                    <th className="py-3 px-3.5 font-normal text-right">Shares</th>
+                    <th className="py-3 px-3.5 font-normal text-right">Limit Price</th>
+                    <th className="py-3 px-3.5 font-normal text-right">Est. Outlay</th>
+                    <th className="py-3 px-3.5 font-normal text-right">Queued At</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border-hairline text-zinc-300">
-                  {pendingOrders.map((ord) => {
+                <tbody className="divide-y divide-border-hairline text-base font-sans whitespace-nowrap">
+                  {pendingOrders.map((ord, idx) => {
                     const price = ord.limitPricePaise ?? ord.entryLowPaise ?? 0;
                     const estOutlay = ord.quantity * price;
                     return (
-                      <tr key={ord.id} className="hover:bg-white/[0.02]">
-                        <td className="py-2 pr-4">
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold border border-emerald-500/30 text-positive bg-emerald-500/10">
+                      <tr
+                        key={ord.id}
+                        className={cn(
+                          "transition-colors group hover:bg-white/[0.03]",
+                          idx % 2 === 1 ? "bg-white/[0.01]" : "bg-transparent"
+                        )}
+                      >
+                        <td className="py-3 px-3.5">
+                          <span className="px-2.5 py-0.5 rounded text-xs font-mono font-semibold uppercase tracking-wider border border-emerald-500/30 text-positive bg-emerald-500/10">
                             {ord.side}
                           </span>
                         </td>
-                        <td className="py-2 pr-4 font-semibold text-white">{ord.symbol}</td>
-                        <td className="py-2 pr-4 text-right tabular-nums">{ord.quantity}</td>
-                        <td className="py-2 pr-4 text-right tabular-nums text-zinc-200">
+                        <td className="py-3 px-3.5 font-sans font-medium text-base text-zinc-100">{ord.symbol}</td>
+                        <td className="py-3 px-3.5 text-right font-mono text-base tabular-nums text-zinc-300">{ord.quantity}</td>
+                        <td className="py-3 px-3.5 text-right font-mono text-base tabular-nums text-zinc-200">
                           {formatPaiseToRupees(price)}
                         </td>
-                        <td className="py-2 pr-4 text-right tabular-nums text-brand-blue-text font-medium">
+                        <td className="py-3 px-3.5 text-right font-mono text-base tabular-nums text-brand-blue-text font-medium">
                           {formatPaiseToRupees(estOutlay)}
                         </td>
-                        <td className="py-2 text-right text-zinc-500 text-[11px]">
+                        <td className="py-3 px-3.5 text-right font-mono text-sm text-zinc-400">
                           {formatISTDateTime(ord.submittedAt)}
                         </td>
                       </tr>
@@ -547,23 +574,6 @@ export default function Portfolio() {
 
         <button
           role="tab"
-          aria-selected={currentTab === 'performance'}
-          onClick={() => setActiveTab('performance')}
-          className={cn(
-            "px-4 py-2 rounded font-medium transition-colors cursor-pointer flex items-center gap-2 whitespace-nowrap",
-            currentTab === 'performance'
-              ? "bg-white/10 text-white border border-white/15"
-              : "text-zinc-400 hover:text-white hover:bg-white/[0.03] border border-transparent"
-          )}
-        >
-          <span>Performance & Past Trades</span>
-          <span className="px-1.5 py-0.5 rounded bg-white/10 text-[10px] text-zinc-300">
-            {closedPositionsCount} Closed
-          </span>
-        </button>
-
-        <button
-          role="tab"
           aria-selected={currentTab === 'watchlist'}
           onClick={() => setActiveTab('watchlist')}
           className={cn(
@@ -581,6 +591,25 @@ export default function Portfolio() {
 
         <button
           role="tab"
+          aria-selected={currentTab === 'performance'}
+          onClick={() => setActiveTab('performance')}
+          className={cn(
+            "px-4 py-2 rounded font-medium transition-colors cursor-pointer flex items-center gap-2 whitespace-nowrap",
+            currentTab === 'performance'
+              ? "bg-white/10 text-white border border-white/15"
+              : "text-zinc-400 hover:text-white hover:bg-white/[0.03] border border-transparent"
+          )}
+        >
+          <span>Performance & Past Trades</span>
+          <span className="px-1.5 py-0.5 rounded bg-white/10 text-[10px] text-zinc-300">
+            {closedPositionsCount} Closed
+          </span>
+        </button>
+
+
+
+        {/* <button
+          role="tab"
           aria-selected={currentTab === 'intel'}
           onClick={() => setActiveTab('intel')}
           className={cn(
@@ -590,11 +619,8 @@ export default function Portfolio() {
               : "text-zinc-400 hover:text-white hover:bg-white/[0.03] border border-transparent"
           )}
         >
-          <span>Methodology & Memory</span>
-          <span className="px-1.5 py-0.5 rounded bg-white/10 text-[10px] text-zinc-300">
-            {heuristics.length} Rules
-          </span>
-        </button>
+          <span>Audit & Methodology</span>
+        </button> */}
       </div>
 
       {/* 4. TAB CONTENTS */}
@@ -690,13 +716,43 @@ export default function Portfolio() {
         </div>
       )}
 
-      {/* TAB 4: STRATEGY INTEL & MEMORY BANK */}
+      {/* TAB 4: STRATEGY INTEL, AUDIT & MEMORY BANK */}
       {currentTab === 'intel' && (
         <div className="space-y-8 animate-hero-entrance">
-          {/* 4-Stage Tapered Screening Funnel */}
+          {/* 1. Forensic Reasoning & Ground-Truth Verification */}
+          {!isRules ? (
+            <ExplainabilitySpotlight personaId={basePersonaKey} />
+          ) : (
+            <div className="border border-border-hairline bg-surface-inset rounded-lg p-5 font-mono text-xs text-zinc-400 space-y-2">
+              <div className="flex items-center gap-2 text-white font-medium text-sm">
+                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                <span>Deterministic Python Control · Zero Hallucination Risk</span>
+              </div>
+              <p className="text-zinc-300 font-sans leading-relaxed text-sm">
+                This strategy is a deterministic control baseline executing fixed numerical rules in Python. It has no generative LLM reasoning layer and therefore zero citation hallucination risk.
+              </p>
+            </div>
+          )}
+
+          {/* 2. Detailed Investment Philosophy & Execution Mandate Dossier */}
+          <div className="border border-border-hairline bg-surface-inset rounded-lg p-5 sm:p-6 space-y-3 font-sans">
+            <div className="flex items-center justify-between border-b border-border-hairline pb-3">
+              <h3 className="font-display font-medium text-base sm:text-lg text-white">
+                Investment Philosophy & Execution Mandate
+              </h3>
+              <span className="font-mono text-xs text-brand-blue-text bg-brand-blue-soft border border-brand-blue/30 px-2.5 py-0.5 rounded font-medium">
+                {personaProfile.horizon}
+              </span>
+            </div>
+            <p className="text-sm sm:text-base text-zinc-300 leading-relaxed font-sans">
+              {personaProfile.description}
+            </p>
+          </div>
+
+          {/* 3. 4-Stage Tapered Screening Funnel */}
           <WatchlistFunnel initialAgentId={currentAgentId} />
 
-          {/* Learned Heuristics Causal Memory Bank */}
+          {/* 4. Learned Heuristics Causal Memory Bank */}
           <LearnedMemoryBankSection heuristics={heuristics} />
         </div>
       )}

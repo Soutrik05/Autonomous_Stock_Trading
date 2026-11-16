@@ -36,7 +36,7 @@ export default function Footer() {
               <Link to="/portfolio/simons" className="text-zinc-400 hover:text-white transition-colors">Strategy Dossiers & Blotter</Link>
               <Link to="/comparison" className="text-zinc-400 hover:text-white transition-colors">Cognitive Alpha Duels</Link>
               <Link to="/backtest" className="text-zinc-400 hover:text-white transition-colors">Walk-Forward Backtest Lab</Link>
-              <Link to="/pulse" className="text-zinc-400 hover:text-white transition-colors">Telemetry Pulse</Link>
+              <Link to="/telemetry" className="text-zinc-400 hover:text-white transition-colors">System Telemetry</Link>
             </div>
           </div>
 

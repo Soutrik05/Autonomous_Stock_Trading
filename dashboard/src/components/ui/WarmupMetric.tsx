@@ -33,9 +33,9 @@ export function WarmupMetric({
       return (
         <span
           title={`Sample warming up (${closedTrades}/${sampleThreshold} closed trades)`}
-          className={cn("text-zinc-500 font-mono text-[11px] tabular-nums whitespace-nowrap", warmupClassName)}
+          className={cn("text-zinc-600 font-mono text-base tabular-nums whitespace-nowrap", warmupClassName)}
         >
-          Warming up · {closedTrades}/{sampleThreshold}
+          —
         </span>
       );
     }

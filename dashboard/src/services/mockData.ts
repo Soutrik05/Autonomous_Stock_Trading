@@ -15,7 +15,7 @@ import type {
 export const MOCK_LEADERBOARD: AgentLeaderboardEntry[] = [
   {
     id: 'simons',
-    name: 'Jim Simons (LLM)',
+    name: 'Jimmy',
     philosophy: 'Quantitative Momentum, Kaufman Efficiency, Volatility Parity',
     horizonDays: '5–15 days',
     navPaise: 52125000, // ₹5,21,250.00
@@ -34,7 +34,7 @@ export const MOCK_LEADERBOARD: AgentLeaderboardEntry[] = [
   },
   {
     id: 'baseline-simons-rules',
-    name: 'Simons (Rules Baseline)',
+    name: 'Jimmy Core',
     philosophy: 'Pure Rule-Based Trend Following (Zero LLM, Control Agent)',
     horizonDays: '5–15 days',
     navPaise: 50575000, // ₹5,05,750.00
@@ -53,7 +53,7 @@ export const MOCK_LEADERBOARD: AgentLeaderboardEntry[] = [
   },
   {
     id: 'marks',
-    name: 'Howard Marks',
+    name: 'Howie',
     philosophy: 'Second-Level Contrarian, Cyclical Value & Margin of Safety',
     horizonDays: '30–90 days',
     navPaise: 51400000, // ₹5,14,000.00
@@ -72,7 +72,7 @@ export const MOCK_LEADERBOARD: AgentLeaderboardEntry[] = [
   },
   {
     id: 'baseline-marks-rules',
-    name: 'Marks (Rules Baseline)',
+    name: 'Howie Core',
     philosophy: 'Pure Rule-Based Contrarian Value & Margin of Safety (Zero LLM)',
     horizonDays: '30–90 days',
     navPaise: 50600000,
@@ -91,7 +91,7 @@ export const MOCK_LEADERBOARD: AgentLeaderboardEntry[] = [
   },
   {
     id: 'lynch',
-    name: 'Peter Lynch',
+    name: 'Pete',
     philosophy: 'GARP, PEG Valuation & Operational Cash Conversion Consistency',
     horizonDays: '60–120 days',
     navPaise: 50975000, // ₹5,09,750.00
@@ -110,7 +110,7 @@ export const MOCK_LEADERBOARD: AgentLeaderboardEntry[] = [
   },
   {
     id: 'baseline-lynch-rules',
-    name: 'Lynch (Rules Baseline)',
+    name: 'Pete Core',
     philosophy: 'Pure Rule-Based GARP & PEG Thresholds (Zero LLM)',
     horizonDays: '60–120 days',
     navPaise: 50700000,
@@ -129,7 +129,7 @@ export const MOCK_LEADERBOARD: AgentLeaderboardEntry[] = [
   },
   {
     id: 'jhunjhunwala',
-    name: 'Rakesh Jhunjhunwala',
+    name: 'RJ',
     philosophy: 'Structural Domestic Growth, High Conviction & Secular Trends',
     horizonDays: '90–180 days',
     navPaise: 51700000, // ₹5,17,000.00
@@ -148,7 +148,7 @@ export const MOCK_LEADERBOARD: AgentLeaderboardEntry[] = [
   },
   {
     id: 'baseline-rj-rules',
-    name: 'Jhunjhunwala (Rules Baseline)',
+    name: 'RJ Core',
     philosophy: 'Pure Rule-Based Secular Growth Compounders (Zero LLM)',
     horizonDays: '90–180 days',
     navPaise: 51050000,
@@ -167,7 +167,7 @@ export const MOCK_LEADERBOARD: AgentLeaderboardEntry[] = [
   },
   {
     id: 'stockminds-core',
-    name: 'StockMinds Core (Varsity)',
+    name: 'Varsity',
     philosophy: 'Zerodha Varsity Dual Confluence, DCF FCFF Valuation & Kelly Sizing',
     horizonDays: '20–60 days',
     navPaise: 50450000, // ₹5,04,500.00
@@ -186,7 +186,7 @@ export const MOCK_LEADERBOARD: AgentLeaderboardEntry[] = [
   },
   {
     id: 'baseline-varsity-rules',
-    name: 'Varsity (Rules Baseline)',
+    name: 'Varsity Core',
     philosophy: 'Pure Rule-Based Dual Confluence & Technical Sizing (Zero LLM)',
     horizonDays: '20–60 days',
     navPaise: 50250000,
@@ -770,7 +770,7 @@ export const MOCK_BASELINE_COMPARISONS: Record<string, BaselineComparison> = {
     personaId: 'simons',
     llmAgent: {
       id: 'simons',
-      name: 'Jim Simons (LLM)',
+      name: 'Jimmy',
       navPaise: 52125000,
       returnPct: 4.25,
       sharpe: 1.84,
@@ -781,7 +781,7 @@ export const MOCK_BASELINE_COMPARISONS: Record<string, BaselineComparison> = {
     },
     rulesAgent: {
       id: 'baseline-simons-rules',
-      name: 'Simons (Rules Baseline)',
+      name: 'Jimmy Core',
       navPaise: 50575000,
       returnPct: 1.15,
       sharpe: 0.95,
@@ -825,7 +825,7 @@ export const MOCK_BASELINE_COMPARISONS: Record<string, BaselineComparison> = {
     personaId: 'lynch',
     llmAgent: {
       id: 'lynch',
-      name: 'Peter Lynch (LLM)',
+      name: 'Pete',
       navPaise: 50975000,
       returnPct: 1.95,
       sharpe: 1.45,
@@ -836,7 +836,7 @@ export const MOCK_BASELINE_COMPARISONS: Record<string, BaselineComparison> = {
     },
     rulesAgent: {
       id: 'baseline-lynch-rules',
-      name: 'Peter Lynch (Rules Baseline)',
+      name: 'Pete Core',
       navPaise: 50400000,
       returnPct: 0.80,
       sharpe: 0.82,
@@ -880,7 +880,7 @@ export const MOCK_BASELINE_COMPARISONS: Record<string, BaselineComparison> = {
     personaId: 'marks',
     llmAgent: {
       id: 'marks',
-      name: 'Howard Marks (LLM)',
+      name: 'Howie',
       navPaise: 51400000,
       returnPct: 2.80,
       sharpe: 1.62,
@@ -891,7 +891,7 @@ export const MOCK_BASELINE_COMPARISONS: Record<string, BaselineComparison> = {
     },
     rulesAgent: {
       id: 'baseline-marks-rules',
-      name: 'Howard Marks (Rules Baseline)',
+      name: 'Howie Core',
       navPaise: 50700000,
       returnPct: 1.40,
       sharpe: 1.05,
@@ -935,7 +935,7 @@ export const MOCK_BASELINE_COMPARISONS: Record<string, BaselineComparison> = {
     personaId: 'jhunjhunwala',
     llmAgent: {
       id: 'jhunjhunwala',
-      name: 'Rakesh Jhunjhunwala (LLM)',
+      name: 'RJ',
       navPaise: 51700000,
       returnPct: 3.40,
       sharpe: 1.70,
@@ -946,7 +946,7 @@ export const MOCK_BASELINE_COMPARISONS: Record<string, BaselineComparison> = {
     },
     rulesAgent: {
       id: 'baseline-rj-rules',
-      name: 'Rakesh Jhunjhunwala (Rules Baseline)',
+      name: 'RJ Core',
       navPaise: 50900000,
       returnPct: 1.80,
       sharpe: 1.10,
@@ -1125,7 +1125,7 @@ export const MOCK_BACKTEST_WINDOWS: BacktestRegimeWindow[] = [
     agents: [
       {
         id: 'marks',
-        name: 'Howard Marks',
+        name: 'Howie',
         philosophy: 'Contrarian Value & Distress Buying',
         horizonDays: '30–90 days',
         navPaise: 54200000,
@@ -1144,7 +1144,7 @@ export const MOCK_BACKTEST_WINDOWS: BacktestRegimeWindow[] = [
       },
       {
         id: 'jhunjhunwala',
-        name: 'Rakesh Jhunjhunwala',
+        name: 'RJ',
         philosophy: 'Long Horizon Structural Growth',
         horizonDays: '90–180 days',
         navPaise: 53100000,
@@ -1163,7 +1163,7 @@ export const MOCK_BACKTEST_WINDOWS: BacktestRegimeWindow[] = [
       },
       {
         id: 'simons',
-        name: 'Jim Simons (LLM)',
+        name: 'Jimmy',
         philosophy: 'Quant Momentum Breakouts',
         horizonDays: '5–15 days',
         navPaise: 49400000,
@@ -1203,7 +1203,7 @@ export const MOCK_BACKTEST_WINDOWS: BacktestRegimeWindow[] = [
     resolvedDurations: [
       {
         agentId: 'jhunjhunwala',
-        agentName: 'Rakesh Jhunjhunwala',
+        agentName: 'RJ',
         intendedHorizonDays: '90–180 days',
         empiricalAvgHoldDays: 114.5,
         maxHoldDays: 168,
@@ -1211,7 +1211,7 @@ export const MOCK_BACKTEST_WINDOWS: BacktestRegimeWindow[] = [
       },
       {
         agentId: 'lynch',
-        agentName: 'Peter Lynch',
+        agentName: 'Pete',
         intendedHorizonDays: '60–120 days',
         empiricalAvgHoldDays: 82.0,
         maxHoldDays: 112,
@@ -1219,7 +1219,7 @@ export const MOCK_BACKTEST_WINDOWS: BacktestRegimeWindow[] = [
       },
       {
         agentId: 'marks',
-        agentName: 'Howard Marks',
+        agentName: 'Howie',
         intendedHorizonDays: '30–90 days',
         empiricalAvgHoldDays: 54.2,
         maxHoldDays: 88,
@@ -1227,7 +1227,7 @@ export const MOCK_BACKTEST_WINDOWS: BacktestRegimeWindow[] = [
       },
       {
         agentId: 'simons',
-        agentName: 'Jim Simons (LLM)',
+        agentName: 'Jimmy',
         intendedHorizonDays: '5–15 days',
         empiricalAvgHoldDays: 8.4,
         maxHoldDays: 16,
@@ -1245,7 +1245,7 @@ export const MOCK_BACKTEST_WINDOWS: BacktestRegimeWindow[] = [
     agents: [
       {
         id: 'simons',
-        name: 'Jim Simons (LLM)',
+        name: 'Jimmy',
         philosophy: 'Quant Momentum',
         horizonDays: '5–15 days',
         navPaise: 61200000,
@@ -1264,7 +1264,7 @@ export const MOCK_BACKTEST_WINDOWS: BacktestRegimeWindow[] = [
       },
       {
         id: 'jhunjhunwala',
-        name: 'Rakesh Jhunjhunwala',
+        name: 'RJ',
         philosophy: 'Structural Growth & Pyramiding',
         horizonDays: '90–180 days',
         navPaise: 60050000,
@@ -1285,7 +1285,7 @@ export const MOCK_BACKTEST_WINDOWS: BacktestRegimeWindow[] = [
     resolvedDurations: [
       {
         agentId: 'jhunjhunwala',
-        agentName: 'Rakesh Jhunjhunwala',
+        agentName: 'RJ',
         intendedHorizonDays: '90–180 days',
         empiricalAvgHoldDays: 128.0,
         maxHoldDays: 174,
@@ -1293,7 +1293,7 @@ export const MOCK_BACKTEST_WINDOWS: BacktestRegimeWindow[] = [
       },
       {
         agentId: 'simons',
-        agentName: 'Jim Simons (LLM)',
+        agentName: 'Jimmy',
         intendedHorizonDays: '5–15 days',
         empiricalAvgHoldDays: 9.1,
         maxHoldDays: 15,

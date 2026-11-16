@@ -223,6 +223,14 @@ export interface PipelineHealthJob {
   errorMessage?: string;
 }
 
+export interface RunHoldingDurationItem {
+  agent_id: string;
+  closed_trades: number;
+  avg_hold_days: number;
+  median_hold_days: number;
+  max_hold_days: number;
+}
+
 export interface BacktestRegimeWindow {
   windowId: string;
   name: string;

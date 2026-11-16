@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { ChevronRight, CheckCircle2 } from 'lucide-react';
 import { apiService } from '../services/api';
 import type { FunnelEntry } from '../types';
+import { getAgentDisplayName } from '../constants/personas';
 import { cn } from '../utils/cn';
 
 interface FunnelStage {
@@ -21,7 +22,7 @@ interface PersonaFunnelDef {
 
 const DEFAULT_FUNNEL_DATA: Record<string, PersonaFunnelDef> = {
   simons: {
-    personaName: 'Jim Simons (Quant Momentum)',
+    personaName: `${getAgentDisplayName('simons')} (Quant Momentum)`,
     stages: [
       {
         step: 0,
@@ -69,7 +70,7 @@ const DEFAULT_FUNNEL_DATA: Record<string, PersonaFunnelDef> = {
     ],
   },
   varsity: {
-    personaName: 'StockMinds Core (Zerodha Varsity Confluence)',
+    personaName: `${getAgentDisplayName('varsity')} (Dual-Confluence Swing)`,
     stages: [
       {
         step: 0,
@@ -117,7 +118,7 @@ const DEFAULT_FUNNEL_DATA: Record<string, PersonaFunnelDef> = {
     ],
   },
   lynch: {
-    personaName: 'Peter Lynch (GARP)',
+    personaName: `${getAgentDisplayName('lynch')} (GARP Compounding)`,
     stages: [
       {
         step: 0,
@@ -165,7 +166,7 @@ const DEFAULT_FUNNEL_DATA: Record<string, PersonaFunnelDef> = {
     ],
   },
   marks: {
-    personaName: 'Howard Marks (Contrarian Value)',
+    personaName: `${getAgentDisplayName('marks')} (Contrarian Value)`,
     stages: [
       {
         step: 0,
@@ -212,7 +213,7 @@ const DEFAULT_FUNNEL_DATA: Record<string, PersonaFunnelDef> = {
     ],
   },
   jhunjhunwala: {
-    personaName: 'Rakesh Jhunjhunwala (Structural Growth)',
+    personaName: `${getAgentDisplayName('jhunjhunwala')} (Secular Domestic Growth)`,
     stages: [
       {
         step: 0,

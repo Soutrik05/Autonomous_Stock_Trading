@@ -76,16 +76,16 @@ export interface StrategyVisualConfig {
 export const STRATEGY_THEME: Record<string, StrategyVisualConfig> = {
   simons: {
     id: 'simons',
-    name: 'Jim Simons (LLM)',
-    shortName: 'Simons LLM',
+    name: 'Jimmy',
+    shortName: 'Jimmy',
     badge: 'LLM',
     color: '#3B82F6', // Electric Blue
     family: 'Quant Momentum',
   },
   'baseline-simons-rules': {
     id: 'baseline-simons-rules',
-    name: 'Simons (Rules Control)',
-    shortName: 'Simons Rules',
+    name: 'Jimmy Core',
+    shortName: 'Jimmy Core',
     badge: 'RULES',
     color: '#60A5FA',
     strokeDasharray: '4 4',
@@ -93,16 +93,16 @@ export const STRATEGY_THEME: Record<string, StrategyVisualConfig> = {
   },
   jhunjhunwala: {
     id: 'jhunjhunwala',
-    name: 'Rakesh Jhunjhunwala (LLM)',
-    shortName: 'Jhunjhunwala LLM',
+    name: 'RJ',
+    shortName: 'RJ',
     badge: 'LLM',
     color: '#A855F7', // Neon Purple
     family: 'Growth & Quality',
   },
   'baseline-rj-rules': {
     id: 'baseline-rj-rules',
-    name: 'Jhunjhunwala (Rules Control)',
-    shortName: 'RJ Rules',
+    name: 'RJ Core',
+    shortName: 'RJ Core',
     badge: 'RULES',
     color: '#C084FC',
     strokeDasharray: '4 4',
@@ -110,16 +110,16 @@ export const STRATEGY_THEME: Record<string, StrategyVisualConfig> = {
   },
   marks: {
     id: 'marks',
-    name: 'Howard Marks (LLM)',
-    shortName: 'Marks LLM',
+    name: 'Howie',
+    shortName: 'Howie',
     badge: 'LLM',
     color: '#F59E0B', // Amber Gold
     family: 'Contrarian Value',
   },
   'baseline-marks-rules': {
     id: 'baseline-marks-rules',
-    name: 'Marks (Rules Control)',
-    shortName: 'Marks Rules',
+    name: 'Howie Core',
+    shortName: 'Howie Core',
     badge: 'RULES',
     color: '#FBBF24',
     strokeDasharray: '4 4',
@@ -127,33 +127,41 @@ export const STRATEGY_THEME: Record<string, StrategyVisualConfig> = {
   },
   lynch: {
     id: 'lynch',
-    name: 'Peter Lynch (LLM)',
-    shortName: 'Lynch LLM',
+    name: 'Pete',
+    shortName: 'Pete',
     badge: 'LLM',
     color: '#10B981', // Vivid Emerald
     family: 'GARP',
   },
   'baseline-lynch-rules': {
     id: 'baseline-lynch-rules',
-    name: 'Lynch (Rules Control)',
-    shortName: 'Lynch Rules',
+    name: 'Pete Core',
+    shortName: 'Pete Core',
     badge: 'RULES',
     color: '#34D399',
     strokeDasharray: '4 4',
     family: 'GARP',
   },
+  varsity: {
+    id: 'varsity',
+    name: 'Varsity',
+    shortName: 'Varsity',
+    badge: 'LLM',
+    color: '#0284C7', // Deep Sky Blue
+    family: 'Dual Confluence',
+  },
   'stockminds-core': {
     id: 'stockminds-core',
-    name: 'StockMinds Core (LLM)',
-    shortName: 'Varsity LLM',
+    name: 'Varsity',
+    shortName: 'Varsity',
     badge: 'LLM',
     color: '#0284C7', // Deep Sky Blue
     family: 'Dual Confluence',
   },
   'baseline-varsity-rules': {
     id: 'baseline-varsity-rules',
-    name: 'Varsity Core (Rules Control)',
-    shortName: 'Varsity Rules',
+    name: 'Varsity Core',
+    shortName: 'Varsity Core',
     badge: 'RULES',
     color: '#38BDF8',
     strokeDasharray: '4 4',

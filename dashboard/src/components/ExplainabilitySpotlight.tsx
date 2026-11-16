@@ -1,5 +1,6 @@
 import { Check, ShieldCheck } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { getAgentDisplayName } from '../constants/personas';
 
 interface CitedMetricItem {
   label: string;
@@ -23,7 +24,7 @@ interface SpotlightItem {
 
 const SPOTLIGHT_DATA: Record<string, SpotlightItem> = {
   simons: {
-    agentName: 'Jim Simons',
+    agentName: getAgentDisplayName('simons'),
     agentFamily: 'Quantitative Statistical Momentum & Volatility Parity',
     symbol: 'ANANDRATHI',
     company: 'Anand Rathi Wealth Ltd',
@@ -40,7 +41,7 @@ const SPOTLIGHT_DATA: Record<string, SpotlightItem> = {
     ],
   },
   lynch: {
-    agentName: 'Peter Lynch',
+    agentName: getAgentDisplayName('lynch'),
     agentFamily: 'Growth-at-a-Reasonable-Price (GARP) & Cash Conversion',
     symbol: 'HBLENGINE',
     company: 'HBL Power Systems Ltd',
@@ -57,7 +58,7 @@ const SPOTLIGHT_DATA: Record<string, SpotlightItem> = {
     ],
   },
   marks: {
-    agentName: 'Howard Marks',
+    agentName: getAgentDisplayName('marks'),
     agentFamily: 'Second-Level Contrarian Value & Margin of Safety',
     symbol: 'SCHAEFFLER',
     company: 'Schaeffler India Ltd',
@@ -74,7 +75,7 @@ const SPOTLIGHT_DATA: Record<string, SpotlightItem> = {
     ],
   },
   jhunjhunwala: {
-    agentName: 'Rakesh Jhunjhunwala',
+    agentName: getAgentDisplayName('jhunjhunwala'),
     agentFamily: 'High-Conviction Structural Domestic Growth & Pyramiding',
     symbol: 'CRISIL',
     company: 'CRISIL Limited',
@@ -91,7 +92,7 @@ const SPOTLIGHT_DATA: Record<string, SpotlightItem> = {
     ],
   },
   varsity: {
-    agentName: 'StockMinds Core',
+    agentName: getAgentDisplayName('varsity'),
     agentFamily: 'Dual-Confluence Swing & DCF Solvency Conservatism',
     symbol: 'TRENT',
     company: 'Trent Ltd',
@@ -192,35 +193,41 @@ export default function ExplainabilitySpotlight({ personaId = 'simons' }: Explai
         </p>
       </div>
 
-      {/* 3. High-Legibility Audit Table (4 Columns, Bumped Font Sizes) */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-left font-mono text-sm sm:text-base">
-          <thead className="bg-surface-well text-xs sm:text-sm text-zinc-400 border-b border-border-hairline">
-            <tr>
-              <th className="py-3 px-5 font-normal">Audited Indicator</th>
-              <th className="py-3 px-5 text-right font-normal text-brand-blue-text">Cited Claim</th>
-              <th className="py-3 px-5 text-right font-normal text-zinc-300">Exchange Snapshot</th>
-              <th className="py-3 px-5 text-right font-normal text-zinc-400">Variance (Δ)</th>
-              <th className="py-3 px-5 text-right font-normal text-zinc-300">Audit Verdict</th>
+      {/* 3. High-Legibility Audit Table (Standardized to Leaderboard Grid) */}
+      <div className="overflow-x-auto border border-border-hairline bg-[#161616] rounded-lg">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="border-b border-border-hairline text-zinc-400 text-xs sm:text-sm font-mono bg-[#121212] whitespace-nowrap">
+              <th className="py-3 px-3.5 font-normal">Audited Indicator</th>
+              <th className="py-3 px-3.5 text-right font-semibold text-brand-blue-text">Cited Claim</th>
+              <th className="py-3 px-3.5 text-right font-normal text-zinc-300">Exchange Snapshot</th>
+              <th className="py-3 px-3.5 text-right font-normal text-zinc-400">Variance (Δ)</th>
+              <th className="py-3 px-3.5 text-center font-normal text-zinc-300">Audit Verdict</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border-hairline text-zinc-300">
+          <tbody className="divide-y divide-border-hairline text-base font-sans whitespace-nowrap">
             {sampleDecision.citedMetrics.map((cm, idx) => (
-              <tr key={idx} className="hover:bg-white/[0.02] transition-colors">
-                <td className="py-3.5 px-5 font-sans font-medium text-white text-sm sm:text-base">
+              <tr
+                key={idx}
+                className={cn(
+                  "transition-colors group hover:bg-white/[0.03]",
+                  idx % 2 === 1 ? "bg-white/[0.01]" : "bg-transparent"
+                )}
+              >
+                <td className="py-3 px-3.5 font-sans font-medium text-white text-base">
                   {cm.label}
                 </td>
-                <td className="py-3.5 px-5 text-right font-mono font-bold text-brand-blue-text text-sm sm:text-base tabular-nums">
+                <td className="py-3 px-3.5 text-right font-mono font-bold text-brand-blue-text text-base tabular-nums">
                   {cm.cited}
                 </td>
-                <td className="py-3.5 px-5 text-right font-mono font-medium text-zinc-100 text-sm sm:text-base tabular-nums">
+                <td className="py-3 px-3.5 text-right font-mono font-medium text-zinc-100 text-sm sm:text-base tabular-nums">
                   {cm.snapshot}
                 </td>
-                <td className="py-3.5 px-5 text-right font-mono text-zinc-400 text-sm sm:text-base tabular-nums">
+                <td className="py-3 px-3.5 text-right font-mono text-zinc-300 text-sm sm:text-base tabular-nums">
                   {cm.discrepancy}
                 </td>
-                <td className="py-3.5 px-5 text-right">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs sm:text-sm font-mono font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/25">
+                <td className="py-3 px-3.5 text-center">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-mono font-semibold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/25">
                     <Check className="w-3.5 h-3.5 text-emerald-400" />
                     PASS
                   </span>
