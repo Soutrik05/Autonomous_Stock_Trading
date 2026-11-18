@@ -163,8 +163,14 @@ export default function HoldingsLinearStack({
     return () => window.clearTimeout(id);
   }, [barAnimating]);
 
-  const investedBarPct = Math.max(0, Math.min(100, investedPctOfSeed));
-  const cashBarPct = Math.max(0, Math.min(100, availableCashPctOfSeed));
+  // Allocation bar segment widths: how the money is actually split between invested and
+  // cash (never the seed-relative percentages shown in the text/legend above them) -- so the
+  // bar always fills edge to edge, with no empty track, regardless of total deployment.
+  const totalAllocPaise = totalInvestedPaise + availableCashPaise;
+  const showInvestedSegment = totalInvestedPaise > 0;
+  const showCashSegment = availableCashPaise > 0;
+  const investedBarPct = totalAllocPaise > 0 ? (totalInvestedPaise / totalAllocPaise) * 100 : 0;
+  const cashBarPct = totalAllocPaise > 0 ? (availableCashPaise / totalAllocPaise) * 100 : 100;
 
   return (
     <div className="glow-box rounded-lg">
@@ -190,8 +196,8 @@ export default function HoldingsLinearStack({
             <div className="text-[12px] text-zinc-400 font-sans flex items-center gap-1.5 flex-wrap">
               <span className="text-zinc-500 font-mono text-[12px]">Invested:</span>
               <strong
-                className="font-mono text-[24px] font-semibold tabular-nums"
-                style={{ color: '#10b981' }}
+                className="font-mono text-[20px] font-semibold tabular-nums"
+                style={{ color: 'var(--alloc-invested-text)' }}
               >
                 {investedDisplay}
               </strong>
@@ -203,7 +209,7 @@ export default function HoldingsLinearStack({
               <span className="text-zinc-500 font-mono text-[12px]">Current:</span>
               <span
                 className={cn(
-                  "text-[34px] font-bold font-mono tabular-nums leading-none",
+                  "text-[27px] font-bold font-mono tabular-nums leading-none",
                   isProfit ? "text-positive" : "text-negative"
                 )}
               >
@@ -211,7 +217,7 @@ export default function HoldingsLinearStack({
               </span>
               <span
                 className={cn(
-                  "text-sm sm:text-base font-semibold font-mono tabular-nums",
+                  "text-[14px] font-semibold font-mono tabular-nums",
                   isProfit ? "text-positive" : "text-negative"
                 )}
               >
@@ -238,8 +244,8 @@ export default function HoldingsLinearStack({
             <span className="text-zinc-500 font-mono text-[12px]">Cash Available</span>
             <div className="flex items-baseline md:justify-end gap-2.5 flex-wrap">
               <span
-                className="text-[34px] font-mono font-bold tabular-nums leading-none"
-                style={{ color: '#4F8FE0' }}
+                className="text-[27px] font-mono font-bold tabular-nums leading-none"
+                style={{ color: 'var(--alloc-cash-text)' }}
               >
                 {cashDisplay}
               </span>
@@ -248,38 +254,43 @@ export default function HoldingsLinearStack({
           </div>
         </div>
 
-        {/* Allocation bar: Invested (green) vs Cash (blue) segments, real % of seed capital */}
-        <div className="pt-1 space-y-2">
-          <div className="w-full h-4 rounded-full bg-[#222] flex gap-[3px] overflow-hidden">
-            <div
-              className="h-full rounded-full"
-              style={{
-                width: `${investedBarPct}%`,
-                backgroundColor: '#10b981',
-                transform: barFilled ? 'scaleX(1)' : 'scaleX(0)',
-                transformOrigin: 'left',
-                transition: barAnimating ? 'transform 1.4s cubic-bezier(0.22, 1, 0.36, 1)' : 'none',
-              }}
-            />
-            <div
-              className="h-full rounded-full"
-              style={{
-                width: `${cashBarPct}%`,
-                backgroundColor: '#2f6fc0',
-                transform: barFilled ? 'scaleX(1)' : 'scaleX(0)',
-                transformOrigin: 'left',
-                transition: barAnimating ? 'transform 1.4s cubic-bezier(0.22, 1, 0.36, 1)' : 'none',
-              }}
-            />
+        {/* Allocation bar: Invested (green gradient) vs Cash (cream) segments, filling edge
+            to edge by how money is actually split between the two (never seed-relative). */}
+        <div className="space-y-2">
+          <div className="w-full h-[10px] rounded-[6px] bg-[#222] flex gap-[3px] overflow-hidden mt-[14px]">
+            {showInvestedSegment && (
+              <div
+                className="h-full"
+                style={{
+                  width: showCashSegment ? `${investedBarPct}%` : '100%',
+                  background: 'linear-gradient(to right, var(--alloc-invested-from), var(--alloc-invested-to))',
+                  transform: barFilled ? 'scaleX(1)' : 'scaleX(0)',
+                  transformOrigin: 'left',
+                  transition: barAnimating ? 'transform 1.4s cubic-bezier(0.22, 1, 0.36, 1)' : 'none',
+                }}
+              />
+            )}
+            {showCashSegment && (
+              <div
+                className="h-full"
+                style={{
+                  width: showInvestedSegment ? `${cashBarPct}%` : '100%',
+                  backgroundColor: 'var(--alloc-cash)',
+                  transform: barFilled ? 'scaleX(1)' : 'scaleX(0)',
+                  transformOrigin: 'left',
+                  transition: barAnimating ? 'transform 1.4s cubic-bezier(0.22, 1, 0.36, 1)' : 'none',
+                }}
+              />
+            )}
           </div>
           <div className="flex items-center justify-between text-[11px] font-mono text-zinc-400 flex-wrap gap-y-1">
             <span className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ backgroundColor: '#10b981' }} />
+              <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ backgroundColor: 'var(--alloc-invested-to)' }} />
               Invested {investedPctOfSeed.toFixed(1)}% · {activePositions.length} {activePositions.length === 1 ? 'stock' : 'stocks'}
             </span>
             <span className="text-zinc-500">Starting money {formatPaiseToRupees(seedCapital)}</span>
             <span className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ backgroundColor: '#2f6fc0' }} />
+              <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ backgroundColor: 'var(--alloc-cash)' }} />
               Cash {availableCashPctOfSeed.toFixed(1)}% · ready to use
             </span>
           </div>

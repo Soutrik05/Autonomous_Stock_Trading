@@ -80,6 +80,14 @@
   --top1-glow-bg: rgba(16, 185, 129, 0.03);
   --top1-glow-shadow-1: rgba(16, 185, 129, 0.09);
   --top1-glow-shadow-2: rgba(16, 185, 129, 0.04);
+
+  /* Agent Terminal Holdings allocation bar + figures (HoldingsLinearStack.tsx). Green/cream,
+     not blue -- kept as variables so the palette can be retuned in one place. */
+  --alloc-invested-from: #06604a;
+  --alloc-invested-to: #0c8a63;
+  --alloc-invested-text: #14a077;
+  --alloc-cash: #cfc8b6;
+  --alloc-cash-text: #f2efe8;
 }
 
 .font-display {

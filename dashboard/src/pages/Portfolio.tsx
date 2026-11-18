@@ -321,8 +321,16 @@ export default function Portfolio() {
                 ref={nameRef}
                 onMouseMove={handleNameMouseMove}
                 data-text={cleanAgentName}
-                style={{ '--fs': '52px' } as CSSProperties}
-                className="name-spotlight font-display font-medium tracking-tight text-white text-[clamp(30px,4vw,52px)]"
+                style={{
+                  '--fs': '43px',
+                  fontFamily: "'Playfair Display', Georgia, 'Times New Roman', serif",
+                  fontWeight: 900,
+                  letterSpacing: '-0.02em',
+                  lineHeight: 1,
+                  color: '#f2efe8',
+                  fontSize: 'clamp(25px, 3.3vw, 43px)',
+                } as CSSProperties}
+                className="name-spotlight"
               >
                 {cleanAgentName}
               </span>
@@ -335,13 +343,13 @@ export default function Portfolio() {
               </span>
             </div>
 
-            <p className="text-[15px] font-sans font-medium" style={{ color: '#4F8FE0' }}>
+            <p className="text-[17px] font-sans font-medium" style={{ color: '#4F8FE0' }}>
               {personaProfile.school}
             </p>
 
             <p
-              className="text-sm text-zinc-300 font-sans leading-relaxed max-w-2xl"
-              style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+              className="text-[18px] text-zinc-300 font-sans max-w-[900px]"
+              style={{ lineHeight: 1.6, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
             >
               {terminalCopy.description}
             </p>
