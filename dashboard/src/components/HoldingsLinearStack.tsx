@@ -1,8 +1,13 @@
+import { useEffect, useState } from 'react';
 import type { Position } from '../types';
 import { formatPaiseToRupees, formatPct } from '../utils/formatters';
 import { cn } from '../utils/cn';
+import { useCountUp } from '../hooks/useCountUp';
+import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
 
 interface HoldingsLinearStackProps {
+  agentId: string;
+  introDone: boolean;
   positions: Position[];
   startingCapitalPaise: number;
   totalNavPaise: number;
@@ -12,21 +17,51 @@ interface HoldingsLinearStackProps {
   pendingCount?: number;
 }
 
+const SESSION_KEY_PREFIX = 'stockminds_terminal_count_';
+const COUNT_OPTS = { duration: 1300, delay: 250 };
+
+/** Decided once per mount (the parent remounts this component with key={agentId} on agent
+ * switch) -- true only the first time this agent's Holdings tab is opened this browser
+ * session. Never written anywhere except this one check-and-mark. */
+function decideFirstOpen(agentId: string): boolean {
+  const key = `${SESSION_KEY_PREFIX}${agentId}`;
+  try {
+    if (sessionStorage.getItem(key) === 'true') return false;
+    sessionStorage.setItem(key, 'true');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const formatUnsignedPaise = (n: number) => formatPaiseToRupees(Math.round(n));
+const formatSignedPaise = (n: number) => `${n >= 0 ? '+' : ''}${formatPaiseToRupees(Math.round(n))}`;
+const formatUnsignedPct1 = (n: number) => `${n.toFixed(1)}%`;
+
 /**
  * Clean, brokerage-grade Holdings view (Option A 3-Column Layout).
- * 
+ *
  * Header:
  * - LHS: Current Valuation of active holdings (color-coded green/red), Total Invested (pure white),
  *        Net Return difference in Rupees & %, and 1D Change.
  * - RHS: Available / uninvested capital waiting to be deployed, along with % of seed capital.
  *        Font sizes, hierarchy, and weights are identically balanced across LHS and RHS.
- * 
+ * - Below: a full-width Invested/Cash allocation bar + legend.
+ *
  * Rows:
  * - LHS: Position identity, allocation weight, and cost basis.
  * - Center: Live LTP & Intraday 1D change.
  * - RHS: Current mark-to-market valuation, net return in Rupees & %, and invested cost basis.
+ *
+ * The header's money figures count up from 0 once, the first time this agent's Holdings tab
+ * is opened in this browser session (see decideFirstOpen), using the shared useCountUp hook --
+ * never on a later visit, never on a background data refresh, and never under
+ * prefers-reduced-motion. If the intro overlay is still showing when this mounts, the count
+ * waits for it (gated on `introDone`) rather than running invisibly underneath it.
  */
 export default function HoldingsLinearStack({
+  agentId,
+  introDone,
   positions,
   startingCapitalPaise,
   totalNavPaise,
@@ -34,6 +69,11 @@ export default function HoldingsLinearStack({
   dayChangePct,
   pendingCount = 0,
 }: HoldingsLinearStackProps) {
+  const [isFirstOpen] = useState(() => decideFirstOpen(agentId));
+  const reducedMotion = usePrefersReducedMotion();
+  const playCountUp = isFirstOpen && !reducedMotion;
+  const barAnimating = playCountUp && introDone;
+
   const activePositions = positions.filter((p) => p.status === 'OPEN');
   const effectiveNav = totalNavPaise > 0 ? totalNavPaise : 50000000;
   const seedCapital = startingCapitalPaise > 0 ? startingCapitalPaise : 50000000;
@@ -86,11 +126,51 @@ export default function HoldingsLinearStack({
     : (dayChangePct ?? 0);
   const isDayProfit = effectiveDayChangePaise >= 0;
 
+  // Gate the value fed to useCountUp on introDone (while playing): shows "-" behind the
+  // (opaque, full-screen) intro overlay instead of starting the count underneath it, then
+  // becomes the first real value -- and so starts the one-shot count -- once introDone flips
+  // true. When not playing (repeat visit / reduced motion), feed the real value from the
+  // start and simply ignore the hook's own (still-animating-in-background) text below.
+  const gate = (target: number) => (playCountUp ? (introDone ? target : undefined) : target);
+
+  const investedHook = useCountUp(gate(totalInvestedPaise), formatUnsignedPaise, COUNT_OPTS);
+  const currentValuationHook = useCountUp(gate(currentInvestedValuationPaise), formatUnsignedPaise, COUNT_OPTS);
+  const deployedReturnPaiseHook = useCountUp(gate(deployedReturnPaise), formatSignedPaise, COUNT_OPTS);
+  const deployedReturnPctHook = useCountUp(gate(deployedReturnPct), formatPct, COUNT_OPTS);
+  const dayChangePaiseHook = useCountUp(gate(effectiveDayChangePaise), formatSignedPaise, COUNT_OPTS);
+  const dayChangePctHook = useCountUp(gate(effectiveDayChangePct), formatPct, COUNT_OPTS);
+  const cashHook = useCountUp(gate(availableCashPaise), formatUnsignedPaise, COUNT_OPTS);
+  const investedPctHook = useCountUp(gate(investedPctOfSeed), formatUnsignedPct1, COUNT_OPTS);
+  const cashPctHook = useCountUp(gate(availableCashPctOfSeed), formatUnsignedPct1, COUNT_OPTS);
+
+  const investedDisplay = playCountUp ? investedHook : formatUnsignedPaise(totalInvestedPaise);
+  const currentValuationDisplay = playCountUp ? currentValuationHook : formatUnsignedPaise(currentInvestedValuationPaise);
+  const deployedReturnPaiseDisplay = playCountUp ? deployedReturnPaiseHook : formatSignedPaise(deployedReturnPaise);
+  const deployedReturnPctDisplay = playCountUp ? deployedReturnPctHook : formatPct(deployedReturnPct);
+  const dayChangePaiseDisplay = playCountUp ? dayChangePaiseHook : formatSignedPaise(effectiveDayChangePaise);
+  const dayChangePctDisplay = playCountUp ? dayChangePctHook : formatPct(effectiveDayChangePct);
+  const cashDisplay = playCountUp ? cashHook : formatUnsignedPaise(availableCashPaise);
+  const investedPctDisplay = playCountUp ? investedPctHook : formatUnsignedPct1(investedPctOfSeed);
+  const cashPctDisplay = playCountUp ? cashPctHook : formatUnsignedPct1(availableCashPctOfSeed);
+
+  // Allocation bar fill: transform scaleX from 0 -> 1, starting 0.45s after introDone, once.
+  // The lazy initial state already reflects whether we're animating at all (no sync setState
+  // needed for that); the effect only schedules the one-shot delayed fill when we are.
+  const [barFilled, setBarFilled] = useState(!playCountUp);
+  useEffect(() => {
+    if (!barAnimating) return;
+    const id = window.setTimeout(() => setBarFilled(true), 450);
+    return () => window.clearTimeout(id);
+  }, [barAnimating]);
+
+  const investedBarPct = Math.max(0, Math.min(100, investedPctOfSeed));
+  const cashBarPct = Math.max(0, Math.min(100, availableCashPctOfSeed));
+
   return (
     <div className="glow-box rounded-lg">
     <div className="bg-[#161616] border border-border-hairline rounded-lg font-sans overflow-hidden">
       {/* 1. Header: Balanced LHS (Deployed Capital) vs RHS (Available Capital) */}
-      <div className="p-4 sm:p-5 border-b border-border-hairline space-y-3.5 font-mono">
+      <div className="p-4 sm:p-5 border-b border-border-hairline space-y-4 font-mono">
         {/* Title bar */}
         <div className="flex items-center justify-between gap-2 text-xs">
           <div className="flex items-center gap-2">
@@ -101,23 +181,21 @@ export default function HoldingsLinearStack({
               {activePositions.length} {activePositions.length === 1 ? 'Asset' : 'Assets'}
             </span>
           </div>
-
-          {/* <div className="text-zinc-500 font-mono text-[12px]">
-            Seed Capital: <strong className="font-mono text-zinc-200">{formatPaiseToRupees(seedCapital)}</strong>
-          </div> */}
         </div>
 
         {/* Primary Data Row: LHS Deployed vs RHS Available (Identical font size, weight, and visual hierarchy) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
           {/* LHS: Current Valuation & Returns on Deployed Capital */}
-          <div className="space-y-1">
-            <div className="text-[12px] text-zinc-400 font-sans flex items-center gap-1.5">
+          <div className="space-y-1.5">
+            <div className="text-[12px] text-zinc-400 font-sans flex items-center gap-1.5 flex-wrap">
               <span className="text-zinc-500 font-mono text-[12px]">Invested:</span>
-              <strong className="font-mono text-white text-[14px] font-semibold tabular-nums">
-                {formatPaiseToRupees(totalInvestedPaise)}
+              <strong
+                className="font-mono text-[24px] font-semibold tabular-nums"
+                style={{ color: '#10b981' }}
+              >
+                {investedDisplay}
               </strong>
-              {/* <span className="text-zinc-500 font-mono text-[12px]">({investedPctOfSeed.toFixed(1)}%)</span> */}
-              <span className="text-zinc-500 font-mono text-[12px]">({investedPctOfSeed.toFixed(1)}% of seed)</span>
+              <span className="text-zinc-500 font-mono text-[12px]">({investedPctDisplay} of seed)</span>
             </div>
 
             {/* Current Value +/- Net Returns on Invested */}
@@ -125,11 +203,11 @@ export default function HoldingsLinearStack({
               <span className="text-zinc-500 font-mono text-[12px]">Current:</span>
               <span
                 className={cn(
-                  "text-xl sm:text-2xl font-bold font-mono tabular-nums",
+                  "text-[34px] font-bold font-mono tabular-nums leading-none",
                   isProfit ? "text-positive" : "text-negative"
                 )}
               >
-                {formatPaiseToRupees(currentInvestedValuationPaise)}
+                {currentValuationDisplay}
               </span>
               <span
                 className={cn(
@@ -137,7 +215,7 @@ export default function HoldingsLinearStack({
                   isProfit ? "text-positive" : "text-negative"
                 )}
               >
-                {isProfit ? '+' : ''}{formatPaiseToRupees(deployedReturnPaise)} ({formatPct(deployedReturnPct)})
+                {deployedReturnPaiseDisplay} ({deployedReturnPctDisplay})
               </span>
             </div>
 
@@ -150,25 +228,60 @@ export default function HoldingsLinearStack({
                   isDayProfit ? "text-positive" : "text-negative"
                 )}
               >
-                {isDayProfit ? '+' : ''}{formatPaiseToRupees(effectiveDayChangePaise)} ({formatPct(effectiveDayChangePct)})
+                {dayChangePaiseDisplay} ({dayChangePctDisplay})
               </span>
             </div>
           </div>
 
           {/* RHS: Available Capital Waiting to be Deployed (Identical typography structure) */}
-          <div className="space-y-1 md:text-right flex flex-col md:items-end justify-start">
+          <div className="space-y-1.5 md:text-right flex flex-col md:items-end justify-start">
             <span className="text-zinc-500 font-mono text-[12px]">Cash Available</span>
-            <div className="text-[12px] text-zinc-400 font-sans flex items-center gap-1.5 md:justify-end">
-              <div className="flex items-baseline md:justify-end gap-2.5 flex-wrap">
-                <span className="text-xl sm:text-2xl font-mono text-white tabular-nums">
-                  {formatPaiseToRupees(availableCashPaise)}
-                </span>
-              </div>
-
-
-              {/* Available Capital Number */}
+            <div className="flex items-baseline md:justify-end gap-2.5 flex-wrap">
+              <span
+                className="text-[34px] font-mono font-bold tabular-nums leading-none"
+                style={{ color: '#4F8FE0' }}
+              >
+                {cashDisplay}
+              </span>
             </div>
-            <span className="text-zinc-400 font-mono text-[12px]">({availableCashPctOfSeed.toFixed(1)}%)</span>
+            <span className="text-zinc-400 font-mono text-[12px]">({cashPctDisplay})</span>
+          </div>
+        </div>
+
+        {/* Allocation bar: Invested (green) vs Cash (blue) segments, real % of seed capital */}
+        <div className="pt-1 space-y-2">
+          <div className="w-full h-4 rounded-full bg-[#222] flex gap-[3px] overflow-hidden">
+            <div
+              className="h-full rounded-full"
+              style={{
+                width: `${investedBarPct}%`,
+                backgroundColor: '#10b981',
+                transform: barFilled ? 'scaleX(1)' : 'scaleX(0)',
+                transformOrigin: 'left',
+                transition: barAnimating ? 'transform 1.4s cubic-bezier(0.22, 1, 0.36, 1)' : 'none',
+              }}
+            />
+            <div
+              className="h-full rounded-full"
+              style={{
+                width: `${cashBarPct}%`,
+                backgroundColor: '#2f6fc0',
+                transform: barFilled ? 'scaleX(1)' : 'scaleX(0)',
+                transformOrigin: 'left',
+                transition: barAnimating ? 'transform 1.4s cubic-bezier(0.22, 1, 0.36, 1)' : 'none',
+              }}
+            />
+          </div>
+          <div className="flex items-center justify-between text-[11px] font-mono text-zinc-400 flex-wrap gap-y-1">
+            <span className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ backgroundColor: '#10b981' }} />
+              Invested {investedPctOfSeed.toFixed(1)}% · {activePositions.length} {activePositions.length === 1 ? 'stock' : 'stocks'}
+            </span>
+            <span className="text-zinc-500">Starting money {formatPaiseToRupees(seedCapital)}</span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ backgroundColor: '#2f6fc0' }} />
+              Cash {availableCashPctOfSeed.toFixed(1)}% · ready to use
+            </span>
           </div>
         </div>
       </div>

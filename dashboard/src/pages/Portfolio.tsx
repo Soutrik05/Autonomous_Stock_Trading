@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { ChevronDown, ChevronUp, Check, ExternalLink, ShieldCheck } from 'lucide-react';
+import type { CSSProperties, MouseEvent } from 'react';
+import { useParams, useSearchParams, Link } from 'react-router-dom';
+import { ChevronDown, ChevronUp, ExternalLink, ShieldCheck } from 'lucide-react';
 import type {
   AgentId,
   AgentLeaderboardEntry,
@@ -15,6 +16,8 @@ import { formatPaiseToRupees, formatPct, formatISTDateTime } from '../utils/form
 import { CategoryBadge } from '../components/ui/CategoryBadge';
 import { WarmupMetric } from '../components/ui/WarmupMetric';
 import { getAgentDisplayName, isRulesStrategy } from '../constants/personas';
+import { getPersonaCopy } from '../lib/personaCopy';
+import { useIntroDone } from '../hooks/useIntro';
 import { cn } from '../utils/cn';
 import PortfolioDualCurve from '../components/PortfolioDualCurve';
 import HoldingsLinearStack from '../components/HoldingsLinearStack';
@@ -81,28 +84,6 @@ function getPersonaProfile(agentId: string): PersonaProfile {
   return baseProfile;
 }
 
-interface AgentItem {
-  id: string;
-  name: string;
-  isRules: boolean;
-  strategy: string;
-}
-
-const AGENT_CATALOG: AgentItem[] = [
-  // Autonomous LLM Agents
-  { id: 'simons', name: getAgentDisplayName('simons'), isRules: false, strategy: 'Quantitative Statistical Momentum' },
-  { id: 'lynch', name: getAgentDisplayName('lynch'), isRules: false, strategy: 'GARP & Cash Conversion' },
-  { id: 'marks', name: getAgentDisplayName('marks'), isRules: false, strategy: 'Second-Level Contrarian Value' },
-  { id: 'jhunjhunwala', name: getAgentDisplayName('jhunjhunwala'), isRules: false, strategy: 'Structural Growth & Pyramiding' },
-  { id: 'varsity', name: getAgentDisplayName('varsity'), isRules: false, strategy: 'Dual-Confluence Swing' },
-  // Deterministic Rules Baselines
-  { id: 'baseline-simons-rules', name: getAgentDisplayName('baseline-simons-rules'), isRules: true, strategy: 'Quantitative Statistical Momentum' },
-  { id: 'baseline-lynch-rules', name: getAgentDisplayName('baseline-lynch-rules'), isRules: true, strategy: 'GARP & Cash Conversion' },
-  { id: 'baseline-marks-rules', name: getAgentDisplayName('baseline-marks-rules'), isRules: true, strategy: 'Second-Level Contrarian Value' },
-  { id: 'baseline-rj-rules', name: getAgentDisplayName('baseline-rj-rules'), isRules: true, strategy: 'Structural Growth & Pyramiding' },
-  { id: 'baseline-varsity-rules', name: getAgentDisplayName('baseline-varsity-rules'), isRules: true, strategy: 'Dual-Confluence Swing' },
-];
-
 function getNavKeyForAgent(agentId: string): string {
   switch (agentId) {
     case 'simons': return 'simons';
@@ -141,8 +122,8 @@ type TabType = 'holdings' | 'performance' | 'watchlist' | 'intel';
 
 export default function Portfolio() {
   const { id, agentId } = useParams<{ id?: string; agentId?: string }>();
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const introDone = useIntroDone();
 
   // Active Tab synchronized to URL search params (default: holdings)
   const currentTab = (searchParams.get('tab') as TabType) || 'holdings';
@@ -163,22 +144,23 @@ export default function Portfolio() {
   const [loading, setLoading] = useState(true);
   const [isMock] = useState(getIsMockMode());
 
-  // Dropdown open state
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // Close dropdown on click outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setDropdownOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
   const [showPendingOrders, setShowPendingOrders] = useState(false);
+
+  // Agent name hover spotlight (same cursor-tracked green sweep as the brand wordmark).
+  const nameRef = useRef<HTMLSpanElement>(null);
+  const nameRafRef = useRef<number | null>(null);
+  const handleNameMouseMove = (e: MouseEvent<HTMLSpanElement>) => {
+    const el = nameRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    if (nameRafRef.current !== null) cancelAnimationFrame(nameRafRef.current);
+    nameRafRef.current = requestAnimationFrame(() => {
+      el.style.setProperty('--mx', `${mx}px`);
+      el.style.setProperty('--my', `${my}px`);
+    });
+  };
 
   useEffect(() => {
     let isSubscribed = true;
@@ -319,161 +301,84 @@ export default function Portfolio() {
     ? (portfolioDayChangePaise / prevNavPoint.portfolioValuePaise) * 100
     : 0.25;
 
-  const llmAgents = AGENT_CATALOG.filter((a) => !a.isRules);
-  const rulesAgents = AGENT_CATALOG.filter((a) => a.isRules);
   const openPositionsCount = positions.filter((p) => p.status === 'OPEN').length;
   const closedPositionsCount = positions.filter((p) => p.status === 'CLOSED').length;
+
+  const terminalCopy = getPersonaCopy(currentAgentId);
+  const twinDisplayName = getAgentDisplayName(twinInfo.twinId);
+  const hasTwin = Boolean(twinInfo.twinId) && twinInfo.twinId !== currentAgentId;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 animate-hero-entrance font-sans">
 
-      {/* 1. TOP HEADER & UNIFIED TWIN BENCHMARK BRIDGE */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-border-hairline pb-4">
-        <div className="space-y-1">
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl sm:text-3xl font-display font-medium tracking-tight text-white">
-              {cleanAgentName}
-            </h1>
-            <CategoryBadge type={isRulesControl ? 'RULES' : 'LLM'} />
-            <span className="text-zinc-600 hidden sm:inline">·</span>
-            <span className="text-xs font-mono text-zinc-400">
-              Horizon: <strong className="text-zinc-200 font-normal">{personaProfile.horizon}</strong>
-            </span>
-          </div>
-          <p className="text-sm text-zinc-400 font-sans">
-            {personaProfile.school}
-          </p>
-        </div>
+      {/* 1. AGENT HEADER: identity + plain-English copy (left) and Twin card + Duel (right) */}
+      <div className="glow-box bg-surface-inset border border-border-hairline rounded-lg p-5 sm:p-6">
+        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
+          {/* LEFT: name, tags, philosophy, description */}
+          <div className="space-y-2.5 min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-3">
+              <span
+                ref={nameRef}
+                onMouseMove={handleNameMouseMove}
+                data-text={cleanAgentName}
+                style={{ '--fs': '52px' } as CSSProperties}
+                className="name-spotlight font-display font-medium tracking-tight text-white text-[clamp(30px,4vw,52px)]"
+              >
+                {cleanAgentName}
+              </span>
+              <CategoryBadge type={isRulesControl ? 'RULES' : 'LLM'} />
+              <span className="terminal-tag">
+                Horizon: {personaProfile.horizon}
+              </span>
+              <span className="terminal-tag">
+                {terminalCopy.styleTag}
+              </span>
+            </div>
 
-        {/* Action Controls: 1-Click Twin Switcher & Deduplicated 'Switch Agent ▾' */}
-        <div className="flex items-center gap-2.5 self-start sm:self-auto flex-wrap">
-          {/* Twin Benchmark Bridge Button */}
-          <button
-            type="button"
-            onClick={() => navigate(`/portfolio/${twinInfo.twinId}?tab=${currentTab}`)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white border border-border-hairline transition-colors text-xs font-mono cursor-pointer"
-            title={`Switch to paired ${twinInfo.isTwinRules ? 'deterministic rules control' : 'autonomous LLM strategy'}`}
-          >
-            <span>⮂ Switch to {twinInfo.isTwinRules ? 'Rules Twin' : 'LLM Agent'}</span>
-          </button>
+            <p className="text-[15px] font-sans font-medium" style={{ color: '#4F8FE0' }}>
+              {personaProfile.school}
+            </p>
 
-          {/* Head-to-Head Duel Shortcut */}
-          <Link
-            to={`/comparison`}
-            className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1.5 rounded bg-transparent hover:bg-white/[0.04] text-zinc-400 hover:text-brand-blue-text border border-transparent hover:border-border-hairline transition-colors text-xs font-mono"
-            title="Inspect Head-to-Head Duel Comparison"
-          >
-            <span>Duel</span>
-            <ExternalLink className="w-3 h-3 text-zinc-500" />
-          </Link>
-
-          {/* Deduplicated Agent Switcher Trigger */}
-          <div className="relative" ref={dropdownRef}>
-            <button
-              type="button"
-              aria-haspopup="true"
-              aria-expanded={dropdownOpen}
-              onClick={() => setDropdownOpen(!dropdownOpen)}
-              className="flex items-center gap-2 bg-surface-inset border border-border-hairline hover:border-white/25 rounded px-3 py-1.5 font-mono text-xs cursor-pointer transition-colors text-zinc-300 hover:text-white"
+            <p
+              className="text-sm text-zinc-300 font-sans leading-relaxed max-w-2xl"
+              style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
             >
-              <span>Switch Agent</span>
-              <ChevronDown className={cn("w-3.5 h-3.5 text-zinc-400 transition-transform duration-150", dropdownOpen && "rotate-180")} />
-            </button>
+              {terminalCopy.description}
+            </p>
+          </div>
 
-            {dropdownOpen && (
-              <div className="absolute right-0 top-full mt-1.5 w-72 sm:w-80 bg-surface-inset border border-border-hairline rounded shadow-2xl z-50 py-1 divide-y divide-border-hairline animate-hero-entrance">
-                {/* Group 1: Autonomous LLM Agents */}
-                <div className="p-1.5 space-y-0.5">
-                  <div className="px-2.5 py-1 text-[11px] font-mono text-zinc-500">
-                    LLM Agents (5)
-                  </div>
-                  {llmAgents.map((ag) => {
-                    const isSelected = ag.id === currentAgentId;
-                    return (
-                      <button
-                        key={ag.id}
-                        onClick={() => {
-                          setDropdownOpen(false);
-                          navigate(`/portfolio/${ag.id}?tab=${currentTab}`);
-                        }}
-                        className={cn(
-                          "w-full text-left px-2.5 py-1.5 rounded flex items-center justify-between text-xs transition-colors cursor-pointer",
-                          isSelected
-                            ? "bg-white/10 text-white font-medium"
-                            : "text-zinc-300 hover:bg-white/[0.04] hover:text-white"
-                        )}
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <CategoryBadge type="LLM" />
-                          <span className="truncate">{ag.name}</span>
-                        </div>
-                        {isSelected && <Check className="w-3.5 h-3.5 text-brand-blue-text flex-shrink-0" />}
-                      </button>
-                    );
-                  })}
+          {/* RIGHT: Twin card (only control besides Duel) */}
+          <div className="flex flex-col items-start sm:items-end gap-2.5 flex-shrink-0 w-full sm:w-64">
+            {hasTwin && (
+              <Link
+                to={`/portfolio/${twinInfo.twinId}?tab=${currentTab}`}
+                className="twin-card relative block w-full rounded-lg border border-border-hairline bg-white/[0.03] p-4 font-mono"
+                title={`Open ${twinDisplayName}'s portfolio`}
+              >
+                <span className="absolute top-3 right-3.5 text-zinc-500 text-sm" aria-hidden="true">→</span>
+                <div className="text-[11px] text-zinc-500 tracking-wide font-medium mb-1.5">
+                  {twinInfo.isTwinRules ? 'RULES TWIN' : 'LLM TWIN'}
                 </div>
-
-                {/* Group 2: Deterministic Rules Baselines */}
-                <div className="p-1.5 space-y-0.5">
-                  <div className="px-2.5 py-1 text-[11px] font-mono text-zinc-500">
-                    Rules Baselines (5)
-                  </div>
-                  {rulesAgents.map((ag) => {
-                    const isSelected = ag.id === currentAgentId;
-                    return (
-                      <button
-                        key={ag.id}
-                        onClick={() => {
-                          setDropdownOpen(false);
-                          navigate(`/portfolio/${ag.id}?tab=${currentTab}`);
-                        }}
-                        className={cn(
-                          "w-full text-left px-2.5 py-1.5 rounded flex items-center justify-between text-xs transition-colors cursor-pointer",
-                          isSelected
-                            ? "bg-white/10 text-white font-medium"
-                            : "text-zinc-300 hover:bg-white/[0.04] hover:text-white"
-                        )}
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <CategoryBadge type="RULES" />
-                          <span className="truncate">{ag.name}</span>
-                        </div>
-                        {isSelected && <Check className="w-3.5 h-3.5 text-brand-blue-text flex-shrink-0" />}
-                      </button>
-                    );
-                  })}
+                <div className="twin-card__name text-base font-sans font-semibold text-white transition-colors duration-200">
+                  {twinDisplayName}
                 </div>
-              </div>
+                <div className="text-xs text-zinc-400 font-sans mt-1">
+                  {twinInfo.isTwinRules ? 'Same stocks, no AI. Only fixed rules.' : 'Same stocks, with AI judgment.'}
+                </div>
+              </Link>
             )}
+
+            <Link
+              to="/comparison"
+              className="inline-flex items-center gap-1 px-1 text-zinc-400 hover:text-brand-blue-text transition-colors text-xs font-mono"
+              title="Inspect Head-to-Head Duel Comparison"
+            >
+              <span>Duel</span>
+              <ExternalLink className="w-3 h-3 text-zinc-500" />
+            </Link>
           </div>
         </div>
       </div>
-
-      {/* 1.5. STRATEGY IDENTITY & HORIZON PILL BAR (HIGH SCANNABILITY) */}
-      {/* <div className="flex flex-wrap items-center justify-between gap-3 font-mono text-xs -mt-1 pb-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="px-2.5 py-1 rounded bg-surface-well border border-border-hairline text-zinc-300">
-            <span className="text-zinc-500 mr-1.5">Horizon:</span>
-            <strong className="text-zinc-200 font-medium">{personaProfile.horizon}</strong>
-          </span>
-          <span className="px-2.5 py-1 rounded bg-surface-well border border-border-hairline text-zinc-300">
-            <span className="text-zinc-500 mr-1.5">Strategy:</span>
-            <strong className="text-zinc-200 font-medium">{personaProfile.school}</strong>
-          </span>
-          <span className="px-2.5 py-1 rounded bg-surface-well border border-border-hairline text-zinc-400 hidden sm:inline-flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            <span>Point-in-Time Audited</span>
-          </span>
-        </div>
-
-        <button
-          onClick={() => setActiveTab('intel')}
-          className="text-xs font-mono text-brand-blue-text hover:underline cursor-pointer flex items-center gap-1"
-        >
-          <span>View Mandate & Audit</span>
-          <span>→</span>
-        </button>
-      </div> */}
 
       {/* 2. PENDING ORDERS STATUS STRIP (IF ANY) */}
       {pendingOrders.length > 0 && (
@@ -629,6 +534,9 @@ export default function Portfolio() {
       {currentTab === 'holdings' && (
         <div className="space-y-6 animate-hero-entrance">
           <HoldingsLinearStack
+            key={currentAgentId}
+            agentId={currentAgentId}
+            introDone={introDone}
             positions={positions}
             startingCapitalPaise={startingCapitalPaise}
             totalNavPaise={totalNavPaise}

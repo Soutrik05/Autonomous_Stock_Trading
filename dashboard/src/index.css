@@ -767,6 +767,101 @@ select:focus-visible {
   border-color: var(--glow-box-border);
 }
 
+/* Agent Terminal header name (Portfolio.tsx): same cursor-tracked green spotlight sweep as
+   the brand wordmark (.logo__name::after above), reused generically via --mx/--my/--fs. */
+.name-spotlight {
+  --mx: 50%;
+  --my: 50%;
+  position: relative;
+  display: inline-block;
+}
+
+.name-spotlight::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 200ms ease;
+  background: radial-gradient(
+    circle calc(var(--fs, 52px) * 1.1) at var(--mx) var(--my),
+    #10b981 0,
+    #10b981 38%,
+    rgba(16, 185, 129, 0) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.name-spotlight:hover::after,
+.name-spotlight:focus-visible::after {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .name-spotlight::after {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .name-spotlight::after {
+    transition: none;
+  }
+}
+
+/* Agent Terminal header tags (Portfolio.tsx): Horizon and style tags, bigger/bluer than the
+   small LLM/Rules CategoryBadge beside them. */
+.terminal-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 16px;
+  padding: 7px 15px;
+  border-radius: 9px;
+  color: #6aa7ee;
+  border: 1px solid #1f4a85;
+  background: rgba(0, 63, 136, 0.12);
+}
+
+/* Agent Terminal twin card (Portfolio.tsx): same hover "lift" feel as the Home persona
+   cards (.persona-card), tuned to this task's own spec. */
+.twin-card {
+  display: block;
+  position: relative;
+  transition: transform 0.2s ease, border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.twin-card:hover,
+.twin-card:focus-visible {
+  transform: translateY(-4px);
+  border-color: rgba(31, 95, 184, 1);
+  background-color: rgba(0, 63, 136, 0.22);
+  box-shadow: 0 10px 26px rgba(0, 63, 136, 0.3);
+}
+
+.twin-card:focus-visible {
+  outline: 2px solid var(--brand-blue-text);
+  outline-offset: 3px;
+}
+
+.twin-card:hover .twin-card__name,
+.twin-card:focus-visible .twin-card__name {
+  color: #78b0f0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .twin-card {
+    transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .twin-card:hover,
+  .twin-card:focus-visible {
+    transform: none;
+  }
+}
+
 /* Footer: only its background becomes translucent/blurred so the bubble field shows
    through behind it, same frosted treatment as the other big panels. Layout, text,
    links, border and spacing are untouched. */
