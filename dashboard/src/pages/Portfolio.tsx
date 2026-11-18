@@ -26,6 +26,7 @@ import LearnedMemoryBankSection from '../components/LearnedMemoryBankSection';
 import WatchlistFunnel from '../components/WatchlistFunnel';
 import AgentWatchlistSection from '../components/AgentWatchlistSection';
 import ExplainabilitySpotlight from '../components/ExplainabilitySpotlight';
+import AgentSwitcherStrip from '../components/AgentSwitcherStrip';
 
 interface PersonaProfile {
   school: string;
@@ -311,10 +312,13 @@ export default function Portfolio() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 animate-hero-entrance font-sans">
 
+      {/* 0. AGENT SWITCHER: one pill per LLM persona, above the header box */}
+      <AgentSwitcherStrip activeBaseKey={basePersonaKey} isOnRulesTwin={isRulesControl} currentTab={currentTab} />
+
       {/* 1. AGENT HEADER: identity + plain-English copy (left) and Twin card + Duel (right) */}
       <div className="glow-box bg-surface-inset border border-border-hairline rounded-lg p-5 sm:p-6">
         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
-          {/* LEFT: name, tags, philosophy, description */}
+          {/* LEFT: name, tags, description */}
           <div className="space-y-2.5 min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-3">
               <span
@@ -323,8 +327,8 @@ export default function Portfolio() {
                 data-text={cleanAgentName}
                 style={{
                   '--fs': '43px',
-                  fontFamily: "'Playfair Display', Georgia, 'Times New Roman', serif",
-                  fontWeight: 900,
+                  fontFamily: "var(--font-headline), 'Red Hat Display Fallback', system-ui, sans-serif",
+                  fontWeight: 700,
                   letterSpacing: '-0.02em',
                   lineHeight: 1,
                   color: '#f2efe8',
@@ -336,22 +340,17 @@ export default function Portfolio() {
               </span>
               <CategoryBadge type={isRulesControl ? 'RULES' : 'LLM'} />
               <span className="terminal-tag">
-                Horizon: {personaProfile.horizon}
-              </span>
-              <span className="terminal-tag">
-                {terminalCopy.styleTag}
+                {terminalCopy.roleTag}
               </span>
             </div>
-
-            <p className="text-[17px] font-sans font-medium" style={{ color: '#4F8FE0' }}>
-              {personaProfile.school}
-            </p>
 
             <p
               className="text-[18px] text-zinc-300 font-sans max-w-[900px]"
               style={{ lineHeight: 1.6, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
             >
-              {terminalCopy.description}
+              {terminalCopy.descBefore}
+              <span className="font-semibold" style={{ color: '#10b981' }}>{terminalCopy.highlightName}</span>
+              {terminalCopy.descAfter}
             </p>
           </div>
 

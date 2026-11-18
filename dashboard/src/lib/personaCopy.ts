@@ -1,76 +1,103 @@
 /**
- * Plain-English persona copy for the Agent Terminal header (Portfolio.tsx) -- a short style
- * tag and a two-line description per agent id. These are NOT in the backend or in any other
- * file in the project; horizon and philosophy/school text already live in
- * constants/personas.ts (CANONICAL_PERSONAS) and are reused from there instead of being
- * duplicated here. The wording below was written from the persona rules already encoded in
- * Home.tsx's SCHOOLS_OF_THOUGHT copy and Portfolio.tsx's own (longer) persona profiles --
- * nothing here invents a rule the code doesn't have. Review this file's text directly; it is
- * the single place these short descriptions are defined.
+ * Plain-English persona copy for the Agent Terminal header (Portfolio.tsx) -- a short role
+ * tag and a two-sentence description per agent id, with the famous investor/school name
+ * broken out separately so the component can render it in green. These are NOT in the
+ * backend or in any other file in the project. Review this file's text directly; it is the
+ * single place this copy is defined.
+ *
+ * The role tags and the investor/school each description names come from the persona rules
+ * already encoded in Portfolio.tsx's own PERSONA_PROFILES / getPersonaProfile (school +
+ * description) and Home.tsx's SCHOOLS_OF_THOUGHT (inspiration) -- nothing here invents a
+ * rule the code doesn't have:
+ *  - simons: short-term statistical momentum -> "Short-term statistical trader"
+ *  - lynch: GARP / quality-at-a-fair-price -> "Quality Growth investor"
+ *  - marks: contrarian value on cyclical distress -> "Oversold Contrarian investor"
+ *  - jhunjhunwala: secular domestic structural growth -> "Domestic Growth investor"
+ *  - varsity/stockminds-core: Zerodha Varsity dual-confluence (solvency + trend) -> "Textbook
+ *    dual confluence"
+ * A Rules twin gets the same role tag as its LLM agent (same strategy, different execution).
  */
 
 export interface PersonaCopy {
-  /** Short tag shown next to the Horizon tag, e.g. "Short-term momentum". */
-  styleTag: string;
-  /** Plain-English, two-sentence-max description. Clamped to 2 lines in the UI. */
-  description: string;
+  /** Short blue role tag shown next to the LLM/Rules badge, e.g. "Short-term statistical trader". */
+  roleTag: string;
+  /** Plain-English description, split so the investor/school name can render in green. */
+  descBefore: string;
+  highlightName: string;
+  descAfter: string;
 }
 
 export const PERSONA_COPY: Record<string, PersonaCopy> = {
   simons: {
-    styleTag: 'Short-term momentum',
-    description:
-      'Jimmy follows the Jim Simons style. He buys stocks that are already rising, checks that several signals agree, and sells fast when a stock turns against him.',
+    roleTag: 'Short-term statistical trader',
+    descBefore: 'Jimmy follows ',
+    highlightName: 'Jim Simons',
+    descAfter:
+      "'s style. He buys stocks that are already rising, checks that several signals agree, and sells fast when a stock turns against him.",
   },
   'baseline-simons-rules': {
-    styleTag: 'Short-term momentum',
-    description:
-      'Jimmy Core runs the same momentum checks as Jimmy, but as fixed math with no AI -- it buys the same kind of breakouts and exits on the same signals, every time.',
+    roleTag: 'Short-term statistical trader',
+    descBefore: 'Jimmy Core uses the same ',
+    highlightName: 'Jim Simons',
+    descAfter: ' rules as Jimmy, with fixed rules and no AI.',
   },
   varsity: {
-    styleTag: 'Swing value + trend',
-    description:
-      'Varsity follows the Zerodha Varsity style. It only buys financially healthy companies that are also pulling back to a rising trend line, and skips the trade if either check fails.',
+    roleTag: 'Textbook dual confluence',
+    descBefore: 'Varsity follows ',
+    highlightName: 'Zerodha Varsity',
+    descAfter:
+      "'s approach. It buys financially healthy companies that are pulling back to a rising trend, and skips the trade unless both checks agree.",
   },
   'stockminds-core': {
-    styleTag: 'Swing value + trend',
-    description:
-      'Varsity follows the Zerodha Varsity style. It only buys financially healthy companies that are also pulling back to a rising trend line, and skips the trade if either check fails.',
+    roleTag: 'Textbook dual confluence',
+    descBefore: 'StockMinds Core follows ',
+    highlightName: 'Zerodha Varsity',
+    descAfter:
+      "'s approach. It buys financially healthy companies that are pulling back to a rising trend, and skips the trade unless both checks agree.",
   },
   'baseline-varsity-rules': {
-    styleTag: 'Swing value + trend',
-    description:
-      'Varsity Core runs the same solvency-and-trend checks as Varsity, but as fixed math with no AI -- the same two conditions, applied the same way, every time.',
+    roleTag: 'Textbook dual confluence',
+    descBefore: 'Varsity Core uses the same ',
+    highlightName: 'Zerodha Varsity',
+    descAfter: ' rules as Varsity, with fixed rules and no AI.',
   },
   lynch: {
-    styleTag: 'Growth at a fair price',
-    description:
-      'Pete follows the Peter Lynch style. He buys growing, profitable companies while their price still looks cheap next to that growth, and holds through short-term noise.',
+    roleTag: 'Quality Growth investor',
+    descBefore: 'Pete follows ',
+    highlightName: 'Peter Lynch',
+    descAfter:
+      "'s style. He looks for growing companies at a fair price and holds them while the story stays strong.",
   },
   'baseline-lynch-rules': {
-    styleTag: 'Growth at a fair price',
-    description:
-      'Pete Core runs the same growth-and-value checks as Pete, but as fixed math with no AI -- the same valuation and quality thresholds, applied the same way, every time.',
+    roleTag: 'Quality Growth investor',
+    descBefore: 'Pete Core uses the same ',
+    highlightName: 'Peter Lynch',
+    descAfter: ' rules as Pete, with fixed rules and no AI.',
   },
   marks: {
-    styleTag: 'Contrarian value',
-    description:
-      "Howie follows the Howard Marks style. He looks for good businesses the market has given up on, buys them cheap, and sizes positions so a mistake doesn't hurt too much.",
+    roleTag: 'Oversold Contrarian investor',
+    descBefore: 'Howie follows ',
+    highlightName: 'Howard Marks',
+    descAfter:
+      "'s style. He buys good companies when the market is scared and waits for them to recover.",
   },
   'baseline-marks-rules': {
-    styleTag: 'Contrarian value',
-    description:
-      'Howie Core runs the same distress-and-safety checks as Howie, but as fixed math with no AI -- the same entry and sizing rules, applied the same way, every time.',
+    roleTag: 'Oversold Contrarian investor',
+    descBefore: 'Howie Core uses the same ',
+    highlightName: 'Howard Marks',
+    descAfter: ' rules as Howie, with fixed rules and no AI.',
   },
   jhunjhunwala: {
-    styleTag: 'Long-term structural growth',
-    description:
-      'RJ follows the Rakesh Jhunjhunwala style. He backs growing Indian companies with committed owners, adds more as the story plays out, and holds for the long run.',
+    roleTag: 'Domestic Growth investor',
+    descBefore: 'RJ follows ',
+    highlightName: 'Rakesh Jhunjhunwala',
+    descAfter: "'s style. He backs India's big long-term trends and adds more to winners.",
   },
   'baseline-rj-rules': {
-    styleTag: 'Long-term structural growth',
-    description:
-      'RJ Core runs the same growth-and-ownership checks as RJ, but as fixed math with no AI -- the same entry and rebalancing rules, applied the same way, every time.',
+    roleTag: 'Domestic Growth investor',
+    descBefore: 'RJ Core uses the same ',
+    highlightName: 'Rakesh Jhunjhunwala',
+    descAfter: ' rules as RJ, with fixed rules and no AI.',
   },
 };
 

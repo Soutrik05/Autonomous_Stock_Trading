@@ -834,6 +834,97 @@ select:focus-visible {
   background: rgba(0, 63, 136, 0.12);
 }
 
+/* Agent switcher strip (AgentSwitcherStrip.tsx), above the Agent Terminal header. */
+.agent-switcher {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #262626;
+  border-radius: 14px;
+  padding: 8px;
+  background: rgba(22, 22, 22, 0.7);
+}
+
+.agent-switcher__label {
+  flex-shrink: 0;
+  padding-left: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: #757575;
+}
+
+.agent-switcher__track {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  scrollbar-width: none;
+}
+
+.agent-switcher__track::-webkit-scrollbar {
+  display: none;
+}
+
+.agent-switcher__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  font-size: 14px;
+  padding: 9px 14px;
+  border-radius: 10px;
+  color: #b0b0b0;
+  border: 1px solid transparent;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.agent-switcher__pill:hover,
+.agent-switcher__pill:focus-visible {
+  color: #f2efe8;
+  background: rgba(255, 255, 255, 0.04);
+  border-color: #333;
+}
+
+.agent-switcher__pill:focus-visible {
+  outline: 2px solid var(--brand-blue-text);
+  outline-offset: 2px;
+}
+
+.agent-switcher__pill--current {
+  color: #f2efe8;
+  background: rgba(0, 63, 136, 0.22);
+  border: 1px solid #1f5fb8;
+  box-shadow: 0 0 14px rgba(0, 63, 136, 0.25);
+}
+
+.agent-switcher__pill--current:hover {
+  background: rgba(0, 63, 136, 0.22);
+  border-color: #1f5fb8;
+}
+
+.agent-switcher__pill--twin {
+  border: 1px solid #1f5fb8;
+  background: transparent;
+}
+
+.agent-switcher__tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  color: #757575;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.agent-switcher__pill--current .agent-switcher__tag {
+  color: #7cb3f3;
+  border-color: rgba(124, 179, 243, 0.4);
+}
+
 /* Agent Terminal twin card (Portfolio.tsx): same hover "lift" feel as the Home persona
    cards (.persona-card), tuned to this task's own spec. */
 .twin-card {
