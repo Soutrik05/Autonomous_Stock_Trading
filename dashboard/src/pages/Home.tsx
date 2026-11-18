@@ -12,9 +12,9 @@ import {
 } from 'lucide-react';
 import type { NavHistoryPoint, AgentLeaderboardEntry, ActivityEvent } from '../types';
 import { apiService, TELEMETRY_POLL_INTERVAL_MS } from '../services/api';
-import { formatISTDateTime } from '../utils/formatters';
+import { formatISTDateTime, formatISTDate } from '../utils/formatters';
+import { useMarketOpen, getNextOpen } from '../utils/marketHours';
 import { cn } from '../utils/cn';
-import { MetaList } from '../components/ui/MetaList';
 import { ActionLink } from '../components/ui/ActionLink';
 import { SectionHeader } from '../components/ui/SectionHeader';
 import { TrajectoryChart, type TrajectoryChartPoint } from '../components/TrajectoryChart';
@@ -187,6 +187,16 @@ export default function Home() {
   const [loading, setLoading] = useState(!cachedOnMount);
   const [playTopThreeStepUp] = useState(decideTopThreeStepUp);
 
+  // Market status pill (Section 1): the existing market-hours hook/helper, not a new one.
+  const isMarketOpen = useMarketOpen();
+  // Cheap enough to compute directly on every render (recomputes whenever isMarketOpen's
+  // 15s re-check causes a re-render) rather than memoizing on a value it doesn't reference.
+  const nextOpenLabel = (() => {
+    const next = getNextOpen();
+    const weekday = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Kolkata', weekday: 'short' }).format(next);
+    return `${weekday} 9:15 AM IST`;
+  })();
+
   useEffect(() => {
     async function loadData(isBackground = false) {
       if (!isBackground) setLoading(true);
@@ -261,6 +271,15 @@ export default function Home() {
     setChartMode(mode);
   }, []);
 
+  // Start date comes from the real data, never hard-coded.
+  const chartStartLabel = useMemo(() => {
+    const firstFullDate = navHistory[0]?.date;
+    return firstFullDate ? formatISTDate(firstFullDate) : null;
+  }, [navHistory]);
+  const chartSubtitle = chartStartLabel
+    ? `Average return of all agents since ${chartStartLabel}, against the Nifty 500.`
+    : 'Average return of all agents against the Nifty 500.';
+
   // Top 3 agents today for live standings strip
   const topAgents = useMemo(() => {
     return [...leaderboard].sort((a, b) => b.returnPct - a.returnPct).slice(0, 3);
@@ -294,37 +313,61 @@ export default function Home() {
           <Reveal mode="immediate" delayMs={0} className="lg:col-span-5 p-6 sm:p-8 lg:p-9 flex flex-col justify-between space-y-7">
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-brand-blue flex-shrink-0 animate-ping opacity-75" />
-                <MetaList
-                  items={[
-                    { label: 'Trial', value: 'Live Paper Trading' },
-                    { label: 'Universe', value: 'NSE Nifty 500' },
-                  ]}
-                  className="text-[11px]"
-                />
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-mono text-[12px]',
+                    isMarketOpen
+                      ? 'text-positive border border-emerald-500/40 bg-emerald-500/10'
+                      : 'text-zinc-400 border border-zinc-600/40 bg-white/[0.02]'
+                  )}
+                  style={isMarketOpen ? { boxShadow: '0 0 0 4px rgba(16,185,129,.18)' } : undefined}
+                >
+                  <span
+                    className={cn(
+                      'w-1.5 h-1.5 rounded-full flex-shrink-0',
+                      isMarketOpen ? 'bg-emerald-500 animate-pulse' : 'bg-zinc-500'
+                    )}
+                  />
+                  {isMarketOpen ? 'Market open · closes 3:30 PM IST' : `Market closed · opens ${nextOpenLabel}`}
+                </span>
               </div>
 
               <h1 className="hero-headline text-white">
                 Can AI judgment survive a <span className="hl">live market</span>?
               </h1>
 
-              <p className="text-base sm:text-lg text-zinc-300 font-sans leading-relaxed pt-1">
-                Five autonomous LLM agents trade Indian equities live alongside matched, deterministic Python rules. Each pair embodies a distinct investing school of thought—pitted under identical capital and statutory friction to measure whether generative judgment outperforms mechanical execution.
+              <p
+                className="text-[19px] pt-1"
+                style={{ fontFamily: "'Inter', system-ui, sans-serif", lineHeight: 1.55, color: '#b4b4b4' }}
+              >
+                Five AI agents trade Indian stocks with paper money, side by side with plain rule-based twins.{' '}
+                <span style={{ color: '#f2efe8', fontWeight: 600 }}>We track who wins, every day.</span>
               </p>
             </div>
 
-            {/* Edge-Ruled Key-Value Protocol Ledger */}
-            <div className="space-y-2.5 py-4 border-y border-white/[0.08]">
+            {/* Three At-a-Glance Tiles */}
+            <div className="grid grid-cols-3 gap-3 py-4">
               {[
-                { label: 'Universe', value: 'NSE Nifty 500 Index' },
-                { label: 'Cohort', value: '10 Agents · 5 Philosophies' },
-                { label: 'Lookahead', value: 'Zero · Strict EOD Cutoff' },
-                { label: 'Execution', value: 'Audited Fills (STT, Slippage)' },
-              ].map(({ label, value }) => (
-                <div key={label} className="flex items-baseline gap-3 text-xs sm:text-sm font-mono">
-                  <span className="text-zinc-500 flex-shrink-0 w-20 sm:w-24">{label}</span>
-                  <span className="w-px h-3 bg-white/10 flex-shrink-0 self-center" />
-                  <span className="text-zinc-200">{value}</span>
+                { number: '5 + 5', color: '#10b981', caption: 'AI agents and their rules twins' },
+                { number: '500', color: '#8fb8f0', caption: 'Nifty 500 stocks to pick from' },
+                { number: 'Real', color: '#d9d2c1', caption: 'market prices, trading costs included' },
+              ].map(({ number, color, caption }) => (
+                <div
+                  key={caption}
+                  className="rounded-[14px] border border-[#262626]"
+                  style={{ padding: '14px 16px' }}
+                >
+                  <div
+                    style={{
+                      fontFamily: "var(--font-headline), 'Red Hat Display Fallback', system-ui, sans-serif",
+                      fontWeight: 700,
+                      fontSize: '30px',
+                      color,
+                    }}
+                  >
+                    {number}
+                  </div>
+                  <div className="text-[13px] text-[#a8a8a8] mt-1 leading-snug">{caption}</div>
                 </div>
               ))}
             </div>
@@ -347,6 +390,8 @@ export default function Home() {
             {/* Upper Chamber: Memoized Observed Cumulative Return Trajectories */}
             <TrajectoryChart
               data={chartData}
+              title="Are the AI agents beating the market?"
+              subtitle={chartSubtitle}
               mode={chartMode}
               onModeChange={handleModeChange}
             />
