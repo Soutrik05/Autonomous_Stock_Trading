@@ -13,6 +13,7 @@ import {
 import type { NavHistoryPoint, RunHoldingDurationItem } from '../types';
 import { apiService } from '../services/api';
 import { CategoryBadge } from '../components/ui/CategoryBadge';
+import PageTitle from '../components/ui/PageTitle';
 import EquityCurve from '../components/EquityCurve';
 import { getAgentDisplayName, getBasePersonaName } from '../constants/personas';
 import { cn } from '../utils/cn';
@@ -598,9 +599,7 @@ export default function Backtest() {
       <section className="space-y-6">
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 pb-2 border-b border-border-hairline">
           <div className="space-y-2 max-w-2xl">
-            <h1 className="text-3xl sm:text-4xl font-display font-medium tracking-tight text-white leading-tight">
-              Cross Regime Stress Testing
-            </h1>
+            <PageTitle>Cross Regime Stress Testing</PageTitle>
           </div>
 
           {/* Differentiated Stat Chips: One True Hero Number + Two Supporting */}

@@ -39,23 +39,32 @@ export function getAgentName(id: string | null | undefined, fallbackName?: strin
 }
 
 /**
- * Descriptive "<Surname> Rules" label for a Rules twin -- used ONLY by the Agent Terminal's
- * Twin card (an explainer: "RULES TWIN · Simons Rules · Same stocks, no AI"), which needs a
- * name that reads as a sentence rather than the compact "<ShortName> Core" label used
- * everywhere else data is tabular (Leaderboard, Backtest, Telemetry, chart legends). Keyed
- * by the LLM agent's own id (never the baseline-*-rules id), so callers normalize to the
- * base persona key first. AGENT_SHORT_NAMES (and every other consumer) is unaffected -- this
- * is additive, not a rename of the shared short-name map.
+ * Descriptive "<Surname> Rules" label for a Rules twin -- the ONE name every Rules agent
+ * should show wherever the page is explaining the LLM/Rules pairing rather than just listing
+ * data compactly: the Agent Terminal's header/Twin card, the Switch-agent dropdown (both
+ * places it's used), and the Comparison page. Keyed directly by the baseline-*-rules id.
+ * Deliberately NOT used by the dense data tables (Leaderboard, Backtest, Telemetry, chart
+ * legends), which keep the "<ShortName> Core" label from AGENT_SHORT_NAMES above -- that is
+ * a separate, intentional convention for tabular density, not a bug.
  */
-export const AGENT_RULES_TWIN_LABEL: Record<string, string> = {
-  simons: 'Simons Rules',
-  lynch: 'Lynch Rules',
-  marks: 'Marks Rules',
-  jhunjhunwala: 'Jhunjhunwala Rules',
-  varsity: 'Varsity Rules',
+export const AGENT_RULES_LABEL: Record<string, string> = {
+  'baseline-simons-rules': 'Simons Rules',
+  'baseline-lynch-rules': 'Lynch Rules',
+  'baseline-marks-rules': 'Marks Rules',
+  'baseline-rj-rules': 'RJ Rules',
+  'baseline-varsity-rules': 'Varsity Rules',
 };
 
-export function getRulesTwinLabel(baseLlmId: string | null | undefined): string | null {
-  if (!baseLlmId) return null;
-  return AGENT_RULES_TWIN_LABEL[baseLlmId] || null;
+/**
+ * The one shared helper for every "explainer" context (Agent Terminal header + Twin card,
+ * Switch-agent dropdown, Comparison page): a Rules agent gets its descriptive "<Surname>
+ * Rules" label, an LLM agent gets its normal short name from AGENT_SHORT_NAMES. Every one of
+ * those call sites should use THIS function, not getAgentName() directly, so there is exactly
+ * one code path deciding what a Rules agent is called outside the dense data tables.
+ */
+export function getAgentLabel(id: string | null | undefined, fallbackName?: string | null): string {
+  if (!id) return fallbackName || 'Agent';
+  const normalized = id === 'stockminds-core' ? 'varsity' : id;
+  if (AGENT_RULES_LABEL[normalized]) return AGENT_RULES_LABEL[normalized];
+  return getAgentName(normalized, fallbackName);
 }

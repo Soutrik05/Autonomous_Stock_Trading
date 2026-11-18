@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
 import type { AgentLeaderboardEntry } from '../types';
-import { getAgentName } from '../lib/agentNames';
+import { getAgentLabel } from '../lib/agentNames';
 import { formatPct } from '../utils/formatters';
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
 import { cn } from '../utils/cn';
@@ -17,8 +17,15 @@ const RULES_IDS = ['baseline-simons-rules', 'baseline-lynch-rules', 'baseline-ma
 const ALL_IDS = [...LLM_IDS, ...RULES_IDS];
 
 interface AgentSwitchDropdownProps {
-  currentAgentId: string;
-  currentTab: string;
+  /** Shown in the trigger button, e.g. "Switch agent" or "Compare agent". */
+  triggerLabel?: string;
+  /** Row(s) to highlight as "where you are". A single id (Agent Terminal) or several
+   * (Comparison highlights both rows of the current pair). */
+  highlightIds: string[];
+  /** Agent Terminal: navigates to `/portfolio/:id`. Comparison: omit this and pass `onSelect`
+   * instead to just change the selected pair without leaving the page. */
+  currentTab?: string;
+  onSelect?: (id: string) => void;
   leaderboard: AgentLeaderboardEntry[];
 }
 
@@ -41,13 +48,21 @@ function ReturnBadge({ returnPct }: { returnPct: number | null | undefined }) {
 }
 
 /**
- * "Switch agent" button + portal-rendered panel above the Agent Terminal's Twin card. Lists
- * all 10 real agents (5 LLM + their 5 Rules twins) with today's real return from the same
- * leaderboard fetch the page already made (no extra request), highlights whichever one is
- * the current page, and links straight to any of them. Rendered via a portal into
- * document.body so it is never clipped by an ancestor's overflow/rounded-corner clipping.
+ * "Switch agent" / "Compare agent" button + portal-rendered panel, shared by the Agent
+ * Terminal header and the Comparison page. Lists all 10 real agents (5 LLM + their 5 Rules
+ * twins) with today's real return from the leaderboard fetch the caller already made (no
+ * extra request), highlights the current agent(s), and either navigates to that agent's
+ * Terminal page or calls `onSelect` to just switch the selected pair in place. Rendered via
+ * a portal into document.body so it is never clipped by an ancestor's overflow/rounded-
+ * corner clipping.
  */
-export default function AgentSwitchDropdown({ currentAgentId, currentTab, leaderboard }: AgentSwitchDropdownProps) {
+export default function AgentSwitchDropdown({
+  triggerLabel = 'Switch agent',
+  highlightIds,
+  currentTab,
+  onSelect,
+  leaderboard,
+}: AgentSwitchDropdownProps) {
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState<{ top: number; left: number; width: number } | null>(null);
   const [, setFocusedIndex] = useState<number>(-1);
@@ -128,23 +143,27 @@ export default function AgentSwitchDropdown({ currentAgentId, currentTab, leader
     setFocusedIndex(-1);
   }
 
-  function closeAndNavigate(id: string) {
+  function choose(id: string) {
     setOpen(false);
     buttonRef.current?.focus();
-    navigate(`/portfolio/${id}?tab=${currentTab}`);
+    if (onSelect) {
+      onSelect(id);
+    } else {
+      navigate(`/portfolio/${id}?tab=${currentTab ?? 'holdings'}`);
+    }
   }
 
   function renderRow(id: string, badge: 'LLM' | 'RULES') {
-    const isCurrent = id === currentAgentId;
-    const name = getAgentName(id);
+    const isCurrent = highlightIds.includes(id);
+    const name = getAgentLabel(id);
     return (
       <a
         key={id}
         ref={(el) => { rowRefs.current[id] = el; }}
-        href={`/portfolio/${id}?tab=${currentTab}`}
+        href={onSelect ? undefined : `/portfolio/${id}?tab=${currentTab ?? 'holdings'}`}
         onClick={(e) => {
           e.preventDefault();
-          closeAndNavigate(id);
+          choose(id);
         }}
         className={cn('agent-switch-row', isCurrent && 'agent-switch-row--current')}
       >
@@ -159,22 +178,19 @@ export default function AgentSwitchDropdown({ currentAgentId, currentTab, leader
     <div
       ref={panelRef}
       role="menu"
-      aria-label="Switch agent"
+      aria-label={triggerLabel}
       className={cn('agent-switch-panel', !reducedMotion && 'agent-switch-panel--enter')}
       style={{ position: 'absolute', top: coords.top, left: coords.left, width: coords.width }}
     >
       <div className="agent-switch-panel__cols">
         <div className="agent-switch-panel__col">
-          <div className="agent-switch-panel__col-header">AI AGENTS &middot; TODAY</div>
+          <div className="agent-switch-panel__col-header">AI AGENTS</div>
           {LLM_IDS.map((id) => renderRow(id, 'LLM'))}
         </div>
         <div className="agent-switch-panel__col">
-          <div className="agent-switch-panel__col-header">RULES TWINS &middot; TODAY</div>
+          <div className="agent-switch-panel__col-header">RULES TWINS</div>
           {RULES_IDS.map((id) => renderRow(id, 'RULES'))}
         </div>
-      </div>
-      <div className="agent-switch-panel__footer">
-        Click any agent to open its page. Blue = the page you are on.
       </div>
     </div>
   ) : null;
@@ -189,7 +205,7 @@ export default function AgentSwitchDropdown({ currentAgentId, currentTab, leader
         onClick={() => (open ? setOpen(false) : openPanel())}
         className="agent-switch-trigger"
       >
-        <span>Switch agent</span>
+        <span>{triggerLabel}</span>
         <ChevronDown className={cn('w-3.5 h-3.5 transition-transform duration-150', open && 'rotate-180')} />
       </button>
       {panel && createPortal(panel, document.body)}

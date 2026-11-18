@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
-import type { CSSProperties, MouseEvent } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import type { CSSProperties } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { ChevronDown, ChevronUp, ExternalLink, ShieldCheck } from 'lucide-react';
 import type {
@@ -16,9 +16,10 @@ import { formatPaiseToRupees, formatPct, formatISTDateTime } from '../utils/form
 import { CategoryBadge } from '../components/ui/CategoryBadge';
 import { WarmupMetric } from '../components/ui/WarmupMetric';
 import { getAgentDisplayName, isRulesStrategy } from '../constants/personas';
-import { getRulesTwinLabel } from '../lib/agentNames';
+import { getAgentLabel } from '../lib/agentNames';
 import { getPersonaCopy } from '../lib/personaCopy';
 import { useIntroDone } from '../hooks/useIntro';
+import { useSpotlightHover } from '../hooks/useSpotlightHover';
 import { cn } from '../utils/cn';
 import PortfolioDualCurve from '../components/PortfolioDualCurve';
 import HoldingsLinearStack from '../components/HoldingsLinearStack';
@@ -149,21 +150,9 @@ export default function Portfolio() {
 
   const [showPendingOrders, setShowPendingOrders] = useState(false);
 
-  // Agent name hover spotlight (same cursor-tracked green sweep as the brand wordmark).
-  const nameRef = useRef<HTMLSpanElement>(null);
-  const nameRafRef = useRef<number | null>(null);
-  const handleNameMouseMove = (e: MouseEvent<HTMLSpanElement>) => {
-    const el = nameRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-    if (nameRafRef.current !== null) cancelAnimationFrame(nameRafRef.current);
-    nameRafRef.current = requestAnimationFrame(() => {
-      el.style.setProperty('--mx', `${mx}px`);
-      el.style.setProperty('--my', `${my}px`);
-    });
-  };
+  // Agent name hover spotlight -- the one shared technique (useSpotlightHover) also used by
+  // the header logo and every PageTitle heading.
+  const { ref: nameRef, onMouseMove: handleNameMouseMove } = useSpotlightHover<HTMLSpanElement>();
 
   useEffect(() => {
     let isSubscribed = true;
@@ -309,20 +298,17 @@ export default function Portfolio() {
   const closedPositionsCount = positions.filter((p) => p.status === 'CLOSED').length;
 
   const terminalCopy = getPersonaCopy(currentAgentId);
-  // Twin card name: when the twin is a Rules baseline, use the descriptive "<Surname> Rules"
-  // label (built for this explainer card specifically -- see agentNames.ts) rather than the
-  // compact "<ShortName> Core" label used everywhere data is tabular; when the twin is the
-  // LLM side, the existing short name is already correct.
-  const twinDisplayName = twinInfo.isTwinRules
-    ? (getRulesTwinLabel(basePersonaKey) || getAgentDisplayName(twinInfo.twinId))
-    : getAgentDisplayName(twinInfo.twinId);
+  // Twin card name: the one shared "explainer" label helper (agentNames.ts) -- "<Surname>
+  // Rules" for a Rules twin, the normal short name for an LLM twin. Also used by the
+  // Switch-agent dropdown and the Comparison page, so all three always agree.
+  const twinDisplayName = getAgentLabel(twinInfo.twinId);
   const hasTwin = Boolean(twinInfo.twinId) && twinInfo.twinId !== currentAgentId;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 animate-hero-entrance font-sans">
 
       {/* 1. AGENT HEADER: identity + plain-English copy (left) and Switch agent + Twin card + Duel (right) */}
-      <div className="glow-box bg-surface-inset border border-border-hairline rounded-lg p-5 sm:p-6">
+      <div className="glow-box bg-surface-inset border border-border-hairline rounded-lg" style={{ padding: '20px 26px' }}>
         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
           {/* LEFT: name, tags, description */}
           <div className="space-y-2.5 min-w-0 flex-1">
@@ -332,13 +318,13 @@ export default function Portfolio() {
                 onMouseMove={handleNameMouseMove}
                 data-text={cleanAgentName}
                 style={{
-                  '--fs': '43px',
+                  '--fs': '48px',
                   fontFamily: "var(--font-headline), 'Red Hat Display Fallback', system-ui, sans-serif",
                   fontWeight: 700,
                   letterSpacing: '-0.02em',
                   lineHeight: 1,
                   color: '#f2efe8',
-                  fontSize: 'clamp(25px, 3.3vw, 43px)',
+                  fontSize: 'clamp(28px, 3.6vw, 48px)',
                 } as CSSProperties}
                 className="name-spotlight"
               >
@@ -351,8 +337,8 @@ export default function Portfolio() {
             </div>
 
             <p
-              className="text-[18px] text-zinc-300 font-sans max-w-[900px]"
-              style={{ lineHeight: 1.6, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+              className="text-[17px] text-zinc-300 font-sans max-w-[900px]"
+              style={{ lineHeight: 1.55, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
             >
               {terminalCopy.descBefore}
               <span className="font-semibold" style={{ color: '#10b981' }}>{terminalCopy.highlightName}</span>
@@ -361,24 +347,32 @@ export default function Portfolio() {
           </div>
 
           {/* RIGHT: Switch agent dropdown, Twin card, Duel link */}
-          <div className="flex flex-col items-start sm:items-end gap-2.5 flex-shrink-0 w-full sm:w-[300px]">
-            <AgentSwitchDropdown currentAgentId={currentAgentId} currentTab={currentTab} leaderboard={leaderboard} />
+          <div className="flex flex-col items-start sm:items-end gap-2.5 flex-shrink-0 w-full sm:w-[250px]">
+            <AgentSwitchDropdown highlightIds={[currentAgentId]} currentTab={currentTab} leaderboard={leaderboard} />
 
             {hasTwin && (
               <Link
                 to={`/portfolio/${twinInfo.twinId}?tab=${currentTab}`}
-                className="twin-card relative block w-full rounded-lg border border-border-hairline bg-white/[0.03] p-4 font-mono"
+                className="twin-card relative block w-full rounded-lg border border-border-hairline bg-white/[0.03] font-mono"
+                style={{ padding: '11px 14px', borderRadius: '12px' }}
                 title={`Open ${twinDisplayName}'s portfolio`}
               >
                 <span className="absolute top-3 right-3.5 text-zinc-500 text-sm" aria-hidden="true">→</span>
-                <div className="text-[11px] text-zinc-500 tracking-wide font-medium mb-1.5">
+                <div className="text-[10px] text-zinc-500 tracking-wide font-medium mb-1.5">
                   {twinInfo.isTwinRules ? 'RULES TWIN' : 'LLM TWIN'}
                 </div>
-                <div className="twin-card__name text-base font-sans font-semibold text-white transition-colors duration-200">
+                <div
+                  className="twin-card__name text-white transition-colors duration-200"
+                  style={{
+                    fontFamily: "var(--font-headline), 'Red Hat Display Fallback', system-ui, sans-serif",
+                    fontWeight: 600,
+                    fontSize: '16px',
+                  }}
+                >
                   {twinDisplayName}
                 </div>
-                <div className="text-xs text-zinc-400 font-sans mt-1">
-                  {twinInfo.isTwinRules ? 'Same stocks, no AI. Only fixed rules.' : 'Same stocks, with AI judgment.'}
+                <div className="text-[12px] text-zinc-400 font-sans mt-1">
+                  {twinInfo.isTwinRules ? 'Same stocks, no AI. Fixed rules only.' : 'Same stocks, with AI judgment.'}
                 </div>
               </Link>
             )}

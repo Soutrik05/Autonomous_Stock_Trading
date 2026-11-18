@@ -88,6 +88,15 @@
   --alloc-invested-text: #14a077;
   --alloc-cash: #cfc8b6;
   --alloc-cash-text: #f2efe8;
+
+  /* One shared blue family -- Agent Terminal (Switch-agent button, dropdown's selected row,
+     Twin card hover, role label) and the Comparison page's "Difference" value all use these,
+     so every blue accent on these pages is the same blue. */
+  --blue-text: #8fb8f0;
+  --blue: #4f8fe0;
+  --blue-line: #2f6fc0;
+  --blue-fill: rgba(0, 63, 136, 0.22);
+  --blue-border: rgba(79, 143, 224, 0.45);
 }
 
 .font-display {
@@ -784,6 +793,111 @@ select:focus-visible {
   display: inline-block;
 }
 
+/* Shared page-heading style (PageTitle.tsx) -- Leaderboard, Backtest, Telemetry, and
+   Comparison's two agent names. Same font/hover technique as the Agent Terminal's agent
+   name (which sets its own --fs/font-size directly since its size is intentionally
+   different); never used for the Home hero headline. */
+.page-title {
+  --fs: 44px;
+  font-family: var(--font-headline), 'Red Hat Display Fallback', system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #f2efe8;
+  line-height: 1.05;
+  font-size: clamp(32px, 6vw, 44px);
+}
+
+/* Comparison page paired metric bars (Comparison.tsx). */
+.comparison-metric-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.comparison-metric-row:last-of-type {
+  border-bottom: none;
+}
+
+.comparison-metric-row__label {
+  flex-shrink: 0;
+  width: 150px;
+  font-family: var(--font-headline), 'Red Hat Display Fallback', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  color: #e0e0e0;
+}
+
+.comparison-metric-row__bars {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.comparison-metric-row__diff {
+  flex-shrink: 0;
+  width: 64px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--blue);
+}
+
+.comparison-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.comparison-bar-track {
+  flex: 1;
+  height: 10px;
+  border-radius: 5px;
+  background: #222;
+  overflow: hidden;
+}
+
+.comparison-bar-fill {
+  height: 100%;
+  border-radius: 5px;
+}
+
+.comparison-bar-fill--green {
+  background: linear-gradient(to right, var(--alloc-invested-from), var(--alloc-invested-to));
+}
+
+.comparison-bar-fill--cream {
+  background: var(--alloc-cash);
+}
+
+.comparison-bar-value {
+  flex-shrink: 0;
+  width: 70px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: #cfcfcf;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .comparison-bar-fill {
+    transition: none !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .comparison-metric-row {
+    flex-wrap: wrap;
+  }
+  .comparison-metric-row__label {
+    width: 100%;
+    margin-bottom: 2px;
+  }
+}
+
 .name-spotlight::after {
   content: attr(data-text);
   position: absolute;
@@ -839,26 +953,27 @@ select:focus-visible {
   font-family: var(--font-headline), 'Red Hat Display Fallback', system-ui, sans-serif;
   font-weight: 600;
   font-size: 18px;
-  color: #8fb8f0;
-  border-bottom: 1px solid #2f6fc0;
+  color: var(--blue-text);
+  border-bottom: 1px solid var(--blue-line);
   padding-bottom: 3px;
   line-height: 1.1;
 }
 
-/* "Switch agent" trigger button, above the Twin card (AgentSwitchDropdown.tsx). */
+/* "Switch agent" / "Compare agent" trigger button, above the Twin card
+   (AgentSwitchDropdown.tsx), and reused as-is on the Comparison page. */
 .agent-switch-trigger {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   width: 100%;
-  padding: 10px 14px;
+  padding: 8px 12px;
   border-radius: 10px;
   font-family: var(--font-mono);
   font-size: 13px;
   color: #f2efe8;
-  border: 1px solid #1f5fb8;
-  background: rgba(0, 63, 136, 0.22);
+  border: 1px solid var(--blue-border);
+  background: var(--blue-fill);
   cursor: pointer;
   transition: background-color 0.2s ease;
 }
@@ -950,8 +1065,8 @@ select:focus-visible {
 }
 
 .agent-switch-row--current {
-  background: rgba(0, 63, 136, 0.22);
-  border: 1px solid #1f5fb8;
+  background: var(--blue-fill);
+  border: 1px solid var(--blue-border);
 }
 
 .agent-switch-row__name {
@@ -982,15 +1097,6 @@ select:focus-visible {
   text-align: right;
 }
 
-.agent-switch-panel__footer {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: #757575;
-}
-
 @media (max-width: 639px) {
   .agent-switch-panel__cols {
     grid-template-columns: 1fr;
@@ -1010,8 +1116,8 @@ select:focus-visible {
 .twin-card:hover,
 .twin-card:focus-visible {
   transform: translateY(-4px);
-  border-color: rgba(31, 95, 184, 1);
-  background-color: rgba(0, 63, 136, 0.22);
+  border-color: var(--blue-border);
+  background-color: var(--blue-fill);
   box-shadow: 0 10px 26px rgba(0, 63, 136, 0.3);
 }
 

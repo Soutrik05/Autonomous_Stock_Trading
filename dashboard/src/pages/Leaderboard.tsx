@@ -162,6 +162,7 @@ export default function Leaderboard() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <SectionHeader
             title="Live Rankings"
+            variant="page"
           />
 
           <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">

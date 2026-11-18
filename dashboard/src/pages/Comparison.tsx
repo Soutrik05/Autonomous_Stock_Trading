@@ -1,9 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import type { CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Brain,
-  Cpu,
-  TrendingUp,
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
@@ -20,30 +18,269 @@ import {
 } from 'recharts';
 import type { BaselineComparison, AgentLeaderboardEntry } from '../types';
 import { apiService, getIsMockMode, TELEMETRY_POLL_INTERVAL_MS } from '../services/api';
-import { formatPaiseToRupees, formatPct } from '../utils/formatters';
+import { formatPaiseToRupees } from '../utils/formatters';
 import { CategoryBadge } from '../components/ui/CategoryBadge';
-import { WarmupMetric } from '../components/ui/WarmupMetric';
-import { PHILOSOPHY_PAIRS } from '../constants/personas';
+import { getAgentLabel } from '../lib/agentNames';
+import { useIntroDone } from '../hooks/useIntro';
+import { useCountUp } from '../hooks/useCountUp';
+import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
+import PageTitle from '../components/ui/PageTitle';
+import AgentSwitchDropdown from '../components/AgentSwitchDropdown';
 import { cn } from '../utils/cn';
+
+/** The 5 LLM/Rules pairs, keyed by the same base persona key used throughout the Agent
+ * Terminal (Portfolio.tsx's basePersonaKey / AgentSwitchDropdown's ids). Ids are the real
+ * backend agent ids. */
+const PAIR_MAP: Record<string, { llmId: string; rulesId: string }> = {
+  simons: { llmId: 'simons', rulesId: 'baseline-simons-rules' },
+  lynch: { llmId: 'lynch', rulesId: 'baseline-lynch-rules' },
+  marks: { llmId: 'marks', rulesId: 'baseline-marks-rules' },
+  jhunjhunwala: { llmId: 'jhunjhunwala', rulesId: 'baseline-rj-rules' },
+  varsity: { llmId: 'varsity', rulesId: 'baseline-varsity-rules' },
+};
+
+function baseKeyForAgentId(id: string): string {
+  const normalized = id === 'stockminds-core' ? 'varsity' : id;
+  const found = Object.entries(PAIR_MAP).find(
+    ([, v]) => v.llmId === normalized || v.rulesId === normalized
+  );
+  return found ? found[0] : 'simons';
+}
+
+const COUNT_OPTS = { duration: 1300, delay: 250 };
+const SESSION_KEY_PREFIX = 'stockminds_compare_count_';
+
+const fmtPctSigned = (n: number) => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`;
+const fmtMaxDD = (n: number) => `-${n.toFixed(2)}%`;
+const fmtCount = (n: number) => `${Math.round(n)}`;
+const fmtDiffCount = (n: number) => `${n >= 0 ? '+' : ''}${Math.round(n)}`;
+const fmtSharpe = (n: number) => n.toFixed(2);
+const fmtDiffSharpe = (n: number) => `${n >= 0 ? '+' : ''}${n.toFixed(2)}`;
+const fmtWinRate = (n: number) => `${n.toFixed(1)}%`;
+
+interface MetricConfig {
+  key: string;
+  label: string;
+  llmValue: number | null;
+  rulesValue: number | null;
+  format: (n: number) => string;
+  diffValue: number | null;
+  diffFormat: (n: number) => string;
+}
+
+/** One value that counts up from 0 once this pair's animation has started, shows the live
+ * value instantly on a later refresh or a repeat visit, and "—" for a missing value. */
+function CountSpan({
+  value,
+  format,
+  eligible,
+  started,
+  className,
+}: {
+  value: number | null;
+  format: (n: number) => string;
+  eligible: boolean;
+  started: boolean;
+  className?: string;
+}) {
+  const gated = value === null ? undefined : (eligible ? (started ? value : undefined) : value);
+  const text = useCountUp(gated, format, COUNT_OPTS);
+  if (value === null) return <span className={cn(className, 'text-zinc-500')}>&mdash;</span>;
+  return <span className={className}>{eligible ? text : format(value)}</span>;
+}
+
+/** One paired bar (either the AI agent's or the Rules twin's) for one metric: the fill grows
+ * from 0 to its final width once, in sync with `filled`, and the value counts up in sync
+ * with `started` -- both driven by the parent PairedComparisonBody. */
+function MetricBarRow({
+  value,
+  maxAbs,
+  variant,
+  format,
+  eligible,
+  started,
+  filled,
+}: {
+  value: number | null;
+  maxAbs: number;
+  variant: 'green' | 'cream';
+  format: (n: number) => string;
+  eligible: boolean;
+  started: boolean;
+  filled: boolean;
+}) {
+  if (value === null) {
+    return (
+      <div className="comparison-bar-row">
+        <div className="comparison-bar-track" />
+        <span className="comparison-bar-value text-zinc-500">&mdash;</span>
+      </div>
+    );
+  }
+  const pct = maxAbs > 0 ? Math.min(100, (Math.abs(value) / maxAbs) * 100) : 0;
+  return (
+    <div className="comparison-bar-row">
+      <div className="comparison-bar-track">
+        <div
+          className={cn(
+            'comparison-bar-fill',
+            variant === 'green' ? 'comparison-bar-fill--green' : 'comparison-bar-fill--cream'
+          )}
+          style={{
+            width: `max(2px, ${pct}%)`,
+            transform: filled ? 'scaleX(1)' : 'scaleX(0)',
+            transformOrigin: 'left',
+            transition: eligible ? 'transform 1.4s cubic-bezier(0.22, 1, 0.36, 1)' : 'none',
+          }}
+        />
+      </div>
+      <span className="comparison-bar-value">
+        <CountSpan value={value} format={format} eligible={eligible} started={started} />
+      </span>
+    </div>
+  );
+}
+
+interface PairedComparisonBodyProps {
+  pairId: string;
+  llmName: string;
+  rulesName: string;
+  metrics: MetricConfig[];
+  llmNavPaise: number | null;
+  rulesNavPaise: number | null;
+  niftyNavPaise: number | null;
+  introDone: boolean;
+}
+
+/**
+ * Owns the first-open-per-pair count-up/bar-grow animation. Remounted fresh per pair (see
+ * `key={pairId}` at the call site) so every piece of state below starts over for a new pair
+ * via ordinary lazy initial state -- no reset-in-effect needed.
+ *
+ * `eligible`: decided once at mount from sessionStorage (+ reduced motion) and never changes.
+ * `started`: flips true (and *that's* when sessionStorage is actually written) once the page
+ * is mounted, the intro is done, and the tab is visible -- re-checked on visibilitychange so
+ * a pair opened in a background tab plays when you switch to it, never while hidden.
+ */
+function PairedComparisonBody({
+  pairId,
+  llmName,
+  rulesName,
+  metrics,
+  llmNavPaise,
+  rulesNavPaise,
+  niftyNavPaise,
+  introDone,
+}: PairedComparisonBodyProps) {
+  const reducedMotion = usePrefersReducedMotion();
+  const [eligible] = useState(() => {
+    if (reducedMotion) return false;
+    try {
+      return sessionStorage.getItem(`${SESSION_KEY_PREFIX}${pairId}`) !== 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [started, setStarted] = useState(false);
+  const startedRef = useRef(false);
+
+  useEffect(() => {
+    if (!eligible) return;
+    let cancelled = false;
+    function tryStart() {
+      if (cancelled || startedRef.current) return;
+      if (introDone && document.visibilityState === 'visible') {
+        startedRef.current = true;
+        try {
+          sessionStorage.setItem(`${SESSION_KEY_PREFIX}${pairId}`, 'true');
+        } catch {
+          /* ignore */
+        }
+        setStarted(true);
+      }
+    }
+    const timeoutId = window.setTimeout(tryStart, 0);
+    document.addEventListener('visibilitychange', tryStart);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+      document.removeEventListener('visibilitychange', tryStart);
+    };
+  }, [eligible, introDone, pairId]);
+
+  const [barFilled, setBarFilled] = useState(!eligible);
+  useEffect(() => {
+    if (!started) return;
+    const id = window.setTimeout(() => setBarFilled(true), 450);
+    return () => window.clearTimeout(id);
+  }, [started]);
+
+  return (
+    <div className="glow-box border border-border-hairline bg-surface-inset rounded-lg p-5 sm:p-6 space-y-1">
+      {metrics.map((m) => {
+        const maxAbs = Math.max(Math.abs(m.llmValue ?? 0), Math.abs(m.rulesValue ?? 0));
+        return (
+          <div key={m.key} className="comparison-metric-row">
+            <div className="comparison-metric-row__label">{m.label}</div>
+            <div className="comparison-metric-row__bars">
+              <MetricBarRow value={m.llmValue} maxAbs={maxAbs} variant="green" format={m.format} eligible={eligible} started={started} filled={barFilled} />
+              <MetricBarRow value={m.rulesValue} maxAbs={maxAbs} variant="cream" format={m.format} eligible={eligible} started={started} filled={barFilled} />
+            </div>
+            <div className="comparison-metric-row__diff">
+              <CountSpan value={m.diffValue} format={m.diffFormat} eligible={eligible} started={started} />
+            </div>
+          </div>
+        );
+      })}
+
+      <div className="pt-3 mt-2 border-t border-border-hairline font-mono text-[13px] text-zinc-400 flex flex-wrap items-center gap-x-2 gap-y-1">
+        <span className="text-zinc-300">Portfolio NAV</span>
+        <span>{llmName}</span>
+        <CountSpan value={llmNavPaise} format={formatPaiseToRupees} eligible={eligible} started={started} className="text-zinc-200" />
+        <span>{rulesName}</span>
+        <CountSpan value={rulesNavPaise} format={formatPaiseToRupees} eligible={eligible} started={started} className="text-zinc-200" />
+        <span>Nifty</span>
+        <CountSpan value={niftyNavPaise} format={formatPaiseToRupees} eligible={eligible} started={started} className="text-zinc-200" />
+      </div>
+
+      <div className="pt-3 flex items-center gap-5 font-mono text-xs text-zinc-400">
+        <span className="inline-flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: 'var(--alloc-invested-to)' }} />
+          {llmName} (AI)
+        </span>
+        <span className="inline-flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: 'var(--alloc-cash)' }} />
+          {rulesName}
+        </span>
+      </div>
+    </div>
+  );
+}
 
 export default function Comparison() {
   const [selectedPairId, setSelectedPairId] = useState<string>('simons');
   const [data, setData] = useState<BaselineComparison | null>(null);
   const [liveLeaderboard, setLiveLeaderboard] = useState<AgentLeaderboardEntry[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [fetchError, setFetchError] = useState<boolean>(false);
   const [isMock] = useState<boolean>(getIsMockMode());
   const [showHorizonTable, setShowHorizonTable] = useState<boolean>(false);
+  const introDone = useIntroDone();
 
-  const currentPair =
-    PHILOSOPHY_PAIRS.find((p) => p.id === selectedPairId) || PHILOSOPHY_PAIRS[0];
+  const pair = PAIR_MAP[selectedPairId] || PAIR_MAP.simons;
+  const llmName = getAgentLabel(pair.llmId);
+  const rulesName = getAgentLabel(pair.rulesId);
 
   useEffect(() => {
     let isSubscribed = true;
     async function fetchComparisonData(isBackground = false) {
-      if (!isBackground) setLoading(true);
+      if (!isBackground) {
+        setLoading(true);
+        setFetchError(false);
+      }
       try {
         const [compData, boardData] = await Promise.all([
-          apiService.getBaselineComparison(currentPair.id),
+          apiService.getBaselineComparison(pair.llmId),
           apiService.getLeaderboard(),
         ]);
         if (isSubscribed) {
@@ -52,6 +289,7 @@ export default function Comparison() {
         }
       } catch (err) {
         console.warn('Failed to load baseline comparison:', err);
+        if (isSubscribed && !isBackground) setFetchError(true);
       } finally {
         if (isSubscribed && !isBackground) setLoading(false);
       }
@@ -68,7 +306,34 @@ export default function Comparison() {
       isSubscribed = false;
       clearInterval(pollInterval);
     };
-  }, [currentPair.id, isMock]);
+  }, [pair.llmId, isMock]);
+
+  if (fetchError) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-28 flex flex-col items-center justify-center gap-4">
+        <div className="text-zinc-400 font-mono text-sm">Could not load the comparison data.</div>
+        <button
+          onClick={() => {
+            setFetchError(false);
+            setLoading(true);
+            setSelectedPairId((id) => id);
+            // Re-trigger the effect by toggling a dependency-equivalent state isn't needed --
+            // the effect already re-runs fetchComparisonData on mount; force it directly:
+            apiService.getBaselineComparison(pair.llmId).then((compData) => {
+              setData(compData);
+              setLoading(false);
+            }).catch(() => {
+              setFetchError(true);
+              setLoading(false);
+            });
+          }}
+          className="px-4 py-2 rounded font-mono text-sm text-brand-blue-text border border-brand-blue/40 bg-brand-blue-soft hover:bg-brand-blue-soft/70 transition-colors cursor-pointer"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   if (loading || !data) {
     return (
@@ -82,29 +347,77 @@ export default function Comparison() {
   }
 
   // Bind live returns from live backend leaderboard
-  const liveLlm = liveLeaderboard.find((a) => a.id === currentPair.llmId);
-  const liveRules = liveLeaderboard.find((a) => a.id === currentPair.rulesId);
+  const liveLlm = liveLeaderboard.find((a) => a.id === pair.llmId);
+  const liveRules = liveLeaderboard.find((a) => a.id === pair.rulesId);
 
-  const effectiveLlmReturn = liveLlm?.returnPct ?? 0;
-  const effectiveRulesReturn = liveRules?.returnPct ?? 0;
-  const alphaSpreadPct = effectiveLlmReturn - effectiveRulesReturn;
+  const llmReturn = liveLlm?.returnPct ?? null;
+  const rulesReturn = liveRules?.returnPct ?? null;
+  const alphaSpreadPct = (llmReturn ?? 0) - (rulesReturn ?? 0);
 
-  const llmNav = liveLlm?.navPaise ?? 50000000;
-  const rulesNav = liveRules?.navPaise ?? 50000000;
-  const niftyNav = data?.nifty500?.benchmarkNavPaise ?? 50000000;
+  const llmNav = liveLlm?.navPaise ?? null;
+  const rulesNav = liveRules?.navPaise ?? null;
+  const niftyNav = data?.nifty500?.benchmarkNavPaise ?? null;
 
-  const llmSharpe = liveLlm?.sharpeRatio ?? 0;
-  const rulesSharpe = liveRules?.sharpeRatio ?? 0;
+  const llmTrades = liveLlm?.closedTrades ?? null;
+  const rulesTrades = liveRules?.closedTrades ?? null;
+  const bothWarmedUp = (llmTrades ?? 0) >= 30 && (rulesTrades ?? 0) >= 30;
 
-  const llmMaxDd = liveLlm?.maxDrawdownPct ?? 0;
-  const rulesMaxDd = liveRules?.maxDrawdownPct ?? 0;
-  const niftyMaxDd = data?.nifty500?.maxDrawdownPct ?? 0;
+  const llmSharpe = bothWarmedUp ? (liveLlm?.sharpeRatio ?? null) : null;
+  const rulesSharpe = bothWarmedUp ? (liveRules?.sharpeRatio ?? null) : null;
 
-  const llmWinRate = liveLlm?.winRatePct ?? 0;
-  const rulesWinRate = liveRules?.winRatePct ?? 0;
+  const llmMaxDd = liveLlm?.maxDrawdownPct != null ? Math.abs(liveLlm.maxDrawdownPct) : null;
+  const rulesMaxDd = liveRules?.maxDrawdownPct != null ? Math.abs(liveRules.maxDrawdownPct) : null;
 
-  const llmTrades = liveLlm?.closedTrades ?? 0;
-  const rulesTrades = liveRules?.closedTrades ?? 0;
+  const llmWinRate = bothWarmedUp ? (liveLlm?.winRatePct ?? null) : null;
+  const rulesWinRate = bothWarmedUp ? (liveRules?.winRatePct ?? null) : null;
+
+  const metrics: MetricConfig[] = [
+    {
+      key: 'return',
+      label: 'Cumulative Return',
+      llmValue: llmReturn,
+      rulesValue: rulesReturn,
+      format: fmtPctSigned,
+      diffValue: llmReturn != null && rulesReturn != null ? llmReturn - rulesReturn : null,
+      diffFormat: fmtPctSigned,
+    },
+    {
+      key: 'maxdd',
+      label: 'Max Drawdown',
+      llmValue: llmMaxDd,
+      rulesValue: rulesMaxDd,
+      format: fmtMaxDD,
+      diffValue: llmMaxDd != null && rulesMaxDd != null ? rulesMaxDd - llmMaxDd : null,
+      diffFormat: fmtPctSigned,
+    },
+    {
+      key: 'trades',
+      label: 'Closed Trades',
+      llmValue: llmTrades,
+      rulesValue: rulesTrades,
+      format: fmtCount,
+      diffValue: llmTrades != null && rulesTrades != null ? llmTrades - rulesTrades : null,
+      diffFormat: fmtDiffCount,
+    },
+    {
+      key: 'winrate',
+      label: 'Trade Win Rate',
+      llmValue: llmWinRate,
+      rulesValue: rulesWinRate,
+      format: fmtWinRate,
+      diffValue: llmWinRate != null && rulesWinRate != null ? llmWinRate - rulesWinRate : null,
+      diffFormat: fmtPctSigned,
+    },
+    {
+      key: 'sharpe',
+      label: 'Sharpe Ratio',
+      llmValue: llmSharpe,
+      rulesValue: rulesSharpe,
+      format: fmtSharpe,
+      diffValue: llmSharpe != null && rulesSharpe != null ? llmSharpe - rulesSharpe : null,
+      diffFormat: fmtDiffSharpe,
+    },
+  ];
 
   // Chart data: Net Cognitive Alpha Diverging Bars (LLM - Rules)
   const divergingChartData = data.horizonReturns.map((hr) => {
@@ -128,190 +441,52 @@ export default function Comparison() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-7 animate-hero-entrance font-sans">
 
-      {/* 1. STANDARDIZED MATCHUP HEADER & PHILOSOPHY SWITCHER */}
+      {/* 1. MATCHUP HEADER & Compare-agent dropdown */}
       <div className="space-y-4 border-b border-border-hairline pb-4">
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-
-          {/* Matchup Identity */}
-          <div className="space-y-1">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <h1 className="text-2xl sm:text-3xl font-display font-medium tracking-tight text-white">
-                {currentPair.llmDisplayName}
-              </h1>
-              <CategoryBadge type="LLM" />
-              <span className="text-zinc-500 font-mono text-sm font-normal">vs.</span>
-              <span className="text-xl sm:text-2xl font-display font-medium text-zinc-300">
-                {currentPair.rulesDisplayName}
-              </span>
-              <CategoryBadge type="RULES" />
-            </div>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <PageTitle
+              as="span"
+              text={llmName}
+              style={{ '--fs': '38px', fontSize: 'clamp(26px, 4vw, 38px)' } as CSSProperties}
+            >
+              {llmName}
+            </PageTitle>
+            <CategoryBadge type="LLM" />
+            <span className="text-zinc-500 font-mono text-sm">vs.</span>
+            <PageTitle
+              as="span"
+              text={rulesName}
+              style={{ '--fs': '38px', fontSize: 'clamp(26px, 4vw, 38px)' } as CSSProperties}
+            >
+              {rulesName}
+            </PageTitle>
+            <CategoryBadge type="RULES" />
           </div>
 
-          {/* Compact 5-Philosophy Switcher */}
-          <div
-            role="tablist"
-            aria-label="Philosophy matchup pairs"
-            className="flex items-center p-0.5 rounded-md bg-surface-well border border-border-hairline text-xs sm:text-sm font-mono flex-shrink-0"
-          >
-            {PHILOSOPHY_PAIRS.map((pair) => (
-              <button
-                key={pair.id}
-                role="tab"
-                aria-selected={selectedPairId === pair.id}
-                onClick={() => setSelectedPairId(pair.id)}
-                className={cn(
-                  "px-3 py-1.5 rounded transition-colors cursor-pointer text-xs sm:text-sm",
-                  selectedPairId === pair.id
-                    ? "bg-brand-blue-soft text-brand-blue-text font-semibold border border-brand-blue/40"
-                    : "text-zinc-400 hover:text-white border border-transparent"
-                )}
-              >
-                {pair.shortLabel}
-              </button>
-            ))}
+          <div className="w-full sm:w-[220px] flex-shrink-0">
+            <AgentSwitchDropdown
+              triggerLabel="Compare agent"
+              highlightIds={[pair.llmId, pair.rulesId]}
+              onSelect={(id) => setSelectedPairId(baseKeyForAgentId(id))}
+              leaderboard={liveLeaderboard}
+            />
           </div>
         </div>
       </div>
 
-      {/* 2. SYMMETRIC PERFORMANCE MATRIX: DELTA AS HERO (HIGH LEGIBILITY) */}
-      <div className="glow-box rounded-lg">
-      <div className="overflow-x-auto border border-border-hairline bg-[#161616] rounded-lg">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="border-b border-border-hairline text-zinc-400 text-xs sm:text-sm font-mono bg-[#121212] whitespace-nowrap">
-              <th className="py-3 px-3.5 font-normal">Metric</th>
-              <th className="py-3 px-3.5 font-normal text-right text-zinc-300">
-                <div className="flex items-center justify-end gap-1.5">
-                  <Brain className="w-4 h-4 text-zinc-400" />
-                  <span>{currentPair.llmDisplayName}</span>
-                  <CategoryBadge type="LLM" />
-                </div>
-              </th>
-              <th className="py-3 px-3.5 font-normal text-right text-zinc-300">
-                <div className="flex items-center justify-end gap-1.5">
-                  <Cpu className="w-4 h-4 text-zinc-400" />
-                  <span>{currentPair.rulesDisplayName}</span>
-                  <CategoryBadge type="RULES" />
-                </div>
-              </th>
-              <th className="py-3 px-3.5 font-normal text-right text-zinc-400">
-                <div className="flex items-center justify-end gap-1.5">
-                  <TrendingUp className="w-4 h-4 text-zinc-500" />
-                  <span>Nifty 500</span>
-                </div>
-              </th>
-              {/* Visual Hero Column: Brand Blue Highlighted Header with Left Divider */}
-              <th className="py-3 px-3.5 font-semibold text-right text-brand-blue-text border-l border-border-hairline bg-brand-blue-soft/20">
-                Cognitive Delta
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border-hairline text-base font-sans whitespace-nowrap">
-
-            {/* Cumulative Return */}
-            <tr className="transition-colors group hover:bg-white/[0.03]">
-              <td className="py-3 px-3.5 font-sans font-medium text-white text-base">Cumulative Return</td>
-              <td className={cn("py-3 px-3.5 text-right font-mono font-bold text-base tabular-nums", effectiveLlmReturn >= 0 ? "text-positive" : "text-negative")}>
-                {formatPct(effectiveLlmReturn)}
-              </td>
-              <td className={cn("py-3 px-3.5 text-right font-mono font-bold text-base tabular-nums", effectiveRulesReturn >= 0 ? "text-positive" : "text-negative")}>
-                {formatPct(effectiveRulesReturn)}
-              </td>
-              <td className="py-3 px-3.5 text-right font-mono text-zinc-400 font-medium text-sm sm:text-base tabular-nums">
-                {formatPct(data?.nifty500?.returnPct ?? 0)}
-              </td>
-              <td className="py-3 px-3.5 text-right font-mono font-bold text-base sm:text-lg tabular-nums text-brand-blue-text border-l border-border-hairline bg-brand-blue-soft/20">
-                {alphaSpreadPct >= 0 ? '+' : ''}{alphaSpreadPct.toFixed(2)}%
-              </td>
-            </tr>
-
-            {/* Portfolio NAV */}
-            <tr className="transition-colors group hover:bg-white/[0.03] bg-white/[0.01]">
-              <td className="py-3 px-3.5 font-sans font-medium text-white text-base">Portfolio NAV</td>
-              <td className="py-3 px-3.5 text-right font-mono text-base text-zinc-100 font-medium tabular-nums">
-                {formatPaiseToRupees(llmNav)}
-              </td>
-              <td className="py-3 px-3.5 text-right font-mono text-base text-zinc-100 font-medium tabular-nums">
-                {formatPaiseToRupees(rulesNav)}
-              </td>
-              <td className="py-3 px-3.5 text-right font-mono text-base text-zinc-400 font-medium tabular-nums">
-                {formatPaiseToRupees(niftyNav)}
-              </td>
-              <td className="py-3 px-3.5 text-right font-mono font-bold text-base tabular-nums text-brand-blue-text border-l border-border-hairline bg-brand-blue-soft/20">
-                {llmNav >= rulesNav ? '+' : ''}{formatPaiseToRupees(llmNav - rulesNav)}
-              </td>
-            </tr>
-
-            {/* Sharpe Ratio */}
-            <tr className="transition-colors group hover:bg-white/[0.03]">
-              <td className="py-3 px-3.5 font-sans font-medium text-white text-base">Sharpe Ratio</td>
-              <td className="py-3 px-3.5 text-right font-mono text-base text-zinc-100 font-medium tabular-nums">
-                <WarmupMetric value={llmSharpe} closedTrades={llmTrades} formatter={(v) => Number(v).toFixed(2)} compact />
-              </td>
-              <td className="py-3 px-3.5 text-right font-mono text-base text-zinc-100 font-medium tabular-nums">
-                <WarmupMetric value={rulesSharpe} closedTrades={rulesTrades} formatter={(v) => Number(v).toFixed(2)} compact />
-              </td>
-              <td className="py-3 px-3.5 text-right font-mono text-base text-zinc-500 font-normal tabular-nums">—</td>
-              <td className="py-3 px-3.5 text-right font-mono font-bold text-base tabular-nums text-brand-blue-text border-l border-border-hairline bg-brand-blue-soft/20">
-                {llmTrades >= 30 && rulesTrades >= 30 ? (
-                  `${llmSharpe >= rulesSharpe ? '+' : ''}${(llmSharpe - rulesSharpe).toFixed(2)}`
-                ) : (
-                  <span className="text-zinc-600 font-mono text-base" title="Warming up: requires 30 closed trades">—</span>
-                )}
-              </td>
-            </tr>
-
-            {/* Max Drawdown */}
-            <tr className="transition-colors group hover:bg-white/[0.03] bg-white/[0.01]">
-              <td className="py-3 px-3.5 font-sans font-medium text-white text-base">Max Drawdown</td>
-              <td className="py-3 px-3.5 text-right font-mono text-base text-negative font-medium tabular-nums">
-                -{Math.abs(llmMaxDd).toFixed(2)}%
-              </td>
-              <td className="py-3 px-3.5 text-right font-mono text-base text-negative font-medium tabular-nums">
-                -{Math.abs(rulesMaxDd).toFixed(2)}%
-              </td>
-              <td className="py-3 px-3.5 text-right font-mono text-base text-zinc-400 font-medium tabular-nums">
-                -{Math.abs(niftyMaxDd).toFixed(2)}%
-              </td>
-              <td className="py-3 px-3.5 text-right font-mono font-bold text-base tabular-nums text-brand-blue-text border-l border-border-hairline bg-brand-blue-soft/20">
-                {llmMaxDd <= rulesMaxDd ? '+' : '-'}{Math.abs(llmMaxDd - rulesMaxDd).toFixed(2)}%
-              </td>
-            </tr>
-
-            {/* Win Rate */}
-            <tr className="transition-colors group hover:bg-white/[0.03]">
-              <td className="py-3 px-3.5 font-sans font-medium text-white text-base">Trade Win Rate</td>
-              <td className="py-3 px-3.5 text-right font-mono text-base text-zinc-100 font-medium tabular-nums">
-                <WarmupMetric value={llmWinRate} closedTrades={llmTrades} formatter={(v) => `${Number(v).toFixed(1)}%`} compact />
-              </td>
-              <td className="py-3 px-3.5 text-right font-mono text-base text-zinc-100 font-medium tabular-nums">
-                <WarmupMetric value={rulesWinRate} closedTrades={rulesTrades} formatter={(v) => `${Number(v).toFixed(1)}%`} compact />
-              </td>
-              <td className="py-3 px-3.5 text-right font-mono text-base text-zinc-500 font-normal tabular-nums">—</td>
-              <td className="py-3 px-3.5 text-right font-mono font-bold text-base tabular-nums text-brand-blue-text border-l border-border-hairline bg-brand-blue-soft/20">
-                {llmTrades >= 30 && rulesTrades >= 30 ? (
-                  `${llmWinRate >= rulesWinRate ? '+' : ''}${(llmWinRate - rulesWinRate).toFixed(1)}%`
-                ) : (
-                  <span className="text-zinc-600 font-mono text-base" title="Warming up: requires 30 closed trades">—</span>
-                )}
-              </td>
-            </tr>
-
-            {/* Closed Trades */}
-            <tr className="transition-colors group hover:bg-white/[0.03] bg-white/[0.01]">
-              <td className="py-3 px-3.5 font-sans font-medium text-white text-base">Closed Trades</td>
-              <td className="py-3 px-3.5 text-right font-mono text-base text-zinc-100 font-medium tabular-nums">{llmTrades}</td>
-              <td className="py-3 px-3.5 text-right font-mono text-base text-zinc-100 font-medium tabular-nums">{rulesTrades}</td>
-              <td className="py-3 px-3.5 text-right font-mono text-base text-zinc-500 font-normal tabular-nums">—</td>
-              <td className="py-3 px-3.5 text-right font-mono font-bold text-base tabular-nums text-brand-blue-text border-l border-border-hairline bg-brand-blue-soft/20">
-                {llmTrades - rulesTrades >= 0 ? '+' : ''}{llmTrades - rulesTrades}
-              </td>
-            </tr>
-
-          </tbody>
-        </table>
-      </div>
-      </div>
+      {/* 2. PAIRED METRIC BARS */}
+      <PairedComparisonBody
+        key={pair.llmId}
+        pairId={pair.llmId}
+        llmName={llmName}
+        rulesName={rulesName}
+        metrics={metrics}
+        llmNavPaise={llmNav}
+        rulesNavPaise={rulesNav}
+        niftyNavPaise={niftyNav}
+        introDone={introDone}
+      />
 
       {/* 3. NET COGNITIVE ALPHA DIVERGING BAR CHART */}
       <div className="glow-box border border-border-hairline bg-surface-inset rounded-lg p-5 sm:p-6 space-y-5">
@@ -459,19 +634,19 @@ export default function Comparison() {
                           {hr.horizonDays} Trading Days
                         </td>
                         <td className="py-3 px-3.5 text-right font-mono font-bold text-base text-positive tabular-nums">
-                          {formatPct(buyVal)}
+                          {buyVal.toFixed(2)}%
                         </td>
                         <td className="py-3 px-3.5 text-right font-mono text-sm sm:text-base text-sky-400 font-medium tabular-nums">
-                          {formatPct(rulesVal)}
+                          {rulesVal.toFixed(2)}%
                         </td>
                         <td className={cn("py-3 px-3.5 text-right font-mono font-bold text-base tabular-nums", alphaVal >= 0 ? "text-brand-blue-text" : "text-negative")}>
                           {alphaVal >= 0 ? '+' : ''}{alphaVal.toFixed(2)}%
                         </td>
                         <td className="py-3 px-3.5 text-right font-mono text-sm sm:text-base text-zinc-300 font-normal tabular-nums">
-                          {formatPct(holdVal)}
+                          {holdVal.toFixed(2)}%
                         </td>
                         <td className="py-3 px-3.5 text-right font-mono text-sm sm:text-base text-zinc-400 font-normal tabular-nums">
-                          {formatPct(niftyVal)}
+                          {niftyVal.toFixed(2)}%
                         </td>
                       </tr>
                     );
@@ -490,10 +665,10 @@ export default function Comparison() {
           <span>Every cited numeric indicator is audited against raw exchange snapshots in the individual Agent Terminal.</span>
         </div>
         <Link
-          to={`/portfolio/${currentPair.personaKey}`}
+          to={`/portfolio/${pair.llmId}`}
           className="text-xs font-mono text-brand-blue-text hover:underline flex items-center gap-1.5 flex-shrink-0"
         >
-          <span>Open {currentPair.llmDisplayName} Audit Ledger</span>
+          <span>Open {llmName} Audit Ledger</span>
           <span>→</span>
         </Link>
       </div>
