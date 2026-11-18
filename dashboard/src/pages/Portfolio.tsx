@@ -16,6 +16,7 @@ import { formatPaiseToRupees, formatPct, formatISTDateTime } from '../utils/form
 import { CategoryBadge } from '../components/ui/CategoryBadge';
 import { WarmupMetric } from '../components/ui/WarmupMetric';
 import { getAgentDisplayName, isRulesStrategy } from '../constants/personas';
+import { getRulesTwinLabel } from '../lib/agentNames';
 import { getPersonaCopy } from '../lib/personaCopy';
 import { useIntroDone } from '../hooks/useIntro';
 import { cn } from '../utils/cn';
@@ -26,7 +27,7 @@ import LearnedMemoryBankSection from '../components/LearnedMemoryBankSection';
 import WatchlistFunnel from '../components/WatchlistFunnel';
 import AgentWatchlistSection from '../components/AgentWatchlistSection';
 import ExplainabilitySpotlight from '../components/ExplainabilitySpotlight';
-import AgentSwitcherStrip from '../components/AgentSwitcherStrip';
+import AgentSwitchDropdown from '../components/AgentSwitchDropdown';
 
 interface PersonaProfile {
   school: string;
@@ -137,6 +138,7 @@ export default function Portfolio() {
   const currentAgentId = (routeParam === 'stockminds-core' ? 'varsity' : routeParam) as AgentId;
 
   const [agent, setAgent] = useState<AgentLeaderboardEntry | null>(null);
+  const [leaderboard, setLeaderboard] = useState<AgentLeaderboardEntry[]>([]);
   const [positions, setPositions] = useState<Position[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [heuristics, setHeuristics] = useState<HeuristicMemory[]>([]);
@@ -181,6 +183,7 @@ export default function Portfolio() {
         if (!isSubscribed) return;
         const currentAgent = board.find((a: AgentLeaderboardEntry) => a.id === currentAgentId) || null;
         setAgent(currentAgent);
+        setLeaderboard(board);
         setPositions(pos);
         setOrders(ord);
         setHeuristics(mem);
@@ -306,21 +309,24 @@ export default function Portfolio() {
   const closedPositionsCount = positions.filter((p) => p.status === 'CLOSED').length;
 
   const terminalCopy = getPersonaCopy(currentAgentId);
-  const twinDisplayName = getAgentDisplayName(twinInfo.twinId);
+  // Twin card name: when the twin is a Rules baseline, use the descriptive "<Surname> Rules"
+  // label (built for this explainer card specifically -- see agentNames.ts) rather than the
+  // compact "<ShortName> Core" label used everywhere data is tabular; when the twin is the
+  // LLM side, the existing short name is already correct.
+  const twinDisplayName = twinInfo.isTwinRules
+    ? (getRulesTwinLabel(basePersonaKey) || getAgentDisplayName(twinInfo.twinId))
+    : getAgentDisplayName(twinInfo.twinId);
   const hasTwin = Boolean(twinInfo.twinId) && twinInfo.twinId !== currentAgentId;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 animate-hero-entrance font-sans">
 
-      {/* 0. AGENT SWITCHER: one pill per LLM persona, above the header box */}
-      <AgentSwitcherStrip activeBaseKey={basePersonaKey} isOnRulesTwin={isRulesControl} currentTab={currentTab} />
-
-      {/* 1. AGENT HEADER: identity + plain-English copy (left) and Twin card + Duel (right) */}
+      {/* 1. AGENT HEADER: identity + plain-English copy (left) and Switch agent + Twin card + Duel (right) */}
       <div className="glow-box bg-surface-inset border border-border-hairline rounded-lg p-5 sm:p-6">
         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
           {/* LEFT: name, tags, description */}
           <div className="space-y-2.5 min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3.5">
               <span
                 ref={nameRef}
                 onMouseMove={handleNameMouseMove}
@@ -339,7 +345,7 @@ export default function Portfolio() {
                 {cleanAgentName}
               </span>
               <CategoryBadge type={isRulesControl ? 'RULES' : 'LLM'} />
-              <span className="terminal-tag">
+              <span className="terminal-role-label">
                 {terminalCopy.roleTag}
               </span>
             </div>
@@ -354,8 +360,10 @@ export default function Portfolio() {
             </p>
           </div>
 
-          {/* RIGHT: Twin card (only control besides Duel) */}
-          <div className="flex flex-col items-start sm:items-end gap-2.5 flex-shrink-0 w-full sm:w-64">
+          {/* RIGHT: Switch agent dropdown, Twin card, Duel link */}
+          <div className="flex flex-col items-start sm:items-end gap-2.5 flex-shrink-0 w-full sm:w-[300px]">
+            <AgentSwitchDropdown currentAgentId={currentAgentId} currentTab={currentTab} leaderboard={leaderboard} />
+
             {hasTwin && (
               <Link
                 to={`/portfolio/${twinInfo.twinId}?tab=${currentTab}`}

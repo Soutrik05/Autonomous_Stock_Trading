@@ -37,3 +37,25 @@ export function getAgentName(id: string | null | undefined, fallbackName?: strin
   if (id && AGENT_SHORT_NAMES[id]) return AGENT_SHORT_NAMES[id];
   return fallbackName || id || 'Agent';
 }
+
+/**
+ * Descriptive "<Surname> Rules" label for a Rules twin -- used ONLY by the Agent Terminal's
+ * Twin card (an explainer: "RULES TWIN · Simons Rules · Same stocks, no AI"), which needs a
+ * name that reads as a sentence rather than the compact "<ShortName> Core" label used
+ * everywhere else data is tabular (Leaderboard, Backtest, Telemetry, chart legends). Keyed
+ * by the LLM agent's own id (never the baseline-*-rules id), so callers normalize to the
+ * base persona key first. AGENT_SHORT_NAMES (and every other consumer) is unaffected -- this
+ * is additive, not a rename of the shared short-name map.
+ */
+export const AGENT_RULES_TWIN_LABEL: Record<string, string> = {
+  simons: 'Simons Rules',
+  lynch: 'Lynch Rules',
+  marks: 'Marks Rules',
+  jhunjhunwala: 'Jhunjhunwala Rules',
+  varsity: 'Varsity Rules',
+};
+
+export function getRulesTwinLabel(baseLlmId: string | null | undefined): string | null {
+  if (!baseLlmId) return null;
+  return AGENT_RULES_TWIN_LABEL[baseLlmId] || null;
+}

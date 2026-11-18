@@ -834,84 +834,138 @@ select:focus-visible {
   background: rgba(0, 63, 136, 0.12);
 }
 
-/* Agent switcher strip (AgentSwitcherStrip.tsx), above the Agent Terminal header. */
-.agent-switcher {
+/* Agent Terminal role label (Portfolio.tsx): plain underlined text, no box -- "design F". */
+.terminal-role-label {
+  font-family: var(--font-headline), 'Red Hat Display Fallback', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 18px;
+  color: #8fb8f0;
+  border-bottom: 1px solid #2f6fc0;
+  padding-bottom: 3px;
+  line-height: 1.1;
+}
+
+/* "Switch agent" trigger button, above the Twin card (AgentSwitchDropdown.tsx). */
+.agent-switch-trigger {
   display: flex;
   align-items: center;
-  gap: 10px;
-  border: 1px solid #262626;
-  border-radius: 14px;
-  padding: 8px;
-  background: rgba(22, 22, 22, 0.7);
-}
-
-.agent-switcher__label {
-  flex-shrink: 0;
-  padding-left: 6px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  color: #757575;
-}
-
-.agent-switcher__track {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  overflow-x: auto;
-  flex-wrap: nowrap;
-  scrollbar-width: none;
-}
-
-.agent-switcher__track::-webkit-scrollbar {
-  display: none;
-}
-
-.agent-switcher__pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-  font-size: 14px;
-  padding: 9px 14px;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 14px;
   border-radius: 10px;
-  color: #b0b0b0;
-  border: 1px solid transparent;
-  text-decoration: none;
-  white-space: nowrap;
-  transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.agent-switcher__pill:hover,
-.agent-switcher__pill:focus-visible {
+  font-family: var(--font-mono);
+  font-size: 13px;
   color: #f2efe8;
-  background: rgba(255, 255, 255, 0.04);
-  border-color: #333;
+  border: 1px solid #1f5fb8;
+  background: rgba(0, 63, 136, 0.22);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
 }
 
-.agent-switcher__pill:focus-visible {
+.agent-switch-trigger:hover,
+.agent-switch-trigger:focus-visible {
+  background: rgba(0, 63, 136, 0.32);
+}
+
+.agent-switch-trigger:focus-visible {
   outline: 2px solid var(--brand-blue-text);
   outline-offset: 2px;
 }
 
-.agent-switcher__pill--current {
-  color: #f2efe8;
+/* Portal-rendered dropdown panel (document.body, positioned via JS -- never clipped by an
+   ancestor's overflow/rounded-corner clipping). */
+.agent-switch-panel {
+  z-index: 200;
+  border-radius: 14px;
+  background: rgba(20, 20, 20, 0.97);
+  border: 1px solid #2a2a2a;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.6), 0 0 30px rgba(0, 63, 136, 0.18);
+  padding: 14px;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.agent-switch-panel--enter {
+  animation: agent-switch-panel-enter 0.15s ease-out;
+}
+
+@keyframes agent-switch-panel-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-switch-panel--enter {
+    animation: none;
+  }
+}
+
+.agent-switch-panel__cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.agent-switch-panel__col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.agent-switch-panel__col-header {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: #7d7d7d;
+  padding: 4px 8px 6px;
+}
+
+.agent-switch-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 8px;
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.agent-switch-row:hover,
+.agent-switch-row:focus-visible {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.agent-switch-row:focus-visible {
+  outline: 2px solid var(--brand-blue-text);
+  outline-offset: -2px;
+}
+
+.agent-switch-row--current {
   background: rgba(0, 63, 136, 0.22);
   border: 1px solid #1f5fb8;
-  box-shadow: 0 0 14px rgba(0, 63, 136, 0.25);
 }
 
-.agent-switcher__pill--current:hover {
-  background: rgba(0, 63, 136, 0.22);
-  border-color: #1f5fb8;
+.agent-switch-row__name {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  color: #e0e0e0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.agent-switcher__pill--twin {
-  border: 1px solid #1f5fb8;
-  background: transparent;
-}
-
-.agent-switcher__tag {
+.agent-switch-row__tag {
+  flex-shrink: 0;
   font-family: var(--font-mono);
   font-size: 10px;
   padding: 1px 5px;
@@ -920,9 +974,29 @@ select:focus-visible {
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.agent-switcher__pill--current .agent-switcher__tag {
-  color: #7cb3f3;
-  border-color: rgba(124, 179, 243, 0.4);
+.agent-switch-row__return {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  min-width: 48px;
+  text-align: right;
+}
+
+.agent-switch-panel__footer {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: #757575;
+}
+
+@media (max-width: 639px) {
+  .agent-switch-panel__cols {
+    grid-template-columns: 1fr;
+    max-height: 60vh;
+    overflow-y: auto;
+  }
 }
 
 /* Agent Terminal twin card (Portfolio.tsx): same hover "lift" feel as the Home persona
