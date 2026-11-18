@@ -5,6 +5,7 @@ import { cn } from '../utils/cn';
 import { CategoryBadge } from './ui/CategoryBadge';
 import { useFlashOnChange } from '../hooks/useFlashOnChange';
 import { useIntroDone } from '../hooks/useIntro';
+import { getAgentName } from '../lib/agentNames';
 
 interface TopAgentRowProps {
   agent: AgentLeaderboardEntry;
@@ -33,7 +34,7 @@ export default function TopAgentRow({ agent, rank, delayMs }: TopAgentRowProps) 
 
   const isFirst = rank === 0;
   const isPositive = agent.returnPct >= 0;
-  const cleanName = agent.name.replace(' (LLM)', '').replace('Baseline ', '');
+  const cleanName = getAgentName(agent.id, agent.name);
 
   return (
     <div

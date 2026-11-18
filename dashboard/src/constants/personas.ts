@@ -1,11 +1,13 @@
+import { getAgentName } from '../lib/agentNames';
+
 /**
- * Centralized Single Source of Truth (SSOT) for Persona & Strategy Names.
+ * Centralized Single Source of Truth (SSOT) for Persona philosophy/school/horizon metadata.
  *
- * Display names here MUST mirror what the real backend returns from `GET /api/leaderboard`
- * (`name` field) for the live agents. This file exists only so pages that have no live
- * leaderboard fetch in scope (chart legends, the Telemetry agent filter, event rows that
- * carry only an `agent_id`) can still render a human name -- it is a fallback label, never
- * a value that overrides or invents data from a real fetch.
+ * Display names (displayName/shortName/llmDisplayName/rulesDisplayName and the
+ * getAgentDisplayName()/getBasePersonaName() resolvers below) all delegate to the one shared
+ * name map in src/lib/agentNames.ts -- Aritro's short names (Jimmy, Pete, Howie, RJ, Varsity,
+ * and their "... Core" rules twins). This file itself only owns the philosophy/school/horizon
+ * copy, which is unrelated to which name is shown.
  */
 
 export interface PersonaMeta {
@@ -38,8 +40,8 @@ export const CANONICAL_PERSONAS: Record<string, PersonaMeta> = {
   simons: {
     id: 'simons',
     baseKey: 'simons',
-    displayName: 'Jim Simons',
-    shortName: 'Jim Simons',
+    displayName: getAgentName('simons'),
+    shortName: getAgentName('simons'),
     isRules: false,
     philosophy: 'Quantitative Momentum',
     school: 'Statistical Momentum & Volatility Parity',
@@ -48,8 +50,8 @@ export const CANONICAL_PERSONAS: Record<string, PersonaMeta> = {
   'baseline-simons-rules': {
     id: 'baseline-simons-rules',
     baseKey: 'simons',
-    displayName: 'Baseline Simons Rules',
-    shortName: 'Simons Rules',
+    displayName: getAgentName('baseline-simons-rules'),
+    shortName: getAgentName('baseline-simons-rules'),
     isRules: true,
     philosophy: 'Quantitative Momentum',
     school: 'Statistical Momentum & Volatility Parity',
@@ -60,8 +62,8 @@ export const CANONICAL_PERSONAS: Record<string, PersonaMeta> = {
   varsity: {
     id: 'varsity',
     baseKey: 'varsity',
-    displayName: 'StockMinds Core',
-    shortName: 'StockMinds Core',
+    displayName: getAgentName('varsity'),
+    shortName: getAgentName('varsity'),
     isRules: false,
     philosophy: 'Dual-Confluence Swing',
     school: 'Dual Confluence · Solvency DCF + EMA Momentum',
@@ -70,8 +72,8 @@ export const CANONICAL_PERSONAS: Record<string, PersonaMeta> = {
   'stockminds-core': {
     id: 'stockminds-core',
     baseKey: 'varsity',
-    displayName: 'StockMinds Core',
-    shortName: 'StockMinds Core',
+    displayName: getAgentName('stockminds-core'),
+    shortName: getAgentName('stockminds-core'),
     isRules: false,
     philosophy: 'Dual-Confluence Swing',
     school: 'Dual Confluence · Solvency DCF + EMA Momentum',
@@ -80,8 +82,8 @@ export const CANONICAL_PERSONAS: Record<string, PersonaMeta> = {
   'baseline-varsity-rules': {
     id: 'baseline-varsity-rules',
     baseKey: 'varsity',
-    displayName: 'Baseline Varsity Rules',
-    shortName: 'Varsity Rules',
+    displayName: getAgentName('baseline-varsity-rules'),
+    shortName: getAgentName('baseline-varsity-rules'),
     isRules: true,
     philosophy: 'Dual-Confluence Swing',
     school: 'Dual Confluence · Solvency DCF + EMA Momentum',
@@ -92,8 +94,8 @@ export const CANONICAL_PERSONAS: Record<string, PersonaMeta> = {
   lynch: {
     id: 'lynch',
     baseKey: 'lynch',
-    displayName: 'Peter Lynch',
-    shortName: 'Peter Lynch',
+    displayName: getAgentName('lynch'),
+    shortName: getAgentName('lynch'),
     isRules: false,
     philosophy: 'GARP Compounding',
     school: 'GARP Framework · PEG Ratio <= 1.0 · Durable ROCE',
@@ -102,8 +104,8 @@ export const CANONICAL_PERSONAS: Record<string, PersonaMeta> = {
   'baseline-lynch-rules': {
     id: 'baseline-lynch-rules',
     baseKey: 'lynch',
-    displayName: 'Baseline Lynch Rules',
-    shortName: 'Lynch Rules',
+    displayName: getAgentName('baseline-lynch-rules'),
+    shortName: getAgentName('baseline-lynch-rules'),
     isRules: true,
     philosophy: 'GARP Compounding',
     school: 'GARP Framework · PEG Ratio <= 1.0 · Durable ROCE',
@@ -114,8 +116,8 @@ export const CANONICAL_PERSONAS: Record<string, PersonaMeta> = {
   marks: {
     id: 'marks',
     baseKey: 'marks',
-    displayName: 'Howard Marks',
-    shortName: 'Howard Marks',
+    displayName: getAgentName('marks'),
+    shortName: getAgentName('marks'),
     isRules: false,
     philosophy: 'Contrarian Value',
     school: 'Second-Level Thinking · Cyclical Distress · Margin of Safety',
@@ -124,8 +126,8 @@ export const CANONICAL_PERSONAS: Record<string, PersonaMeta> = {
   'baseline-marks-rules': {
     id: 'baseline-marks-rules',
     baseKey: 'marks',
-    displayName: 'Baseline Marks Rules',
-    shortName: 'Marks Rules',
+    displayName: getAgentName('baseline-marks-rules'),
+    shortName: getAgentName('baseline-marks-rules'),
     isRules: true,
     philosophy: 'Contrarian Value',
     school: 'Second-Level Thinking · Cyclical Distress · Margin of Safety',
@@ -136,8 +138,8 @@ export const CANONICAL_PERSONAS: Record<string, PersonaMeta> = {
   jhunjhunwala: {
     id: 'jhunjhunwala',
     baseKey: 'jhunjhunwala',
-    displayName: 'Rakesh Jhunjhunwala',
-    shortName: 'Rakesh Jhunjhunwala',
+    displayName: getAgentName('jhunjhunwala'),
+    shortName: getAgentName('jhunjhunwala'),
     isRules: false,
     philosophy: 'Secular Domestic Growth',
     school: 'Structural Compounding · Promoter Skin-in-the-Game',
@@ -146,8 +148,8 @@ export const CANONICAL_PERSONAS: Record<string, PersonaMeta> = {
   'baseline-rj-rules': {
     id: 'baseline-rj-rules',
     baseKey: 'jhunjhunwala',
-    displayName: 'Baseline Jhunjhunwala Rules',
-    shortName: 'Jhunjhunwala Rules',
+    displayName: getAgentName('baseline-rj-rules'),
+    shortName: getAgentName('baseline-rj-rules'),
     isRules: true,
     philosophy: 'Secular Domestic Growth',
     school: 'Structural Compounding · Promoter Skin-in-the-Game',
@@ -163,11 +165,11 @@ export const PHILOSOPHY_PAIRS: PhilosophyPair[] = [
     id: 'simons',
     personaKey: 'simons',
     name: 'Quantitative Momentum',
-    shortLabel: 'Jim Simons',
+    shortLabel: getAgentName('simons'),
     llmId: 'simons',
     rulesId: 'baseline-simons-rules',
-    llmDisplayName: 'Jim Simons',
-    rulesDisplayName: 'Baseline Simons Rules',
+    llmDisplayName: getAgentName('simons'),
+    rulesDisplayName: getAgentName('baseline-simons-rules'),
     philosophy: 'Quantitative Momentum',
     school: 'Statistical Momentum & Volatility Parity',
     horizon: '1–10 Days',
@@ -176,11 +178,11 @@ export const PHILOSOPHY_PAIRS: PhilosophyPair[] = [
     id: 'varsity',
     personaKey: 'varsity',
     name: 'Dual-Confluence Swing',
-    shortLabel: 'StockMinds Core',
+    shortLabel: getAgentName('varsity'),
     llmId: 'varsity',
     rulesId: 'baseline-varsity-rules',
-    llmDisplayName: 'StockMinds Core',
-    rulesDisplayName: 'Baseline Varsity Rules',
+    llmDisplayName: getAgentName('varsity'),
+    rulesDisplayName: getAgentName('baseline-varsity-rules'),
     philosophy: 'Dual-Confluence Swing',
     school: 'Dual Confluence · Solvency DCF + EMA Momentum',
     horizon: '5–20 Days',
@@ -189,11 +191,11 @@ export const PHILOSOPHY_PAIRS: PhilosophyPair[] = [
     id: 'lynch',
     personaKey: 'lynch',
     name: 'GARP Compounding',
-    shortLabel: 'Peter Lynch',
+    shortLabel: getAgentName('lynch'),
     llmId: 'lynch',
     rulesId: 'baseline-lynch-rules',
-    llmDisplayName: 'Peter Lynch',
-    rulesDisplayName: 'Baseline Lynch Rules',
+    llmDisplayName: getAgentName('lynch'),
+    rulesDisplayName: getAgentName('baseline-lynch-rules'),
     philosophy: 'GARP Compounding',
     school: 'GARP Framework · PEG Ratio <= 1.0 · Durable ROCE',
     horizon: '15–60 Days',
@@ -202,11 +204,11 @@ export const PHILOSOPHY_PAIRS: PhilosophyPair[] = [
     id: 'marks',
     personaKey: 'marks',
     name: 'Contrarian Value',
-    shortLabel: 'Howard Marks',
+    shortLabel: getAgentName('marks'),
     llmId: 'marks',
     rulesId: 'baseline-marks-rules',
-    llmDisplayName: 'Howard Marks',
-    rulesDisplayName: 'Baseline Marks Rules',
+    llmDisplayName: getAgentName('marks'),
+    rulesDisplayName: getAgentName('baseline-marks-rules'),
     philosophy: 'Contrarian Value',
     school: 'Second-Level Thinking · Cyclical Distress · Margin of Safety',
     horizon: '30–90 Days',
@@ -215,11 +217,11 @@ export const PHILOSOPHY_PAIRS: PhilosophyPair[] = [
     id: 'jhunjhunwala',
     personaKey: 'jhunjhunwala',
     name: 'Secular Domestic Growth',
-    shortLabel: 'Rakesh Jhunjhunwala',
+    shortLabel: getAgentName('jhunjhunwala'),
     llmId: 'jhunjhunwala',
     rulesId: 'baseline-rj-rules',
-    llmDisplayName: 'Rakesh Jhunjhunwala',
-    rulesDisplayName: 'Baseline Jhunjhunwala Rules',
+    llmDisplayName: getAgentName('jhunjhunwala'),
+    rulesDisplayName: getAgentName('baseline-rj-rules'),
     philosophy: 'Secular Domestic Growth',
     school: 'Structural Compounding · Promoter Skin-in-the-Game',
     horizon: '90–180 Days',
@@ -227,47 +229,23 @@ export const PHILOSOPHY_PAIRS: PhilosophyPair[] = [
 ];
 
 /**
- * Resolver function to retrieve the real backend display name for any agentId or raw name
- * string. This is a fallback label for the handful of places with no live leaderboard fetch
- * in scope -- wherever a page already has a fetched agent/leaderboard entry, prefer its own
- * `.name` field over this resolver.
+ * Resolver for any agentId (or, failing that, a raw name string) -- delegates to the shared
+ * agentNames.ts map. This is a fallback label for the handful of places with no live
+ * leaderboard fetch in scope; wherever a page already has a fetched agent/leaderboard entry,
+ * prefer calling getAgentName(id, entry.name) directly over this.
  */
 export function getAgentDisplayName(agentIdOrName: string): string {
   if (!agentIdOrName) return 'Agent';
   const clean = agentIdOrName.trim();
   const lower = clean.toLowerCase();
 
-  // Direct ID hit
-  if (CANONICAL_PERSONAS[clean]) {
-    return CANONICAL_PERSONAS[clean].displayName;
-  }
-  if (CANONICAL_PERSONAS[lower]) {
-    return CANONICAL_PERSONAS[lower].displayName;
-  }
+  if (CANONICAL_PERSONAS[clean]) return CANONICAL_PERSONAS[clean].displayName;
+  if (CANONICAL_PERSONAS[lower]) return CANONICAL_PERSONAS[lower].displayName;
 
-  const isRules =
-    lower.startsWith('baseline-') ||
-    lower.includes('rules') ||
-    lower.includes('control');
+  // Not a known id -- try it as a raw id anyway, then fall back to cleaning up the string.
+  const direct = getAgentName(lower, '');
+  if (direct) return direct;
 
-  // Substring match by persona key
-  if (lower.includes('simons')) {
-    return isRules ? 'Baseline Simons Rules' : 'Jim Simons';
-  }
-  if (lower.includes('varsity') || lower.includes('stockminds')) {
-    return isRules ? 'Baseline Varsity Rules' : 'StockMinds Core';
-  }
-  if (lower.includes('lynch')) {
-    return isRules ? 'Baseline Lynch Rules' : 'Peter Lynch';
-  }
-  if (lower.includes('marks')) {
-    return isRules ? 'Baseline Marks Rules' : 'Howard Marks';
-  }
-  if (lower.includes('jhunjhunwala') || lower.includes('rj')) {
-    return isRules ? 'Baseline Jhunjhunwala Rules' : 'Rakesh Jhunjhunwala';
-  }
-
-  // Fallback cleanup
   return clean
     .replace(/\s*\([^)]*\)/gi, '')
     .replace(/\s*rules\s*/gi, '')
@@ -289,10 +267,10 @@ export function isRulesStrategy(agentIdOrName: string): boolean {
 }
 
 /**
- * Returns the base persona name without the "Baseline ... Rules" wrapper
- * (e.g. "Jim Simons", "Peter Lynch", "Howard Marks", "Rakesh Jhunjhunwala", "StockMinds Core").
+ * Returns the base persona's short name without the " Core" rules-twin suffix
+ * (e.g. "Jimmy", "Pete", "Howie", "RJ", "Varsity").
  */
 export function getBasePersonaName(agentIdOrName: string): string {
   const full = getAgentDisplayName(agentIdOrName);
-  return full.replace(/^Baseline\s+/i, '').replace(/\s+Rules$/i, '');
+  return full.replace(/\s+Core$/i, '');
 }
