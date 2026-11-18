@@ -76,10 +76,10 @@
   --glow-box-border: rgba(60, 90, 80, 0.35);
 
   /* Static glow for the #1 Home "Live Standings" row (.top-row-step--first-glow). */
-  --top1-glow-border: rgba(16, 185, 129, 0.55);
-  --top1-glow-bg: rgba(16, 185, 129, 0.06);
-  --top1-glow-shadow-1: rgba(16, 185, 129, 0.22);
-  --top1-glow-shadow-2: rgba(16, 185, 129, 0.10);
+  --top1-glow-border: rgba(16, 185, 129, 0.28);
+  --top1-glow-bg: rgba(16, 185, 129, 0.03);
+  --top1-glow-shadow-1: rgba(16, 185, 129, 0.09);
+  --top1-glow-shadow-2: rgba(16, 185, 129, 0.04);
 }
 
 .font-display {
@@ -614,7 +614,7 @@ select:focus-visible {
 .top-row-step--first-glow {
   border-color: var(--top1-glow-border);
   background-color: var(--top1-glow-bg);
-  box-shadow: 0 0 18px var(--top1-glow-shadow-1), 0 0 40px var(--top1-glow-shadow-2);
+  box-shadow: 0 0 12px var(--top1-glow-shadow-1), 0 0 28px var(--top1-glow-shadow-2);
 }
 
 .top-row-step--first-rank {
@@ -643,7 +643,7 @@ select:focus-visible {
     transition: none;
     border-color: var(--top1-glow-border);
     background-color: var(--top1-glow-bg);
-    box-shadow: 0 0 18px var(--top1-glow-shadow-1), 0 0 40px var(--top1-glow-shadow-2);
+    box-shadow: 0 0 12px var(--top1-glow-shadow-1), 0 0 28px var(--top1-glow-shadow-2);
   }
 }
 

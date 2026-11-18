@@ -1,6 +1,7 @@
 # Credentials
 .env
 .env.*
+!dashboard/.env.example
 *.pem
 *.key
 
