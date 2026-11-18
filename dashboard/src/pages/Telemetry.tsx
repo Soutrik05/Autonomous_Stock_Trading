@@ -199,6 +199,7 @@ export default function Telemetry() {
           </h2>
         </div>
 
+        <div className="glow-box rounded-lg">
         <div className="overflow-x-auto border border-border-hairline bg-[#161616] rounded-lg">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -290,6 +291,7 @@ export default function Telemetry() {
             </tbody>
           </table>
         </div>
+        </div>
       </section>
 
       {/* 3. ACTIVITY & AUDIT EVENT LOG */}
@@ -339,6 +341,7 @@ export default function Telemetry() {
         </div>
 
         {/* Ledger Table */}
+        <div className="glow-box rounded-lg">
         <div className="overflow-x-auto border border-border-hairline bg-[#161616] rounded-t-lg">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -426,6 +429,7 @@ export default function Telemetry() {
             </div>
           </div>
         )}
+        </div>
       </section>
 
     </div>

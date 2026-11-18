@@ -660,6 +660,7 @@ export default function Backtest() {
         </div>
 
         {/* Synthesis Matrix Table */}
+        <div className="glow-box rounded-lg">
         <div className="overflow-x-auto border border-border-hairline bg-[#161616] rounded-lg">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -825,9 +826,10 @@ export default function Backtest() {
             </tfoot>
           </table>
         </div>
+        </div>
 
         {/* Post-Table Research Synthesis & Statistical Disclosures */}
-        <div className="border border-border-hairline bg-surface-inset rounded-xl p-5 sm:p-6 space-y-3 font-sans">
+        <div className="glow-box border border-border-hairline bg-surface-inset rounded-xl p-5 sm:p-6 space-y-3 font-sans">
           {/* Full-Width Executive Research Synthesis */}
           <div className="space-y-1.5 w-full">
             <h3 className="text-base sm:text-lg font-display font-medium text-white leading-snug">
@@ -934,7 +936,7 @@ export default function Backtest() {
         </div>
 
         {/* PRIMARY 2-SECOND SCANNABLE VISUAL: Grouped Bar Chart (LLM vs Rules vs Nifty-500) */}
-        <div className="border border-border-hairline bg-surface-inset rounded-xl p-5 sm:p-6 space-y-4">
+        <div className="glow-box border border-border-hairline bg-surface-inset rounded-xl p-5 sm:p-6 space-y-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
             <div>
               <p className="text-xs text-zinc-400 font-mono mt-0.5">
@@ -1039,6 +1041,7 @@ export default function Backtest() {
             </div>
           </div>
 
+          <div className="glow-box rounded-lg">
           <div className="overflow-x-auto border border-border-hairline bg-[#161616] rounded-lg">
             <table className="w-full text-left border-collapse">
               <thead>
@@ -1112,9 +1115,11 @@ export default function Backtest() {
               </tbody>
             </table>
           </div>
+          </div>
         </div>
 
         {/* 5. Daily Portfolio Value, All 11 Agents (Plain Language Drawer) */}
+        <div className="glow-box rounded-xl">
         <div className="border border-border-hairline bg-surface-inset rounded-xl overflow-hidden">
           <button
             onClick={() => setShowNavCurves(!showNavCurves)}
@@ -1142,6 +1147,7 @@ export default function Backtest() {
               )}
             </div>
           )}
+        </div>
         </div>
       </section>
 

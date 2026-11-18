@@ -174,6 +174,7 @@ export default function Comparison() {
       </div>
 
       {/* 2. SYMMETRIC PERFORMANCE MATRIX: DELTA AS HERO (HIGH LEGIBILITY) */}
+      <div className="glow-box rounded-lg">
       <div className="overflow-x-auto border border-border-hairline bg-[#161616] rounded-lg">
         <table className="w-full text-left border-collapse">
           <thead>
@@ -310,9 +311,10 @@ export default function Comparison() {
           </tbody>
         </table>
       </div>
+      </div>
 
       {/* 3. NET COGNITIVE ALPHA DIVERGING BAR CHART */}
-      <div className="border border-border-hairline bg-surface-inset rounded-lg p-5 sm:p-6 space-y-5">
+      <div className="glow-box border border-border-hairline bg-surface-inset rounded-lg p-5 sm:p-6 space-y-5">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-border-hairline pb-4">
           <div>
             <h3 className="font-display font-medium text-base sm:text-lg text-white">
