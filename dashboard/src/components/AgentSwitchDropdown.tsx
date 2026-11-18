@@ -1,32 +1,41 @@
 import { useEffect, useRef, useState, useLayoutEffect } from 'react';
+import type { ReactNode, RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
 import type { AgentLeaderboardEntry } from '../types';
-import { getAgentLabel } from '../lib/agentNames';
+import { getAgentName, LLM_IDS, RULES_IDS } from '../lib/agentNames';
 import { formatPct } from '../utils/formatters';
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
 import { cn } from '../utils/cn';
 
-/** The 5 LLM agents and their 5 Rules twins, in the one shared order used everywhere else
- * in the Agent Terminal (Simons, Lynch, Marks, Jhunjhunwala, Core). Ids are the real backend
- * agent ids (confirmed against GET /api/leaderboard) -- routes are built from them via the
- * existing `/portfolio/:id` route, never a hard-coded URL. */
-const LLM_IDS = ['simons', 'lynch', 'marks', 'jhunjhunwala', 'varsity'];
-const RULES_IDS = ['baseline-simons-rules', 'baseline-lynch-rules', 'baseline-marks-rules', 'baseline-rj-rules', 'baseline-varsity-rules'];
 const ALL_IDS = [...LLM_IDS, ...RULES_IDS];
 
 interface AgentSwitchDropdownProps {
-  /** Shown in the trigger button, e.g. "Switch agent" or "Compare agent". */
+  /** Shown in the trigger button, e.g. "Switch agent" or "Compare agent". Ignored when
+   * `renderTrigger` is given. */
   triggerLabel?: string;
-  /** Row(s) to highlight as "where you are". A single id (Agent Terminal) or several
-   * (Comparison highlights both rows of the current pair). */
+  /** Row(s) to highlight in blue as "where you are" / "what's in this slot". */
   highlightIds: string[];
+  /** Greys out this one row (opacity, not clickable) -- e.g. the OTHER slot's current pick
+   * on the Comparison page, so the same agent can't land in both slots. */
+  disabledId?: string;
+  /** Short note appended to the disabled row, e.g. "(in slot A)". */
+  disabledNote?: string;
   /** Agent Terminal: navigates to `/portfolio/:id`. Comparison: omit this and pass `onSelect`
    * instead to just change the selected pair without leaving the page. */
   currentTab?: string;
   onSelect?: (id: string) => void;
   leaderboard: AgentLeaderboardEntry[];
+  /** Controlled open state (Comparison's two independent pickers share this component but
+   * each owns its own open/close). Omit for the default self-managed single trigger+panel
+   * (Agent Terminal). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** Renders a custom trigger instead of the default "Switch agent" button -- attach `ref`
+   * and `onClick` to whatever element should open the panel (Comparison's colored name
+   * buttons). The panel still anchors to that same element. */
+  renderTrigger?: (props: { ref: RefObject<HTMLButtonElement | null>; onClick: () => void; open: boolean }) => ReactNode;
 }
 
 function ReturnBadge({ returnPct }: { returnPct: number | null | undefined }) {
@@ -49,21 +58,31 @@ function ReturnBadge({ returnPct }: { returnPct: number | null | undefined }) {
 
 /**
  * "Switch agent" / "Compare agent" button + portal-rendered panel, shared by the Agent
- * Terminal header and the Comparison page. Lists all 10 real agents (5 LLM + their 5 Rules
- * twins) with today's real return from the leaderboard fetch the caller already made (no
- * extra request), highlights the current agent(s), and either navigates to that agent's
- * Terminal page or calls `onSelect` to just switch the selected pair in place. Rendered via
- * a portal into document.body so it is never clipped by an ancestor's overflow/rounded-
- * corner clipping.
+ * Terminal header and the Comparison page's two pickers. Lists all 10 real agents (5 LLM +
+ * their 5 Rules twins) with today's real return from the leaderboard fetch the caller
+ * already made (no extra request), highlights the relevant agent(s), optionally greys out
+ * one row that's unavailable, and either navigates to that agent's Terminal page or calls
+ * `onSelect` to just change a pick in place. Rendered via a portal into document.body so it
+ * is never clipped by an ancestor's overflow/rounded-corner clipping.
  */
 export default function AgentSwitchDropdown({
   triggerLabel = 'Switch agent',
   highlightIds,
+  disabledId,
+  disabledNote,
   currentTab,
   onSelect,
   leaderboard,
+  open: controlledOpen,
+  onOpenChange,
+  renderTrigger,
 }: AgentSwitchDropdownProps) {
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const open = controlledOpen ?? uncontrolledOpen;
+  const setOpen = (next: boolean) => {
+    if (onOpenChange) onOpenChange(next);
+    else setUncontrolledOpen(next);
+  };
   const [coords, setCoords] = useState<{ top: number; left: number; width: number } | null>(null);
   const [, setFocusedIndex] = useState<number>(-1);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -136,6 +155,7 @@ export default function AgentSwitchDropdown({
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKey);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   function openPanel() {
@@ -144,6 +164,7 @@ export default function AgentSwitchDropdown({
   }
 
   function choose(id: string) {
+    if (id === disabledId) return;
     setOpen(false);
     buttonRef.current?.focus();
     if (onSelect) {
@@ -155,19 +176,29 @@ export default function AgentSwitchDropdown({
 
   function renderRow(id: string, badge: 'LLM' | 'RULES') {
     const isCurrent = highlightIds.includes(id);
-    const name = getAgentLabel(id);
+    const isDisabled = id === disabledId;
+    const name = getAgentName(id);
     return (
       <a
         key={id}
         ref={(el) => { rowRefs.current[id] = el; }}
-        href={onSelect ? undefined : `/portfolio/${id}?tab=${currentTab ?? 'holdings'}`}
+        href={isDisabled || onSelect ? undefined : `/portfolio/${id}?tab=${currentTab ?? 'holdings'}`}
+        aria-disabled={isDisabled || undefined}
+        tabIndex={isDisabled ? -1 : undefined}
         onClick={(e) => {
           e.preventDefault();
-          choose(id);
+          if (!isDisabled) choose(id);
         }}
-        className={cn('agent-switch-row', isCurrent && 'agent-switch-row--current')}
+        className={cn(
+          'agent-switch-row',
+          isCurrent && !isDisabled && 'agent-switch-row--current',
+          isDisabled && 'agent-switch-row--disabled'
+        )}
       >
-        <span className="agent-switch-row__name">{name}</span>
+        <span className="agent-switch-row__name">
+          {name}
+          {isDisabled && disabledNote && <span className="agent-switch-row__note"> {disabledNote}</span>}
+        </span>
         <span className="agent-switch-row__tag">{badge === 'LLM' ? 'LLM' : 'Rules'}</span>
         <ReturnBadge returnPct={returnById(id)} />
       </a>
@@ -195,19 +226,25 @@ export default function AgentSwitchDropdown({
     </div>
   ) : null;
 
+  const toggle = () => (open ? setOpen(false) : openPanel());
+
   return (
     <>
-      <button
-        ref={buttonRef}
-        type="button"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => (open ? setOpen(false) : openPanel())}
-        className="agent-switch-trigger"
-      >
-        <span>{triggerLabel}</span>
-        <ChevronDown className={cn('w-3.5 h-3.5 transition-transform duration-150', open && 'rotate-180')} />
-      </button>
+      {renderTrigger ? (
+        renderTrigger({ ref: buttonRef, onClick: toggle, open })
+      ) : (
+        <button
+          ref={buttonRef}
+          type="button"
+          aria-haspopup="menu"
+          aria-expanded={open}
+          onClick={toggle}
+          className="agent-switch-trigger"
+        >
+          <span>{triggerLabel}</span>
+          <ChevronDown className={cn('w-3.5 h-3.5 transition-transform duration-150', open && 'rotate-180')} />
+        </button>
+      )}
       {panel && createPortal(panel, document.body)}
     </>
   );

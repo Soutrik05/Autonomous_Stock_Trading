@@ -873,6 +873,25 @@ select:focus-visible {
   background: var(--alloc-cash);
 }
 
+/* Comparison page heading name pickers (Comparison.tsx / SlotNameButton). */
+.comparison-name-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  line-height: 1.1;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.comparison-name-btn--open {
+  background: var(--blue-fill);
+  border: 1px solid var(--blue-border);
+}
+
 .comparison-bar-value {
   flex-shrink: 0;
   width: 70px;
@@ -1067,6 +1086,17 @@ select:focus-visible {
 .agent-switch-row--current {
   background: var(--blue-fill);
   border: 1px solid var(--blue-border);
+}
+
+.agent-switch-row--disabled {
+  opacity: 0.35;
+  cursor: default;
+  pointer-events: none;
+}
+
+.agent-switch-row__note {
+  color: #757575;
+  font-size: 11px;
 }
 
 .agent-switch-row__name {

@@ -14,6 +14,12 @@
  * "Schools of Thought" copy, where the full real name (e.g. "Peter Lynch") is the point --
  * those are philosophy/biography titles, not agent-data labels.
  */
+/** The 5 LLM agents and their 5 Rules twins, in the one shared order used throughout the
+ * Agent Terminal and the Comparison page (Simons, Lynch, Marks, Jhunjhunwala, Varsity). Real
+ * backend agent ids (confirmed against GET /api/leaderboard). */
+export const LLM_IDS = ['simons', 'lynch', 'marks', 'jhunjhunwala', 'varsity'];
+export const RULES_IDS = ['baseline-simons-rules', 'baseline-lynch-rules', 'baseline-marks-rules', 'baseline-rj-rules', 'baseline-varsity-rules'];
+
 export const AGENT_SHORT_NAMES: Record<string, string> = {
   simons: 'Jimmy',
   'baseline-simons-rules': 'Jimmy Core',

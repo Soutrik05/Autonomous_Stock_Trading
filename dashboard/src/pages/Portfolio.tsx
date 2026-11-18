@@ -138,6 +138,16 @@ export default function Portfolio() {
   const routeParam = id || agentId || 'simons';
   const currentAgentId = (routeParam === 'stockminds-core' ? 'varsity' : routeParam) as AgentId;
 
+  // Remembered so the Comparison page can default to "this agent vs its twin" when it has
+  // no ?a=&b= of its own yet.
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('stockminds_last_agent', currentAgentId);
+    } catch {
+      /* ignore */
+    }
+  }, [currentAgentId]);
+
   const [agent, setAgent] = useState<AgentLeaderboardEntry | null>(null);
   const [leaderboard, setLeaderboard] = useState<AgentLeaderboardEntry[]>([]);
   const [positions, setPositions] = useState<Position[]>([]);
