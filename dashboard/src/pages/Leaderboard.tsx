@@ -11,6 +11,7 @@ export default function Leaderboard() {
   const [navHistory, setNavHistory] = useState<NavHistoryPoint[]>([]);
   const [marketContext, setMarketContext] = useState<MarketContext | null>(null);
   const [strategyFilter, setStrategyFilter] = useState<'ALL' | 'LLM' | 'RULES'>('ALL');
+  const [showRiskMetrics, setShowRiskMetrics] = useState(false);
   const [chartMode, setChartMode] = useState<'COMPOSITE' | 'PERSONAS'>('COMPOSITE');
   const [loading, setLoading] = useState(true);
 
@@ -148,7 +149,7 @@ export default function Leaderboard() {
       <div className="max-w-7xl mx-auto px-4 py-28 flex justify-center items-center">
         <div className="flex items-center gap-3 text-zinc-500 font-mono text-xs">
           <div className="w-4 h-4 border-2 border-brand-blue border-t-transparent rounded-full animate-spin" />
-          <span>Synchronizing live agent telemetry...</span>
+          <span>Synchronizing leaderboard data...</span>
         </div>
       </div>
     );
@@ -203,17 +204,52 @@ export default function Leaderboard() {
                 </button>
               ))}
             </div>
+
+            {/* View Mode Toggle: Core View vs Risk Stats */}
+            <div
+              role="group"
+              aria-label="Table view mode"
+              className="flex items-center gap-1 p-0.5 rounded-md bg-surface-well border border-border-hairline text-xs font-mono flex-shrink-0"
+            >
+              <button
+                onClick={() => setShowRiskMetrics(false)}
+                className={cn(
+                  'px-3 py-1.5 rounded transition-colors cursor-pointer text-xs font-medium',
+                  !showRiskMetrics
+                    ? 'bg-brand-blue-soft text-brand-blue-text font-medium border border-brand-blue'
+                    : 'text-zinc-400 hover:text-white border border-transparent'
+                )}
+              >
+                Core View
+              </button>
+              <button
+                onClick={() => setShowRiskMetrics(true)}
+                className={cn(
+                  'px-3 py-1.5 rounded transition-colors cursor-pointer text-xs font-medium',
+                  showRiskMetrics
+                    ? 'bg-brand-blue-soft text-brand-blue-text font-medium border border-brand-blue'
+                    : 'text-zinc-400 hover:text-white border border-transparent'
+                )}
+              >
+                Risk Stats
+              </button>
+            </div>
           </div>
         </div>
 
-        <BenchmarkMatrixTable agents={filtered} navHistory={navHistory} isCompact={false} />
+        <BenchmarkMatrixTable
+          agents={filtered}
+          navHistory={navHistory}
+          isCompact={false}
+          showRiskMetrics={showRiskMetrics}
+        />
       </section>
 
       {/* 2. TRAJECTORY VISUALIZATION */}
       <section className="space-y-3">
         <SectionHeader
           title="Observed Return Curves"
-          subtitle="Walk-forward daily equity trajectories from inception seed (₹5L per agent) against the NSE Nifty 500 index."
+          subtitle="Daily equity trajectories from initial seed capital against the NSE Nifty 500 index."
         />
 
         <div className="glow-box rounded-lg">

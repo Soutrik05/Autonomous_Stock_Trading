@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, Query
 
 from api.deps import portfolio_conn, require_agent, to_ist_iso
 from api.schemas import CitedMetric, Decision, Order, Position, WatchlistItem
+from core.clock import SystemClock
 from core.config import settings
 
 router = APIRouter(prefix="/api/agents", tags=["portfolio"])
@@ -49,8 +50,8 @@ def get_agent_positions(
 
     rows = conn.execute(query, params).fetchall()
 
-    # Query 1-day change from OHLCV store for all tickers
-    day_changes: dict[str, tuple[Optional[int], Optional[float]]] = {}
+    # Query historical daily closes from OHLCV store for all tickers to calculate 1D price change
+    ticker_history: dict[str, list[tuple[str, float]]] = {}
     tickers = list({r["ticker"] for r in rows if r["ticker"]})
     if tickers:
         ohlcv_path = Path(settings.OHLCV_DB_PATH).resolve()
@@ -61,30 +62,27 @@ def get_agent_positions(
                 c_rows = m_conn.execute(
                     f"""
                     WITH ranked AS (
-                        SELECT ticker, close, ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY trade_date DESC) as rn
+                        SELECT ticker, trade_date, close, ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY trade_date DESC) as rn
                         FROM ohlcv
                         WHERE ticker IN ({placeholders})
                     )
-                    SELECT 
-                        c1.ticker,
-                        c1.close as latest_close,
-                        c2.close as prev_close
-                    FROM ranked c1
-                    JOIN ranked c2 ON c1.ticker = c2.ticker AND c2.rn = 2
-                    WHERE c1.rn = 1
+                    SELECT ticker, trade_date, close
+                    FROM ranked
+                    WHERE rn <= 2
+                    ORDER BY ticker, rn ASC
                     """,
                     tickers,
                 ).fetchall()
                 for cr in c_rows:
-                    t, curr, prev = cr[0], cr[1], cr[2]
-                    if prev and prev > 0:
-                        diff_paise = round((curr - prev) * 100)
-                        diff_pct = round(((curr - prev) / prev) * 100.0, 2)
-                        day_changes[t] = (diff_paise, diff_pct)
+                    t, t_date, c = cr[0], cr[1], cr[2]
+                    if t not in ticker_history:
+                        ticker_history[t] = []
+                    ticker_history[t].append((t_date, c))
                 m_conn.close()
             except Exception:
                 pass
 
+    today_str = SystemClock().today().isoformat()
     positions = []
     for r in rows:
         is_open = r["status"] == "OPEN"
@@ -96,7 +94,27 @@ def get_agent_positions(
             unrealized_pnl_paise = 0
             unrealized_pnl_pct = 0.0
 
-        d_paise, d_pct = day_changes.get(r["ticker"], (None, None))
+        # Calculate 1D change: current price (LTP) - previous trading session's close price
+        d_paise = None
+        d_pct = None
+        current_price = r["last_price_paise"] or r["avg_entry_price_paise"]
+        hist = ticker_history.get(r["ticker"], [])
+        if current_price and hist:
+            c1_date, c1_close = hist[0]
+            c2_close = hist[1][1] if len(hist) > 1 else None
+
+            # Determine previous trading day's close:
+            # If c1 is already today's close (synced at EOD or close matches current price),
+            # previous close is c2. Otherwise, c1 is yesterday's close (intraday trading).
+            if (c1_date == today_str or round(c1_close * 100) == current_price) and c2_close is not None:
+                prev_close = c2_close
+            else:
+                prev_close = c1_close
+
+            if prev_close and prev_close > 0:
+                prev_close_paise = round(prev_close * 100)
+                d_paise = current_price - prev_close_paise
+                d_pct = round((d_paise / prev_close_paise) * 100.0, 2)
 
         positions.append(
             Position(

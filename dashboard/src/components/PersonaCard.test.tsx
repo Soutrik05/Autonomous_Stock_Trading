@@ -5,7 +5,7 @@ import PersonaCard, { type PersonaCardProps } from './PersonaCard';
 
 const baseProps: PersonaCardProps = {
   index: '01',
-  name: 'Jim Simons',
+  name: 'Jimmy',
   personaId: 'simons',
   inspiration: 'Renaissance Technologies',
   horizon: '1–10 Days',

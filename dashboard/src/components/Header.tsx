@@ -142,7 +142,7 @@ export default function Header({ onHeightChange }: HeaderProps) {
     { to: '/portfolio/simons', label: 'Agents Terminal' },
     { to: '/comparison', label: 'Comparison' },
     { to: '/backtest', label: 'Backtest' },
-    { to: '/pulse', label: 'Pulse' },
+    { to: '/telemetry', label: 'Telemetry' },
   ];
 
   return (

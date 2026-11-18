@@ -1,4 +1,5 @@
 import type { AgentWatchlistItem } from '../types';
+import { cn } from '../utils/cn';
 
 interface AgentWatchlistSectionProps {
   watchlist: AgentWatchlistItem[];
@@ -37,51 +38,57 @@ export default function AgentWatchlistSection({
         </div>
       </div>
 
-      {/* Clean Table: Zero Nested Borders */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-left font-mono text-xs">
+      {/* Clean Table: Standardized to Leaderboard Grid */}
+      <div className="overflow-x-auto border border-border-hairline bg-[#161616] rounded-lg">
+        <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="bg-[#121212] border-b border-border-hairline text-[11px] text-zinc-400">
-              <th className="py-3 px-4 sm:px-5 font-normal">Asset</th>
-              <th className="py-3 px-4 sm:px-5 font-normal">Sector</th>
-              <th className="py-3 px-4 sm:px-5 font-normal text-right">Setup Intensity</th>
-              <th className="py-3 px-4 sm:px-5 font-normal text-right">Added</th>
+            <tr className="bg-[#121212] border-b border-border-hairline text-xs sm:text-sm font-mono text-zinc-400 whitespace-nowrap">
+              <th className="py-3 px-3.5 font-normal">Asset</th>
+              <th className="py-3 px-3.5 font-normal">Sector</th>
+              <th className="py-3 px-3.5 font-normal text-right">Setup Intensity</th>
+              <th className="py-3 px-3.5 font-normal text-right">Added</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border-hairline text-zinc-300">
+          <tbody className="divide-y divide-border-hairline text-base font-sans whitespace-nowrap">
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={4} className="py-10 text-center text-zinc-400 text-xs">
+                <td colSpan={4} className="py-10 text-center font-mono text-zinc-500 text-sm">
                   No active candidates on watchlist. Screening pipeline runs daily at market close.
                 </td>
               </tr>
             ) : (
-              sorted.map((item) => {
+              sorted.map((item, idx) => {
                 const intensityRatio = Math.min(item.intensityScore / maxScore, 1);
 
                 return (
-                  <tr key={item.ticker} className="hover:bg-white/[0.02] transition-colors">
+                  <tr
+                    key={item.ticker}
+                    className={cn(
+                      "transition-colors group hover:bg-white/[0.03]",
+                      idx % 2 === 1 ? "bg-white/[0.01]" : "bg-transparent"
+                    )}
+                  >
                     {/* Ticker & Company Name */}
-                    <td className="py-3 px-4 sm:px-5">
+                    <td className="py-3 px-3.5">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-mono font-bold text-white text-sm">
+                        <span className="font-mono font-bold text-white text-base">
                           {item.ticker}
                         </span>
-                        <span className="text-zinc-400 text-xs font-sans truncate max-w-[180px] sm:max-w-[280px]">
+                        <span className="text-zinc-400 text-sm font-sans truncate max-w-[180px] sm:max-w-[280px]">
                           {item.companyName}
                         </span>
                       </div>
                     </td>
 
                     {/* Sector */}
-                    <td className="py-3 px-4 sm:px-5 text-zinc-400 text-xs font-sans">
+                    <td className="py-3 px-3.5 text-zinc-300 text-sm sm:text-base font-sans">
                       {item.sector}
                     </td>
 
                     {/* Intensity Score */}
-                    <td className="py-3 px-4 sm:px-5 text-right">
+                    <td className="py-3 px-3.5 text-right">
                       <div className="inline-flex flex-col items-end gap-1">
-                        <span className="text-white font-bold tabular-nums text-sm">
+                        <span className="text-white font-mono font-bold tabular-nums text-base">
                           {item.intensityScore.toFixed(2)}
                         </span>
                         <div className="w-16 h-1 bg-white/10 rounded-full overflow-hidden">
@@ -94,7 +101,7 @@ export default function AgentWatchlistSection({
                     </td>
 
                     {/* Added Date */}
-                    <td className="py-3 px-4 sm:px-5 text-right text-zinc-400 text-xs tabular-nums">
+                    <td className="py-3 px-3.5 text-right text-zinc-400 font-mono text-sm sm:text-base tabular-nums">
                       {item.addedOn}
                     </td>
                   </tr>

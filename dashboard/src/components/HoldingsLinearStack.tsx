@@ -68,20 +68,22 @@ export default function HoldingsLinearStack({
 
   // Intraday 1D price change on active holdings
   const activeDayChangePaise = activePositions.reduce((sum, pos) => {
-    const dayPct = pos.dayChangePct ?? 0.25;
-    return sum + (pos.dayChangePaise ?? Math.round(pos.quantity * pos.currentPricePaise * (dayPct / 100)));
+    if (pos.dayChangePaise !== undefined) {
+      return sum + (pos.quantity * pos.dayChangePaise);
+    }
+    const dayPct = pos.dayChangePct ?? 0;
+    return sum + Math.round(pos.quantity * pos.currentPricePaise * (dayPct / 100));
   }, 0);
 
-  const effectiveDayChangePaise = dayChangePaise ?? (
-    activePositions.length > 0
-      ? activeDayChangePaise
-      : 0
-  );
-  const effectiveDayChangePct = dayChangePct ?? (
-    currentInvestedValuationPaise > 0
-      ? (effectiveDayChangePaise / currentInvestedValuationPaise) * 100
-      : 0
-  );
+  const effectiveDayChangePaise = activePositions.length > 0
+    ? activeDayChangePaise
+    : (dayChangePaise ?? 0);
+  const prevInvestedValuationPaise = currentInvestedValuationPaise - effectiveDayChangePaise;
+  const effectiveDayChangePct = activePositions.length > 0
+    ? (prevInvestedValuationPaise > 0
+        ? (effectiveDayChangePaise / prevInvestedValuationPaise) * 100
+        : (currentInvestedValuationPaise > 0 ? (effectiveDayChangePaise / currentInvestedValuationPaise) * 100 : 0))
+    : (dayChangePct ?? 0);
   const isDayProfit = effectiveDayChangePaise >= 0;
 
   return (
@@ -192,9 +194,11 @@ export default function HoldingsLinearStack({
             const weightPct = effectiveNav > 0 ? (currentValuePaise / effectiveNav) * 100 : 0;
             const isProfit = pos.unrealizedPnlPaise >= 0;
 
-            const dayPct = pos.dayChangePct ?? 0.35;
-            const dayDiffPaise = pos.dayChangePaise ?? Math.round(pos.quantity * pos.currentPricePaise * (dayPct / 100));
-            const isDayProfit = dayPct >= 0;
+            const dayPct = pos.dayChangePct ?? 0;
+            const dayDiffPaise = pos.dayChangePaise !== undefined
+              ? pos.dayChangePaise
+              : (pos.currentPricePaise > 0 && dayPct !== 0 ? Math.round(pos.currentPricePaise * (dayPct / 100)) : 0);
+            const isDayProfit = (pos.dayChangePaise !== undefined ? pos.dayChangePaise : dayPct) >= 0;
 
             const stopLossPaise = pos.stopLossPaise;
             const stopDistancePct =

@@ -50,22 +50,22 @@ export default function ClosedTradesList({ positions }: ClosedTradesListProps) {
                 {/* Left: Ticker, Company, Forensic Badge, Trade Bounds */}
                 <div className="space-y-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-bold text-white text-sm sm:text-base tracking-tight font-mono">
+                    <span className="font-bold text-white text-base tracking-tight font-mono">
                       {pos.symbol}
                     </span>
                     {pos.companyName && (
-                      <span className="text-zinc-400 text-xs font-sans truncate max-w-[160px] sm:max-w-[280px]">
+                      <span className="text-zinc-400 text-sm font-sans truncate max-w-[160px] sm:max-w-[280px]">
                         {pos.companyName}
                       </span>
                     )}
                     {pos.forensicTag && pos.forensicTag !== 'NONE' && (
-                      <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-mono border", forensic.bg, forensic.text, forensic.border)}>
+                      <span className={cn("px-2 py-0.5 rounded text-xs font-mono border", forensic.bg, forensic.text, forensic.border)}>
                         {forensic.label}
                       </span>
                     )}
                   </div>
 
-                  <div className="text-[11px] text-zinc-400 flex flex-wrap items-center gap-x-2 gap-y-0.5 font-mono">
+                  <div className="text-xs sm:text-sm text-zinc-400 flex flex-wrap items-center gap-x-2 gap-y-0.5 font-mono">
                     <span>{pos.quantity} shares</span>
                     <span className="text-zinc-600">·</span>
                     <span>Entry {formatPaiseToRupees(pos.entryPricePaise)}</span>
@@ -81,7 +81,7 @@ export default function ClosedTradesList({ positions }: ClosedTradesListProps) {
                   <div className="space-y-0.5">
                     <div
                       className={cn(
-                        "text-sm sm:text-base font-bold tabular-nums",
+                        "text-base sm:text-lg font-bold tabular-nums",
                         isProfit ? "text-positive" : "text-negative"
                       )}
                     >
@@ -89,7 +89,7 @@ export default function ClosedTradesList({ positions }: ClosedTradesListProps) {
                     </div>
                     <div
                       className={cn(
-                        "text-xs font-semibold tabular-nums",
+                        "text-sm font-semibold tabular-nums",
                         isProfit ? "text-positive/90" : "text-negative/90"
                       )}
                     >
@@ -99,7 +99,7 @@ export default function ClosedTradesList({ positions }: ClosedTradesListProps) {
 
                   <button
                     onClick={() => setAutopsyTrade(pos)}
-                    className="px-2.5 py-1.5 rounded bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white border border-border-hairline text-xs font-mono transition-colors cursor-pointer"
+                    className="px-3 py-1.5 rounded bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white border border-border-hairline text-xs font-mono transition-colors cursor-pointer"
                   >
                     Autopsy ↗
                   </button>

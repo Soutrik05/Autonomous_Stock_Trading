@@ -1,4 +1,5 @@
 import React from 'react';
+import { getAgentDisplayName } from '../constants/personas';
 import {
   ResponsiveContainer,
   LineChart,
@@ -134,7 +135,7 @@ export const TrajectoryChart: React.FC<TrajectoryChartProps> = React.memo(({
                 <Line
                   type="monotone"
                   dataKey="simons"
-                  name="Jim Simons (LLM)"
+                  name={getAgentDisplayName('simons')}
                   stroke="#10B981"
                   strokeWidth={2}
                   dot={false}
@@ -142,7 +143,7 @@ export const TrajectoryChart: React.FC<TrajectoryChartProps> = React.memo(({
                 <Line
                   type="monotone"
                   dataKey="marks"
-                  name="Howard Marks (LLM)"
+                  name={getAgentDisplayName('marks')}
                   stroke="#38BDF8"
                   strokeWidth={1.5}
                   dot={false}
@@ -150,7 +151,7 @@ export const TrajectoryChart: React.FC<TrajectoryChartProps> = React.memo(({
                 <Line
                   type="monotone"
                   dataKey="lynch"
-                  name="Peter Lynch (LLM)"
+                  name={getAgentDisplayName('lynch')}
                   stroke="#E0E0E0"
                   strokeWidth={1.5}
                   dot={false}
