@@ -335,7 +335,7 @@ export default function Home() {
               {/* Vertical Ranked Rows with Hairline Dividers */}
               <div className="divide-y divide-white/[0.04]">
                 {topAgents.map((ag, i) => (
-                  <TopAgentRow key={ag.id} agent={ag} rank={i} staggerMs={i * 200} />
+                  <TopAgentRow key={ag.id} agent={ag} rank={i} delayMs={200 + i * 380} />
                 ))}
               </div>
 

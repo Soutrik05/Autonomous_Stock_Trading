@@ -74,6 +74,12 @@
   --glow-box-green: rgba(16, 185, 129, 0.065);
   --glow-box-blue: rgba(0, 63, 136, 0.09);
   --glow-box-border: rgba(60, 90, 80, 0.35);
+
+  /* Static glow for the #1 Home "Live Standings" row (.top-row-step--first-glow). */
+  --top1-glow-border: rgba(16, 185, 129, 0.55);
+  --top1-glow-bg: rgba(16, 185, 129, 0.06);
+  --top1-glow-shadow-1: rgba(16, 185, 129, 0.22);
+  --top1-glow-shadow-2: rgba(16, 185, 129, 0.10);
 }
 
 .font-display {
@@ -566,12 +572,78 @@ select:focus-visible {
   transform: translateX(0);
 }
 
+/* Home "Live Standings · Top 3 Agents Today": each row steps up once on page load (never
+   replays when the data refreshes in the background -- gated by TopAgentRow's one-time
+   `visible` state, not by the agent data itself). The #1 row additionally gets a static
+   boxed glow that fades in once it lands; strength lives in the --top1-glow-* variables. */
+@keyframes top-row-step-up {
+  from {
+    opacity: 0;
+    transform: translateY(34px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.top-row-step {
+  opacity: 0;
+  transform: translateY(34px);
+}
+
+.top-row-step--play {
+  animation: top-row-step-up 0.75s cubic-bezier(0.2, 0.9, 0.25, 1.12) forwards;
+}
+
+.top-row-step--first {
+  position: relative;
+  margin: 0 -16px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background-color: transparent;
+  box-shadow: 0 0 0 transparent, 0 0 0 transparent;
+  transition:
+    border-color 0.7s ease,
+    background-color 0.7s ease,
+    box-shadow 0.7s ease;
+  transition-delay: 0.85s;
+}
+
+.top-row-step--first-glow {
+  border-color: var(--top1-glow-border);
+  background-color: var(--top1-glow-bg);
+  box-shadow: 0 0 18px var(--top1-glow-shadow-1), 0 0 40px var(--top1-glow-shadow-2);
+}
+
+.top-row-step--first-rank {
+  color: #f2efe8;
+}
+
+.top-row-step--first-name {
+  font-size: 19px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .reveal,
   .row-reveal {
     opacity: 1;
     transform: none;
     transition: none;
+  }
+
+  .top-row-step {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+
+  .top-row-step--first {
+    transition: none;
+    border-color: var(--top1-glow-border);
+    background-color: var(--top1-glow-bg);
+    box-shadow: 0 0 18px var(--top1-glow-shadow-1), 0 0 40px var(--top1-glow-shadow-2);
   }
 }
 
