@@ -4,16 +4,33 @@ import { apiService, TELEMETRY_POLL_INTERVAL_MS } from '../services/api';
 import BenchmarkMatrixTable from '../components/BenchmarkMatrixTable';
 import { TrajectoryChart, type TrajectoryChartPoint } from '../components/TrajectoryChart';
 import { SectionHeader } from '../components/ui/SectionHeader';
+import { getCached, setCached } from '../utils/sessionCache';
 import { cn } from '../utils/cn';
 
+interface LeaderboardCache {
+  agents: AgentLeaderboardEntry[];
+  navHistory: NavHistoryPoint[];
+  marketContext: MarketContext | null;
+}
+
+// This page's own bundle (agents + nav history + market context) is cached separately from
+// the plain agents array, which other pages (Portfolio, Comparison) cache under the shared
+// 'leaderboard' key -- two different shapes, so they must not share one key.
+const CACHE_KEY = 'leaderboard_page';
+const SHARED_AGENTS_CACHE_KEY = 'leaderboard';
+
 export default function Leaderboard() {
-  const [agents, setAgents] = useState<AgentLeaderboardEntry[]>([]);
-  const [navHistory, setNavHistory] = useState<NavHistoryPoint[]>([]);
-  const [marketContext, setMarketContext] = useState<MarketContext | null>(null);
+  // Seen this session already? Render those real values immediately (no spinner) and just
+  // refresh them silently -- a plain page refresh must never show a loading screen for data
+  // we already have.
+  const [cachedOnMount] = useState(() => getCached<LeaderboardCache>(CACHE_KEY));
+  const [agents, setAgents] = useState<AgentLeaderboardEntry[]>(cachedOnMount?.agents ?? []);
+  const [navHistory, setNavHistory] = useState<NavHistoryPoint[]>(cachedOnMount?.navHistory ?? []);
+  const [marketContext, setMarketContext] = useState<MarketContext | null>(cachedOnMount?.marketContext ?? null);
   const [strategyFilter, setStrategyFilter] = useState<'ALL' | 'LLM' | 'RULES'>('ALL');
   const [showRiskMetrics, setShowRiskMetrics] = useState(false);
   const [chartMode, setChartMode] = useState<'COMPOSITE' | 'PERSONAS'>('COMPOSITE');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!cachedOnMount);
 
   async function loadData(isBackground = false) {
     if (!isBackground) setLoading(true);
@@ -26,15 +43,19 @@ export default function Leaderboard() {
       setAgents(leaderboardData);
       setNavHistory(navData);
       setMarketContext(macroData);
+      setCached<LeaderboardCache>(CACHE_KEY, { agents: leaderboardData, navHistory: navData, marketContext: macroData });
+      setCached(SHARED_AGENTS_CACHE_KEY, leaderboardData);
     } catch (err) {
       console.warn('Failed to load leaderboard telemetry:', err);
     } finally {
-      if (!isBackground) setLoading(false);
+      setLoading(false);
     }
   }
 
   useEffect(() => {
-    loadData(false);
+    // Already have real data from this session (cache) -- load the latest quietly instead of
+    // flashing the spinner again.
+    loadData(!!cachedOnMount);
 
     // Dynamic background polling on synchronized cadence (10 min)
     const pollInterval = setInterval(() => {
@@ -49,6 +70,7 @@ export default function Leaderboard() {
       clearInterval(pollInterval);
       window.removeEventListener('mock_mode_changed', handleModeChange);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const filtered = useMemo(() => {

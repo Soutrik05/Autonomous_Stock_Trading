@@ -24,21 +24,30 @@ const TIMELINE = {
   skipSlideDur: 250,
 };
 
+// In-memory fallback: guarantees at most one play per page load (so it never loops) even if
+// sessionStorage is blocked, and covers the instant between "decided to play" and the write
+// below landing.
+let playedThisPageLoad = false;
+
 function hasSeenIntroThisSession(): boolean {
+  if (playedThisPageLoad) return true;
   try {
     return sessionStorage.getItem(SESSION_KEY) === 'true';
   } catch {
-    // Storage unavailable (private mode edge cases, etc.) -- fall through and play it once
-    // for this page load rather than erroring out.
+    // Storage unavailable (private mode edge cases, etc.) -- the in-memory flag above is the
+    // only thing preventing a replay, and only for this page load.
     return false;
   }
 }
 
+/** Called the moment the intro actually starts (not when it finishes), so a refresh or a
+ * skip partway through never replays it. */
 function markSeenThisSession(): void {
+  playedThisPageLoad = true;
   try {
     sessionStorage.setItem(SESSION_KEY, 'true');
   } catch {
-    // Ignore -- worst case the intro plays again, which is the safe failure direction.
+    // Ignore -- the in-memory flag above still holds for the rest of this page load.
   }
 }
 
@@ -88,6 +97,10 @@ export default function IntroLoader() {
       return;
     }
 
+    // Mark it seen right now, as the intro actually starts -- a refresh or a tab close one
+    // millisecond later must not replay it.
+    markSeenThisSession();
+
     document.body.style.overflow = 'hidden';
 
     let rafId = 0;
@@ -121,7 +134,6 @@ export default function IntroLoader() {
     function finish() {
       if (finished) return;
       finished = true;
-      markSeenThisSession();
       document.body.style.overflow = '';
       markIntroDone();
       setMounted(false);

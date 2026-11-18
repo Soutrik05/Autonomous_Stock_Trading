@@ -22,7 +22,10 @@ import AgentSwitchDropdown from '../components/AgentSwitchDropdown';
 import { useIntroDone } from '../hooks/useIntro';
 import { useCountUp } from '../hooks/useCountUp';
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
+import { getCached, setCached } from '../utils/sessionCache';
 import { cn } from '../utils/cn';
+
+const LEADERBOARD_CACHE_KEY = 'leaderboard';
 
 const ALL_AGENT_IDS = [...LLM_IDS, ...RULES_IDS];
 
@@ -366,7 +369,9 @@ export default function Comparison() {
   const [openSlot, setOpenSlot] = useState<'a' | 'b' | null>(null);
 
   const [data, setData] = useState<BaselineComparison | null>(null);
-  const [liveLeaderboard, setLiveLeaderboard] = useState<AgentLeaderboardEntry[]>([]);
+  const [liveLeaderboard, setLiveLeaderboard] = useState<AgentLeaderboardEntry[]>(
+    () => getCached<AgentLeaderboardEntry[]>(LEADERBOARD_CACHE_KEY) ?? []
+  );
   const [loading, setLoading] = useState<boolean>(true);
   const [fetchError, setFetchError] = useState<boolean>(false);
   const [isMock] = useState<boolean>(getIsMockMode());
@@ -384,11 +389,22 @@ export default function Comparison() {
 
   useEffect(() => {
     let isSubscribed = true;
-    async function fetchComparisonData(isBackground = false) {
-      if (!isBackground) {
-        setLoading(true);
-        setFetchError(false);
-      }
+
+    // Already have this comparison's real data from earlier this session -- show it
+    // immediately (no spinner) and just refresh it quietly. A pair whose baseline comparison
+    // was never fetched this session has no cache, so the spinner below is only for that
+    // genuine first load.
+    const baselineCacheKey = `baseline_${niftyRefLlmId}`;
+    const cachedBaseline = getCached<BaselineComparison>(baselineCacheKey);
+    if (cachedBaseline) {
+      setData(cachedBaseline);
+      setLoading(false);
+      setFetchError(false);
+    } else {
+      setLoading(true);
+    }
+
+    async function fetchComparisonData() {
       try {
         const [compData, boardData] = await Promise.all([
           apiService.getBaselineComparison(niftyRefLlmId),
@@ -397,19 +413,21 @@ export default function Comparison() {
         if (isSubscribed) {
           setData(compData);
           setLiveLeaderboard(boardData);
+          setCached(baselineCacheKey, compData);
+          setCached(LEADERBOARD_CACHE_KEY, boardData);
         }
       } catch (err) {
         console.warn('Failed to load baseline comparison:', err);
-        if (isSubscribed && !isBackground) setFetchError(true);
+        if (isSubscribed && !cachedBaseline) setFetchError(true);
       } finally {
-        if (isSubscribed && !isBackground) setLoading(false);
+        if (isSubscribed) setLoading(false);
       }
     }
 
-    fetchComparisonData(false);
+    fetchComparisonData();
 
     const pollInterval = setInterval(() => {
-      fetchComparisonData(true);
+      fetchComparisonData();
     }, TELEMETRY_POLL_INTERVAL_MS);
 
     return () => {
@@ -425,6 +443,8 @@ export default function Comparison() {
       .then(([compData, boardData]) => {
         setData(compData);
         setLiveLeaderboard(boardData);
+        setCached(`baseline_${niftyRefLlmId}`, compData);
+        setCached(LEADERBOARD_CACHE_KEY, boardData);
         setLoading(false);
       })
       .catch(() => {

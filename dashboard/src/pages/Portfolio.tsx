@@ -20,6 +20,7 @@ import { getAgentLabel } from '../lib/agentNames';
 import { getPersonaCopy } from '../lib/personaCopy';
 import { useIntroDone } from '../hooks/useIntro';
 import { useSpotlightHover } from '../hooks/useSpotlightHover';
+import { getCached, setCached } from '../utils/sessionCache';
 import { cn } from '../utils/cn';
 import PortfolioDualCurve from '../components/PortfolioDualCurve';
 import HoldingsLinearStack from '../components/HoldingsLinearStack';
@@ -123,6 +124,16 @@ function getTwinAgentInfo(agentId: string): { twinId: string; isTwinRules: boole
 
 type TabType = 'holdings' | 'performance' | 'watchlist' | 'intel';
 
+interface PortfolioCache {
+  agent: AgentLeaderboardEntry | null;
+  leaderboard: AgentLeaderboardEntry[];
+  positions: Position[];
+  orders: Order[];
+  heuristics: HeuristicMemory[];
+  navHistory: NavHistoryPoint[];
+  watchlist: AgentWatchlistItem[];
+}
+
 export default function Portfolio() {
   const { id, agentId } = useParams<{ id?: string; agentId?: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -167,8 +178,25 @@ export default function Portfolio() {
   useEffect(() => {
     let isSubscribed = true;
 
-    async function loadPortfolioData(isBackground = false) {
-      if (!isBackground) setLoading(true);
+    // Already have this agent's real data from earlier this session -- show it immediately
+    // (no spinner) and just refresh it quietly. A truly never-opened agent has no cache, so
+    // the spinner below is only for that genuine first load.
+    const cacheKey = `portfolio_${currentAgentId}`;
+    const cached = getCached<PortfolioCache>(cacheKey);
+    if (cached) {
+      setAgent(cached.agent);
+      setLeaderboard(cached.leaderboard);
+      setPositions(cached.positions);
+      setOrders(cached.orders);
+      setHeuristics(cached.heuristics);
+      setNavHistory(cached.navHistory);
+      setWatchlist(cached.watchlist);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
+    async function loadPortfolioData() {
       try {
         const [board, pos, ord, mem, nav, wl] = await Promise.all([
           apiService.getLeaderboard(),
@@ -188,18 +216,28 @@ export default function Portfolio() {
         setHeuristics(mem);
         setNavHistory(nav);
         setWatchlist(wl);
+        setCached<PortfolioCache>(cacheKey, {
+          agent: currentAgent,
+          leaderboard: board,
+          positions: pos,
+          orders: ord,
+          heuristics: mem,
+          navHistory: nav,
+          watchlist: wl,
+        });
+        setCached('leaderboard', board);
       } catch (err) {
         console.warn('Failed to load agent portfolio details:', err);
       } finally {
-        if (isSubscribed && !isBackground) setLoading(false);
+        if (isSubscribed) setLoading(false);
       }
     }
 
-    loadPortfolioData(false);
+    loadPortfolioData();
 
     // Dynamic background polling on synchronized cadence (10 min) to keep LTP and intraday metrics fresh
     const pollInterval = setInterval(() => {
-      loadPortfolioData(true);
+      loadPortfolioData();
     }, TELEMETRY_POLL_INTERVAL_MS);
 
     return () => {

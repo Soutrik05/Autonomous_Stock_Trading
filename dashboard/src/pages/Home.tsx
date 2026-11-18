@@ -21,6 +21,28 @@ import { TrajectoryChart, type TrajectoryChartPoint } from '../components/Trajec
 import PersonaCard from '../components/PersonaCard';
 import TopAgentRow from '../components/TopAgentRow';
 import Reveal from '../components/Reveal';
+import { getCached, setCached } from '../utils/sessionCache';
+
+interface HomeCache {
+  navHistory: NavHistoryPoint[];
+  leaderboard: AgentLeaderboardEntry[];
+  recentEvents: ActivityEvent[];
+}
+
+const HOME_CACHE_KEY = 'home';
+
+/** Decided once per page load (not per session-wide "seen" flag like the intro): true only
+ * the first time this browser session's Top 3 strip steps up. A later refresh/revisit shows
+ * the final positions immediately -- no replay. */
+function decideTopThreeStepUp(): boolean {
+  try {
+    if (sessionStorage.getItem('stockminds_top3_stepped_up') === 'true') return false;
+    sessionStorage.setItem('stockminds_top3_stepped_up', 'true');
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 const SCHOOLS_OF_THOUGHT = [
   {
@@ -157,11 +179,13 @@ const TRUST_PILLARS = [
 ];
 
 export default function Home() {
-  const [navHistory, setNavHistory] = useState<NavHistoryPoint[]>([]);
-  const [leaderboard, setLeaderboard] = useState<AgentLeaderboardEntry[]>([]);
-  const [recentEvents, setRecentEvents] = useState<ActivityEvent[]>([]);
+  const [cachedOnMount] = useState(() => getCached<HomeCache>(HOME_CACHE_KEY));
+  const [navHistory, setNavHistory] = useState<NavHistoryPoint[]>(cachedOnMount?.navHistory ?? []);
+  const [leaderboard, setLeaderboard] = useState<AgentLeaderboardEntry[]>(cachedOnMount?.leaderboard ?? []);
+  const [recentEvents, setRecentEvents] = useState<ActivityEvent[]>(cachedOnMount?.recentEvents ?? []);
   const [chartMode, setChartMode] = useState<'COMPOSITE' | 'PERSONAS'>('COMPOSITE');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!cachedOnMount);
+  const [playTopThreeStepUp] = useState(decideTopThreeStepUp);
 
   useEffect(() => {
     async function loadData(isBackground = false) {
@@ -175,14 +199,17 @@ export default function Home() {
         setNavHistory(navData);
         setLeaderboard(boardData);
         setRecentEvents(activityData.slice(0, 4));
+        setCached<HomeCache>(HOME_CACHE_KEY, { navHistory: navData, leaderboard: boardData, recentEvents: activityData.slice(0, 4) });
       } catch (err) {
         console.warn('Failed to load observation data:', err);
       } finally {
-        if (!isBackground) setLoading(false);
+        setLoading(false);
       }
     }
 
-    loadData(false);
+    // Already have real data from this session (cache) -- load the latest quietly instead of
+    // flashing the spinner again.
+    loadData(!!cachedOnMount);
 
     // Dynamic background polling on synchronized cadence (10 min)
     const pollInterval = setInterval(() => {
@@ -190,6 +217,7 @@ export default function Home() {
     }, TELEMETRY_POLL_INTERVAL_MS);
 
     return () => clearInterval(pollInterval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Compute percentage return trajectories from ₹5,00,000 seed (memoized)
@@ -335,7 +363,7 @@ export default function Home() {
               {/* Vertical Ranked Rows with Hairline Dividers */}
               <div className="divide-y divide-white/[0.04]">
                 {topAgents.map((ag, i) => (
-                  <TopAgentRow key={ag.id} agent={ag} rank={i} delayMs={200 + i * 380} />
+                  <TopAgentRow key={ag.id} agent={ag} rank={i} delayMs={200 + i * 380} play={playTopThreeStepUp} />
                 ))}
               </div>
 
