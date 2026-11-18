@@ -1,6 +1,8 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
+import IntroLoader from './components/IntroLoader';
+import { IntroProvider } from './contexts/IntroContext';
 
 // Code splitting via React.lazy to minimize initial bundle size and ensure LCP <= 2.5s
 const Home = lazy(() => import('./pages/Home'));
@@ -28,7 +30,12 @@ function PageLoadingFallback() {
 
 function App() {
   return (
-    <Router>
+    <IntroProvider>
+      {/* Mounted once at the app level so it covers whatever route the user lands on first
+          (including a direct link to an inner page). The real app below mounts and starts
+          fetching data immediately -- this overlay never blocks or delays that. */}
+      <IntroLoader />
+      <Router>
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route
@@ -88,7 +95,8 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
-    </Router>
+      </Router>
+    </IntroProvider>
   );
 }
 

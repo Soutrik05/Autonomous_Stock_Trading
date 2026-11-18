@@ -4,6 +4,7 @@ import { formatPct } from '../utils/formatters';
 import { cn } from '../utils/cn';
 import { CategoryBadge } from './ui/CategoryBadge';
 import { useFlashOnChange } from '../hooks/useFlashOnChange';
+import { useIntroDone } from '../hooks/useIntro';
 
 interface TopAgentRowProps {
   agent: AgentLeaderboardEntry;
@@ -18,11 +19,15 @@ interface TopAgentRowProps {
 export default function TopAgentRow({ agent, rank, delayMs }: TopAgentRowProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
+  const introDone = useIntroDone();
 
   useEffect(() => {
+    // Wait for the brand intro overlay to finish (or be skipped) before stepping up, so it
+    // never plays underneath/behind it -- same step-up animation, just delayed to start.
+    if (!introDone) return;
     const id = requestAnimationFrame(() => setVisible(true));
     return () => cancelAnimationFrame(id);
-  }, []);
+  }, [introDone]);
 
   const flashClass = useFlashOnChange(agent.returnPct);
 

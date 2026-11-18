@@ -1,0 +1,126 @@
+/* Full-screen brand intro overlay (see IntroLoader.tsx's TIMELINE for what drives these state
+   changes). Reuses the exact fonts/colors of the header logo (.logo__name/.logo__tagline in
+   index.css) rather than introducing new ones. */
+
+.intro-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #161616;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(0);
+}
+
+.intro-overlay--slide {
+  transform: translateY(-100%);
+  transition: transform 0.55s cubic-bezier(0.65, 0, 0.2, 1);
+}
+
+.intro-overlay--slide-fast {
+  transform: translateY(-100%);
+  transition: transform 0.25s cubic-bezier(0.65, 0, 0.2, 1);
+}
+
+/* Wraps the name, tagline and underline so they fade/blur/drift into the black as one group. */
+.intro-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  opacity: 1;
+  filter: blur(0);
+  transform: translateY(0);
+}
+
+.intro-group--fade {
+  opacity: 0;
+  filter: blur(3px);
+  transform: translateY(-6px);
+  transition: opacity 0.45s ease-in-out, filter 0.45s ease-in-out, transform 0.45s ease-in-out;
+}
+
+.intro-group--fade-fast {
+  opacity: 0;
+  filter: blur(3px);
+  transform: translateY(-6px);
+  transition: opacity 0.2s ease-in-out, filter 0.2s ease-in-out, transform 0.2s ease-in-out;
+}
+
+.intro-name {
+  position: relative;
+  font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  font-weight: 900;
+  font-size: 84px;
+  letter-spacing: -0.02em;
+  color: #f2efe8;
+  line-height: 1;
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+}
+
+.intro-name[data-show='true'] {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.intro-tagline {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  margin-top: 0.25em;
+  font-family: 'Great Vibes', cursive;
+  font-weight: 400;
+  font-size: 44px;
+  color: #10b981;
+  line-height: 1;
+}
+
+/* "five minds," and "one market" fade + rise identically -- no stamp/scale, no shake, no ring. */
+.intro-tagline__part1,
+.intro-tagline__part2 {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.35s ease-out, transform 0.35s ease-out;
+}
+
+.intro-tagline__part1[data-show='true'],
+.intro-tagline__part2[data-show='true'] {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.intro-underline {
+  width: 0;
+  height: 2px;
+  margin: 18px auto 0;
+  border-radius: 999px;
+  background: #10b981;
+  transition: width 0.3s ease-out;
+}
+
+.intro-underline[data-show='true'] {
+  width: 110px;
+}
+
+.intro-skip {
+  position: absolute;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.28);
+}
+
+@media (max-width: 480px) {
+  .intro-name {
+    font-size: 44px;
+  }
+  .intro-tagline {
+    font-size: 26px;
+  }
+}
