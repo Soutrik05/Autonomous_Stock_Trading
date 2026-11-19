@@ -187,13 +187,6 @@ export const TrajectoryChart: React.FC<TrajectoryChartProps> = React.memo(({
         <RightNowBox color={COMPOSITE_COLORS.rules} name="Rules twins" value={last ? last.rulesComposite : null} />
         <RightNowBox color={COMPOSITE_COLORS.nifty} name="Nifty 500" value={last ? last.nifty500 : null} />
       </div>
-
-      {/* Date range footer, where the legend row used to sit */}
-      {data.length > 0 && (
-        <div className="pt-2 border-t border-border-subtle flex items-center justify-end text-[10px] font-mono text-zinc-500">
-          {data[0]?.fullDate || data[0]?.date} → {data[data.length - 1]?.fullDate || data[data.length - 1]?.date}
-        </div>
-      )}
     </div>
   );
 });
