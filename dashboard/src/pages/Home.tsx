@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   ShieldCheck,
   Scale,
@@ -183,7 +183,6 @@ export default function Home() {
   const [navHistory, setNavHistory] = useState<NavHistoryPoint[]>(cachedOnMount?.navHistory ?? []);
   const [leaderboard, setLeaderboard] = useState<AgentLeaderboardEntry[]>(cachedOnMount?.leaderboard ?? []);
   const [recentEvents, setRecentEvents] = useState<ActivityEvent[]>(cachedOnMount?.recentEvents ?? []);
-  const [chartMode, setChartMode] = useState<'COMPOSITE' | 'PERSONAS'>('COMPOSITE');
   const [loading, setLoading] = useState(!cachedOnMount);
   const [playTopThreeStepUp] = useState(decideTopThreeStepUp);
 
@@ -247,10 +246,6 @@ export default function Home() {
 
       const niftyReturn = ((pt.nifty500 - SEED_NAV) / SEED_NAV) * 100;
 
-      const simonsReturn = ((pt.simons - SEED_NAV) / SEED_NAV) * 100;
-      const marksReturn = ((pt.marks - SEED_NAV) / SEED_NAV) * 100;
-      const lynchReturn = ((pt.lynch - SEED_NAV) / SEED_NAV) * 100;
-
       const dateParts = pt.date.split('-');
       const shortDate = dateParts.length === 3 ? `${dateParts[1]}/${dateParts[2]}` : pt.date;
 
@@ -260,16 +255,9 @@ export default function Home() {
         llmComposite: Number(llmCompositeReturn.toFixed(2)),
         rulesComposite: Number(rulesCompositeReturn.toFixed(2)),
         nifty500: Number(niftyReturn.toFixed(2)),
-        simons: Number(simonsReturn.toFixed(2)),
-        marks: Number(marksReturn.toFixed(2)),
-        lynch: Number(lynchReturn.toFixed(2)),
       };
     });
   }, [navHistory]);
-
-  const handleModeChange = useCallback((mode: 'COMPOSITE' | 'PERSONAS') => {
-    setChartMode(mode);
-  }, []);
 
   // Start date comes from the real data, never hard-coded.
   const chartStartLabel = useMemo(() => {
@@ -392,8 +380,6 @@ export default function Home() {
               data={chartData}
               title="Are the AI agents beating the market?"
               subtitle={chartSubtitle}
-              mode={chartMode}
-              onModeChange={handleModeChange}
             />
 
             {/* Lower Chamber: Docked Top 3 Standings Strip */}
