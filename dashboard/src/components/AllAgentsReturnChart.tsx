@@ -124,12 +124,12 @@ interface AllAgentsReturnChartProps {
 
 export default function AllAgentsReturnChart({ navHistory, loading }: AllAgentsReturnChartProps) {
   const [filter, setFilter] = useState<FilterMode>('ALL');
-  const [hoveredBase, setHoveredBase] = useState<string | null>(null);
-  const [pinnedBase, setPinnedBase] = useState<string | null>(null);
+  const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+  const [pinnedKey, setPinnedKey] = useState<string | null>(null);
   const introDone = useIntroDone();
   const reducedMotion = usePrefersReducedMotion();
 
-  const highlightBase = pinnedBase ?? hoveredBase;
+  const highlightKey = pinnedKey ?? hoveredKey;
 
   // First-ever draw-in animation this session: waits for data + introDone + tab-visible,
   // then plays once and marks the session flag. A later refresh (flag already set) or a
@@ -187,21 +187,70 @@ export default function AllAgentsReturnChart({ navHistory, loading }: AllAgentsR
   });
 
   const visibleSeries = PAIRS.flatMap((pair) =>
-    visibleKeysForPair(pair, filter).map((v) => ({ key: v.key, id: v.id, color: pair.color }))
+    visibleKeysForPair(pair, filter).map((v) => ({
+      key: v.key,
+      id: v.id,
+      color: pair.color,
+      dashed: v.dashed,
+      base: pair.base,
+    }))
   );
 
-  // End-of-line labels: show all when there's room (<=5 visible lines), otherwise only the
-  // top 3 and bottom 1 by final value -- the rest are still fully available on hover.
   const lastRow = rows.length > 0 ? rows[rows.length - 1] : null;
-  const endLabelTargets = (() => {
-    if (!lastRow) return new Set<string>();
-    const withValues = visibleSeries
-      .map((s) => ({ ...s, value: lastRow[s.key] as number | null }))
-      .filter((s): s is { key: string; id: string; color: string; value: number } => s.value !== null);
-    if (withValues.length <= 5) return new Set(withValues.map((s) => s.key));
-    const sorted = [...withValues].sort((a, b) => b.value - a.value);
-    const picked = [...sorted.slice(0, 3), sorted[sorted.length - 1]];
-    return new Set(picked.map((s) => s.key));
+
+  // Series with actual final numeric values, sorted by final value descending
+  const seriesWithValues = lastRow
+    ? visibleSeries
+        .map((s) => ({
+          ...s,
+          value: lastRow[s.key] as number | null,
+          name: getAgentName(s.id),
+        }))
+        .filter((s): s is typeof s & { value: number } => s.value !== null)
+        .sort((a, b) => b.value - a.value)
+    : [];
+
+  // Vertical anti-collision layout for end-of-line labels:
+  // Dynamically relaxes y-offsets when multiple lines converge at similar return values.
+  const labelDeltas = (() => {
+    if (seriesWithValues.length <= 1) return new Map<string, number>();
+
+    const sorted = [...seriesWithValues];
+    const minVal = Math.min(...sorted.map((s) => s.value));
+    const maxVal = Math.max(...sorted.map((s) => s.value));
+    const valRange = Math.max(0.1, maxVal - minVal);
+
+    // Approximate chart interior height for scaling
+    const USABLE_HEIGHT = 250;
+    const MIN_LABEL_GAP = 13;
+
+    // Approximate SVG Y pixel positions (0 = top/high return, USABLE_HEIGHT = bottom/low return)
+    const rawY = sorted.map((s) => ((maxVal - s.value) / valRange) * (USABLE_HEIGHT - 30) + 15);
+
+    // Downward relaxation pass
+    const targetY = [...rawY];
+    for (let i = 1; i < targetY.length; i++) {
+      if (targetY[i] < targetY[i - 1] + MIN_LABEL_GAP) {
+        targetY[i] = targetY[i - 1] + MIN_LABEL_GAP;
+      }
+    }
+
+    // Upward relaxation pass if bottom label overflows
+    const maxY = USABLE_HEIGHT - 10;
+    if (targetY[targetY.length - 1] > maxY) {
+      targetY[targetY.length - 1] = maxY;
+      for (let i = targetY.length - 2; i >= 0; i--) {
+        if (targetY[i] > targetY[i + 1] - MIN_LABEL_GAP) {
+          targetY[i] = targetY[i + 1] - MIN_LABEL_GAP;
+        }
+      }
+    }
+
+    const deltas = new Map<string, number>();
+    sorted.forEach((s, i) => {
+      deltas.set(s.key, Math.round(targetY[i] - rawY[i]));
+    });
+    return deltas;
   })();
 
   const filterButtons: Array<{ key: FilterMode; label: string }> = [
@@ -251,7 +300,7 @@ export default function AllAgentsReturnChart({ navHistory, loading }: AllAgentsR
           <>
             <div className="h-[320px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={rows} margin={{ top: 10, right: 90, left: 8, bottom: 0 }}>
+                <LineChart data={rows} margin={{ top: 10, right: 110, left: 8, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                   <XAxis
                     dataKey="date"
@@ -279,16 +328,17 @@ export default function AllAgentsReturnChart({ navHistory, loading }: AllAgentsR
 
                   {PAIRS.map((pair) =>
                     visibleKeysForPair(pair, filter).map((v) => {
-                      const dimmed = highlightBase !== null && highlightBase !== pair.base;
+                      const isHighlighted = highlightKey === v.key;
+                      const isDimmed = highlightKey !== null && !isHighlighted;
                       return (
                         <Line
                           key={v.key}
                           type="monotone"
                           dataKey={v.key}
                           stroke={pair.color}
-                          strokeWidth={v.dashed ? 1.8 : 2.5}
+                          strokeWidth={isHighlighted ? 3 : (v.dashed ? 1.8 : 2.5)}
                           strokeDasharray={v.dashed ? '7 5' : undefined}
-                          strokeOpacity={dimmed ? 0.15 : 1}
+                          strokeOpacity={isDimmed ? 0.15 : 1}
                           dot={false}
                           activeDot={{ r: 4, stroke: '#f2efe8', strokeWidth: 1 }}
                           isAnimationActive={started}
@@ -300,53 +350,89 @@ export default function AllAgentsReturnChart({ navHistory, loading }: AllAgentsR
                   )}
 
                   {lastRow &&
-                    visibleSeries
-                      .filter((s) => endLabelTargets.has(s.key))
-                      .map((s) => {
-                        const value = lastRow[s.key] as number | null;
-                        if (value === null) return null;
-                        return (
-                          <ReferenceDot
-                            key={`label-${s.key}`}
-                            x={lastRow.date}
-                            y={value}
-                            r={3}
-                            fill={s.color}
-                            stroke="none"
-                            label={{
-                              value: getAgentName(s.id),
-                              position: 'right',
-                              fill: s.color,
-                              fontSize: 10,
-                              fontFamily: 'JetBrains Mono',
-                            }}
-                          />
-                        );
-                      })}
+                    seriesWithValues.map((s) => {
+                      const isHighlighted = highlightKey === s.key;
+                      const isDimmed = highlightKey !== null && !isHighlighted;
+                      const dy = labelDeltas.get(s.key) ?? 0;
+                      return (
+                        <ReferenceDot
+                          key={`label-${s.key}`}
+                          x={lastRow.date}
+                          y={s.value}
+                          r={isHighlighted ? 4 : 2.5}
+                          fill={s.color}
+                          stroke="none"
+                          opacity={isDimmed ? 0.2 : 1}
+                          label={{
+                            value: s.name,
+                            position: 'right',
+                            fill: s.color,
+                            fontSize: isHighlighted ? 11 : 10,
+                            fontWeight: isHighlighted ? 700 : (s.dashed ? 500 : 600),
+                            fontFamily: 'JetBrains Mono',
+                            dy,
+                          }}
+                        />
+                      );
+                    })}
                 </LineChart>
               </ResponsiveContainer>
             </div>
 
-            {/* Legend: 5 chips, one per pair -- hover/click pins the highlight */}
-            <div className="flex flex-wrap items-center gap-2 pt-1">
-              {PAIRS.map((pair) => (
-                <button
-                  key={pair.base}
-                  type="button"
-                  onMouseEnter={() => setHoveredBase(pair.base)}
-                  onMouseLeave={() => setHoveredBase(null)}
-                  onClick={() => setPinnedBase((prev) => (prev === pair.base ? null : pair.base))}
-                  className={cn(
-                    'flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-mono transition-colors cursor-pointer',
-                    pinnedBase === pair.base
-                      ? 'border-white/30 bg-white/[0.06] text-white'
-                      : 'border-border-hairline text-zinc-400 hover:text-white hover:bg-white/[0.03]'
-                  )}
-                >
-                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: pair.color }} />
-                  {getAgentName(pair.llmId)}
-                </button>
-              ))}
+            {/* Clear, Concise Interactive Legend for All Visible Agents & Twins */}
+            <div className="pt-2 border-t border-border-hairline space-y-2">
+              <div className="flex items-center justify-between text-[11px] text-zinc-400 font-mono">
+                <span className="font-semibold text-zinc-300">
+                  {filter === 'ALL' ? 'All 10 Agents & Twins' : filter === 'LLM' ? 'AI Agents (5)' : 'Rules Twins (5)'}
+                </span>
+                <span className="text-zinc-500 hidden sm:inline">Click to pin · Hover to highlight curve</span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {seriesWithValues.map((s) => {
+                  const isHighlighted = highlightKey === s.key;
+                  const isDimmed = highlightKey !== null && !isHighlighted;
+                  return (
+                    <button
+                      key={s.key}
+                      type="button"
+                      onMouseEnter={() => setHoveredKey(s.key)}
+                      onMouseLeave={() => setHoveredKey(null)}
+                      onClick={() => setPinnedKey((prev) => (prev === s.key ? null : s.key))}
+                      className={cn(
+                        'flex items-center gap-2 px-2.5 py-1.5 rounded border text-[11px] font-mono transition-all cursor-pointer',
+                        isHighlighted
+                          ? 'border-white/40 bg-white/[0.08] text-white shadow-sm ring-1 ring-white/20'
+                          : isDimmed
+                          ? 'border-border-hairline/40 text-zinc-600 opacity-40'
+                          : 'border-border-hairline bg-surface-well/60 text-zinc-300 hover:text-white hover:border-white/25 hover:bg-white/[0.04]'
+                      )}
+                    >
+                      {/* Swatch: Solid line for AI, Dashed line for Rules twin */}
+                      <svg width="18" height="6" className="flex-shrink-0" aria-hidden="true">
+                        <line
+                          x1="0"
+                          y1="3"
+                          x2="18"
+                          y2="3"
+                          stroke={s.color}
+                          strokeWidth={s.dashed ? 2 : 2.5}
+                          strokeDasharray={s.dashed ? '4 3' : undefined}
+                        />
+                      </svg>
+                      <span className={cn('font-semibold', s.dashed ? 'font-normal' : '')}>{s.name}</span>
+                      <span
+                        className={cn(
+                          'tabular-nums text-[10px]',
+                          s.value > 0 ? 'text-positive' : s.value < 0 ? 'text-negative' : 'text-zinc-500'
+                        )}
+                      >
+                        {formatPct(s.value)}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="text-[12px] font-mono text-zinc-500 text-right">

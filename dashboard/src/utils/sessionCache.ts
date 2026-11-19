@@ -18,7 +18,11 @@ const MAX_ENTRY_CHARS = 200_000; // skip sessionStorage for anything unreasonabl
 
 function baseUrlTag(): string {
   try {
-    return (import.meta.env.VITE_API_BASE_URL as string | undefined) || 'default';
+    return (
+      (import.meta.env.VITE_API_BASE_URL as string | undefined) ||
+      (import.meta.env.VITE_API_URL as string | undefined) ||
+      'default'
+    );
   } catch {
     return 'default';
   }

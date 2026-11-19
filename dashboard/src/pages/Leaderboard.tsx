@@ -228,8 +228,7 @@ export default function Leaderboard() {
       {/* 2. TRAJECTORY VISUALIZATION */}
       <section className="space-y-3">
         <SectionHeader
-          title="Observed Return Curves"
-          subtitle="Daily equity trajectories from initial seed capital against the NSE Nifty 500 index."
+          title="Observed Return Curves From Initial Seed Capital"
         />
 
         <AllAgentsReturnChart navHistory={navHistory} loading={loading} />

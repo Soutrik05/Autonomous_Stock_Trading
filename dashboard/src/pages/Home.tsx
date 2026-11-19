@@ -294,121 +294,121 @@ export default function Home() {
           [Right: Cumulative return plot + seamlessly docked Top 3 standings strip]
           ========================================================================= */}
       <div className="glow-box rounded-lg">
-      <section className="bg-surface-inset border border-border-hairline rounded-lg overflow-hidden">
-        <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-border-hairline">
+        <section className="bg-surface-inset border border-border-hairline rounded-lg overflow-hidden">
+          <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-border-hairline">
 
-          {/* Left Column: Editorial Thesis, Protocol Matrix & Primary CTAs */}
-          <Reveal mode="immediate" delayMs={0} className="lg:col-span-5 p-6 sm:p-8 lg:p-9 flex flex-col justify-between space-y-7">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <span
-                  className={cn(
-                    'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-mono text-[12px]',
-                    isMarketOpen
-                      ? 'text-positive border border-emerald-500/40 bg-emerald-500/10'
-                      : 'text-zinc-400 border border-zinc-600/40 bg-white/[0.02]'
-                  )}
-                  style={isMarketOpen ? { boxShadow: '0 0 0 4px rgba(16,185,129,.18)' } : undefined}
-                >
+            {/* Left Column: Editorial Thesis, Protocol Matrix & Primary CTAs */}
+            <Reveal mode="immediate" delayMs={0} className="lg:col-span-5 p-6 sm:p-8 lg:p-9 flex flex-col justify-between space-y-7">
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
                   <span
                     className={cn(
-                      'w-1.5 h-1.5 rounded-full flex-shrink-0',
-                      isMarketOpen ? 'bg-emerald-500 animate-pulse' : 'bg-zinc-500'
+                      'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-mono text-[12px]',
+                      isMarketOpen
+                        ? 'text-positive border border-emerald-500/40 bg-emerald-500/10'
+                        : 'text-zinc-400 border border-zinc-600/40 bg-white/[0.02]'
                     )}
-                  />
-                  {isMarketOpen ? 'Market open · closes 3:30 PM IST' : `Market closed · opens ${nextOpenLabel}`}
-                </span>
-              </div>
-
-              <h1 className="hero-headline text-white">
-                Can AI judgment survive a <span className="hl">live market</span>?
-              </h1>
-
-              <p
-                className="text-[19px] pt-1"
-                style={{ fontFamily: "'Inter', system-ui, sans-serif", lineHeight: 1.55, color: '#b4b4b4' }}
-              >
-                Five AI agents trade Indian stocks with paper money, side by side with plain rule-based twins.{' '}
-                <span style={{ color: '#f2efe8', fontWeight: 600 }}>We track who wins, every day.</span>
-              </p>
-            </div>
-
-            {/* Three At-a-Glance Tiles */}
-            <div className="grid grid-cols-3 gap-3 py-4">
-              {[
-                { number: '5 + 5', color: '#10b981', caption: 'AI agents and their rules twins' },
-                { number: '500', color: '#8fb8f0', caption: 'Nifty 500 stocks to pick from' },
-                { number: 'Real', color: '#d9d2c1', caption: 'market prices, trading costs included' },
-              ].map(({ number, color, caption }) => (
-                <div
-                  key={caption}
-                  className="rounded-[14px] border border-[#262626]"
-                  style={{ padding: '14px 16px' }}
-                >
-                  <div
-                    style={{
-                      fontFamily: "var(--font-headline), 'Red Hat Display Fallback', system-ui, sans-serif",
-                      fontWeight: 700,
-                      fontSize: '30px',
-                      color,
-                    }}
+                    style={isMarketOpen ? { boxShadow: '0 0 0 4px rgba(16,185,129,.18)' } : undefined}
                   >
-                    {number}
-                  </div>
-                  <div className="text-[13px] text-[#a8a8a8] mt-1 leading-snug">{caption}</div>
+                    <span
+                      className={cn(
+                        'w-1.5 h-1.5 rounded-full flex-shrink-0',
+                        isMarketOpen ? 'bg-emerald-500 animate-pulse' : 'bg-zinc-500'
+                      )}
+                    />
+                    {isMarketOpen ? 'Market open · closes 3:30 PM IST' : `Market closed · opens ${nextOpenLabel}`}
+                  </span>
                 </div>
-              ))}
-            </div>
 
-            {/* Navigation Action Links */}
-            <div className="pt-1 flex flex-wrap items-center gap-6 text-sm font-sans font-medium">
-              <ActionLink to="/leaderboard" variant="primary">
-                Explore Standings Table
-              </ActionLink>
+                <h1 className="hero-headline text-white">
+                  Can AI Agents trade <span className="hl">live market</span>?
+                </h1>
 
-              <ActionLink to="/comparison" variant="secondary">
-                Inspect Philosophy Matchups
-              </ActionLink>
-            </div>
-          </Reveal>
-
-          {/* Right Column: Integrated Telemetry Deck (Chart + Docked Top 3 Standings) */}
-          <Reveal mode="immediate" delayMs={150} className="lg:col-span-7 flex flex-col divide-y divide-border-hairline bg-[#141414]">
-
-            {/* Upper Chamber: Memoized Observed Cumulative Return Trajectories */}
-            <TrajectoryChart
-              data={chartData}
-              title="Are the AI agents beating the market?"
-              subtitle={chartSubtitle}
-            />
-
-            {/* Lower Chamber: Docked Top 3 Standings Strip */}
-            <div className="p-5 sm:p-6 space-y-3 font-mono text-xs bg-surface-well">
-              <div className="flex items-center justify-between border-b border-white/[0.06] pb-2 text-[11px]">
-                <span className="font-medium text-zinc-400">
-                  Live Standings · Top 3 Agents Today
-                </span>
-                <span className="text-zinc-500 text-[10px]">Daily MTM</span>
+                <p
+                  className="text-[19px] pt-1"
+                  style={{ fontFamily: "'Inter', system-ui, sans-serif", lineHeight: 1.55, color: '#b4b4b4' }}
+                >
+                  Five AI agents trade Indian stocks with paper money, side by side with plain rule-based twins.{' '}
+                  <span style={{ color: '#f2efe8', fontWeight: 600 }}>We track who wins, every day.</span>
+                </p>
               </div>
 
-              {/* Vertical Ranked Rows with Hairline Dividers */}
-              <div className="divide-y divide-white/[0.04]">
-                {topAgents.map((ag, i) => (
-                  <TopAgentRow key={ag.id} agent={ag} rank={i} delayMs={200 + i * 380} play={playTopThreeStepUp} />
+              {/* Three At-a-Glance Tiles */}
+              <div className="grid grid-cols-3 gap-3 py-4">
+                {[
+                  { number: '5 + 5', color: '#10b981', caption: 'AI agents and their rules twins' },
+                  { number: '500', color: '#8fb8f0', caption: 'Nifty 500 stocks to pick from' },
+                  { number: 'Real', color: '#d9d2c1', caption: 'market prices, trading costs included' },
+                ].map(({ number, color, caption }) => (
+                  <div
+                    key={caption}
+                    className="rounded-[14px] border border-[#262626]"
+                    style={{ padding: '14px 16px' }}
+                  >
+                    <div
+                      style={{
+                        fontFamily: "var(--font-headline), 'Red Hat Display Fallback', system-ui, sans-serif",
+                        fontWeight: 700,
+                        fontSize: '30px',
+                        color,
+                      }}
+                    >
+                      {number}
+                    </div>
+                    <div className="text-[13px] text-[#a8a8a8] mt-1 leading-snug">{caption}</div>
+                  </div>
                 ))}
               </div>
 
-              {/* Docked Status Footer */}
-              <div className="pt-2 border-t border-white/[0.06] flex items-center justify-between text-[10px] text-zinc-500">
-                <span>Continuous Public Benchmark</span>
-                <span className="text-zinc-400">EOD Cadence · NSE Close</span>
+              {/* Navigation Action Links */}
+              <div className="pt-1 flex flex-wrap items-center gap-6 text-sm font-sans font-medium">
+                <ActionLink to="/leaderboard" variant="primary">
+                  Explore Standings Table
+                </ActionLink>
+
+                <ActionLink to="/comparison" variant="secondary">
+                  Inspect Philosophy Matchups
+                </ActionLink>
               </div>
-            </div>
+            </Reveal>
 
-          </Reveal>
+            {/* Right Column: Integrated Telemetry Deck (Chart + Docked Top 3 Standings) */}
+            <Reveal mode="immediate" delayMs={150} className="lg:col-span-7 flex flex-col divide-y divide-border-hairline bg-[#141414]">
 
-        </div>
-      </section>
+              {/* Upper Chamber: Memoized Observed Cumulative Return Trajectories */}
+              <TrajectoryChart
+                data={chartData}
+                title="Are the AI agents beating the market?"
+                subtitle={chartSubtitle}
+              />
+
+              {/* Lower Chamber: Docked Top 3 Standings Strip */}
+              <div className="p-5 sm:p-6 space-y-3 font-mono text-xs bg-surface-well">
+                <div className="flex items-center justify-between border-b border-white/[0.06] pb-2 text-[11px]">
+                  <span className="font-medium text-zinc-400">
+                    Live Standings · Top 3 Agents Today
+                  </span>
+                  <span className="text-zinc-500 text-[10px]">Daily MTM</span>
+                </div>
+
+                {/* Vertical Ranked Rows with Hairline Dividers */}
+                <div className="divide-y divide-white/[0.04]">
+                  {topAgents.map((ag, i) => (
+                    <TopAgentRow key={ag.id} agent={ag} rank={i} delayMs={200 + i * 380} play={playTopThreeStepUp} />
+                  ))}
+                </div>
+
+                {/* Docked Status Footer */}
+                <div className="pt-2 border-t border-white/[0.06] flex items-center justify-between text-[10px] text-zinc-500">
+                  <span>Continuous Public Benchmark</span>
+                  <span className="text-zinc-400">EOD Cadence · NSE Close</span>
+                </div>
+              </div>
+
+            </Reveal>
+
+          </div>
+        </section>
       </div>
 
 
@@ -701,50 +701,50 @@ export default function Home() {
 
         {/* Minimalist Log Stream Box */}
         <div className="glow-box rounded-lg">
-        <div className="rounded-lg border border-border-hairline bg-surface-inset divide-y divide-white/[0.05] overflow-hidden font-mono text-xs">
-          {recentEvents.length === 0 ? (
-            <div className="py-8 text-center text-zinc-500">
-              No recent execution events recorded today.
-            </div>
-          ) : (
-            recentEvents.map((evt) => (
-              <div
-                key={evt.id}
-                className="p-3.5 sm:px-5 sm:py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-white/[0.02] transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <span
-                    className={cn(
-                      'px-1.5 py-0.5 rounded text-[10px] font-mono font-medium border flex-shrink-0',
-                      evt.eventType.includes('FILL')
-                        ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10'
-                        : evt.eventType.includes('EXPIRED')
-                          ? 'border-zinc-500/30 text-zinc-400 bg-white/[0.02]'
-                          : 'border-brand-blue text-brand-blue-text bg-brand-blue-soft'
-                    )}
-                  >
-                    {evt.eventType}
-                  </span>
-                  <span className="font-bold text-white">
-                    {(evt.agentId || 'SYSTEM').replace('baseline-', '').toUpperCase()}
-                  </span>
-                  {evt.symbol && (
-                    <span className="px-1.5 py-0.2 rounded bg-white/[0.04] text-zinc-300 border border-white/5 font-sans font-medium">
-                      {evt.symbol}
-                    </span>
-                  )}
-                  <span className="text-zinc-400 font-sans truncate max-w-[500px]">
-                    {evt.message}
-                  </span>
-                </div>
-
-                <div className="text-[11px] text-zinc-500 flex-shrink-0">
-                  {formatISTDateTime(evt.timestamp)}
-                </div>
+          <div className="rounded-lg border border-border-hairline bg-surface-inset divide-y divide-white/[0.05] overflow-hidden font-mono text-xs">
+            {recentEvents.length === 0 ? (
+              <div className="py-8 text-center text-zinc-500">
+                No recent execution events recorded today.
               </div>
-            ))
-          )}
-        </div>
+            ) : (
+              recentEvents.map((evt) => (
+                <div
+                  key={evt.id}
+                  className="p-3.5 sm:px-5 sm:py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-white/[0.02] transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={cn(
+                        'px-1.5 py-0.5 rounded text-[10px] font-mono font-medium border flex-shrink-0',
+                        evt.eventType.includes('FILL')
+                          ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10'
+                          : evt.eventType.includes('EXPIRED')
+                            ? 'border-zinc-500/30 text-zinc-400 bg-white/[0.02]'
+                            : 'border-brand-blue text-brand-blue-text bg-brand-blue-soft'
+                      )}
+                    >
+                      {evt.eventType}
+                    </span>
+                    <span className="font-bold text-white">
+                      {(evt.agentId || 'SYSTEM').replace('baseline-', '').toUpperCase()}
+                    </span>
+                    {evt.symbol && (
+                      <span className="px-1.5 py-0.2 rounded bg-white/[0.04] text-zinc-300 border border-white/5 font-sans font-medium">
+                        {evt.symbol}
+                      </span>
+                    )}
+                    <span className="text-zinc-400 font-sans truncate max-w-[500px]">
+                      {evt.message}
+                    </span>
+                  </div>
+
+                  <div className="text-[11px] text-zinc-500 flex-shrink-0">
+                    {formatISTDateTime(evt.timestamp)}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
 
         {/* Bottom Navigation */}
@@ -761,7 +761,7 @@ export default function Home() {
           ========================================================================= */}
       <Reveal as="section" className="pt-8 sm:pt-10 border-t border-border-hairline">
         <div className="glow-box p-6 sm:p-8 rounded-lg border border-border-hairline bg-surface-inset grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          
+
           {/* Left Column: Verdict Narrative */}
           <div className="lg:col-span-7 space-y-4 font-sans">
             <div className="flex items-center gap-2">
