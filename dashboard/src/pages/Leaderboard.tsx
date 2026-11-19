@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { AgentLeaderboardEntry, NavHistoryPoint, MarketContext } from '../types';
 import { apiService, TELEMETRY_POLL_INTERVAL_MS } from '../services/api';
 import BenchmarkMatrixTable from '../components/BenchmarkMatrixTable';
-import { TrajectoryChart, type TrajectoryChartPoint } from '../components/TrajectoryChart';
+import AllAgentsReturnChart from '../components/AllAgentsReturnChart';
 import { SectionHeader } from '../components/ui/SectionHeader';
 import { getCached, setCached } from '../utils/sessionCache';
 import { cn } from '../utils/cn';
@@ -29,7 +29,6 @@ export default function Leaderboard() {
   const [marketContext, setMarketContext] = useState<MarketContext | null>(cachedOnMount?.marketContext ?? null);
   const [strategyFilter, setStrategyFilter] = useState<'ALL' | 'LLM' | 'RULES'>('ALL');
   const [showRiskMetrics, setShowRiskMetrics] = useState(false);
-  const [chartMode, setChartMode] = useState<'COMPOSITE' | 'PERSONAS'>('COMPOSITE');
   const [loading, setLoading] = useState(!cachedOnMount);
 
   async function loadData(isBackground = false) {
@@ -85,8 +84,6 @@ export default function Leaderboard() {
     });
   }, [agents, strategyFilter]);
 
-  const SEED_NAV = 500000;
-
   // 1. Dynamic India VIX from macro.db via backend API
   const vixHeadline = useMemo(() => {
     return marketContext?.indiaVix != null ? marketContext.indiaVix.toFixed(2) : '—';
@@ -125,46 +122,6 @@ export default function Leaderboard() {
       adRatioText: adRatio,
     };
   }, [marketContext?.nifty500Trend, marketContext?.advanceDecline]);
-
-  // Compute percentage return trajectories from ₹5,00,000 seed (memoized)
-  const chartData: TrajectoryChartPoint[] = useMemo(() => {
-    return navHistory.map((pt) => {
-      const llmAvgNav = (pt.simons + pt.lynch + pt.marks + pt.jhunjhunwala + pt.stockmindsCore) / 5;
-      const llmCompositeReturn = ((llmAvgNav - SEED_NAV) / SEED_NAV) * 100;
-
-      const bSimons = pt.baselineSimons ?? pt.simons;
-      const bLynch = pt.baselineLynch ?? pt.lynch;
-      const bMarks = pt.baselineMarks ?? pt.marks;
-      const bRj = pt.baselineRj ?? pt.jhunjhunwala;
-      const bVarsity = pt.baselineVarsity ?? pt.stockmindsCore;
-      const rulesAvgNav = (bSimons + bLynch + bMarks + bRj + bVarsity) / 5;
-      const rulesCompositeReturn = ((rulesAvgNav - SEED_NAV) / SEED_NAV) * 100;
-
-      const niftyReturn = ((pt.nifty500 - SEED_NAV) / SEED_NAV) * 100;
-
-      const simonsReturn = ((pt.simons - SEED_NAV) / SEED_NAV) * 100;
-      const marksReturn = ((pt.marks - SEED_NAV) / SEED_NAV) * 100;
-      const lynchReturn = ((pt.lynch - SEED_NAV) / SEED_NAV) * 100;
-
-      const dateParts = pt.date.split('-');
-      const shortDate = dateParts.length === 3 ? `${dateParts[1]}/${dateParts[2]}` : pt.date;
-
-      return {
-        date: shortDate,
-        fullDate: pt.date,
-        llmComposite: Number(llmCompositeReturn.toFixed(2)),
-        rulesComposite: Number(rulesCompositeReturn.toFixed(2)),
-        nifty500: Number(niftyReturn.toFixed(2)),
-        simons: Number(simonsReturn.toFixed(2)),
-        marks: Number(marksReturn.toFixed(2)),
-        lynch: Number(lynchReturn.toFixed(2)),
-      };
-    });
-  }, [navHistory]);
-
-  const handleChartModeChange = useCallback((mode: 'COMPOSITE' | 'PERSONAS') => {
-    setChartMode(mode);
-  }, []);
 
   if (loading) {
     return (
@@ -275,15 +232,7 @@ export default function Leaderboard() {
           subtitle="Daily equity trajectories from initial seed capital against the NSE Nifty 500 index."
         />
 
-        <div className="glow-box rounded-lg">
-        <div className="border border-border-hairline bg-surface-inset rounded-lg overflow-hidden">
-          <TrajectoryChart
-            data={chartData}
-            mode={chartMode}
-            onModeChange={handleChartModeChange}
-          />
-        </div>
-        </div>
+        <AllAgentsReturnChart navHistory={navHistory} loading={loading} />
       </section>
     </div>
   );

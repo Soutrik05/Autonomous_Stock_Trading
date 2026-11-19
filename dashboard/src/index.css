@@ -1171,6 +1171,37 @@ select:focus-visible {
   }
 }
 
+/* Shared skeleton-shimmer placeholder (ui/Skeleton.tsx). */
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #1c1c1c;
+}
+
+.skeleton-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+  animation: skeleton-shimmer-sweep 1.4s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer::after {
+    animation: none;
+  }
+}
+
 /* Footer: only its background becomes translucent/blurred so the bubble field shows
    through behind it, same frosted treatment as the other big panels. Layout, text,
    links, border and spacing are untouched. */
