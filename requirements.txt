@@ -1,33 +1,28 @@
 # Core
-yfinance
 pandas
 numpy
 python-dotenv
+apscheduler
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+requests
+httpx
+scipy
 
-# LangChain / LangGraph
-langchain
-langchain-core
-langchain-groq
-langgraph
+# API & Dashboard
+fastapi
+uvicorn
 
-# RAG 
-faiss-cpu
-sentence-transformers
-feedparser
-
-# LLM inference 
+# LLM Providers
 groq
+google-genai
 
-# News agent (FinBERT)
+# NLP & Sentiment
+torch
 transformers
-openpyxl
-feedparser
-rapidfuzz
-requests
 
-# Technical Agent 
-growwapi
-
-# Fundamental Agent
-requests
-beautifulsoup4
+# Tooling & Testing
+pytest
+pytest-asyncio
+ruff>=0.4.0
+mypy>=1.10.0

@@ -1,0 +1,1225 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-serif: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+
+  --color-canvas: #141414;
+  --color-surface-well: #121212;
+  --color-surface-inset: #161616;
+  --color-surface-subdued: #181818;
+  --color-surface-l1: #1E1E1E;
+  --color-surface-l2: #262626;
+  --color-surface-l3: #2E2E2E;
+  --color-surface-hover: #262626;
+  --color-white: #E0E0E0;
+  --color-ink-primary: #E0E0E0;
+  --color-ink-secondary: #A0A0A0;
+  --color-ink-muted: #757575;
+
+  --color-brand-blue: #1E5EAE;
+  --color-brand-blue-text: #7CB3F3;
+  --color-brand-blue-soft: rgba(30, 94, 174, 0.18);
+  --color-profit: #10B981;
+  --color-positive: #10B981;
+  --color-loss: #C4553F;
+  --color-negative: #C4553F;
+  --color-control: #94A3B8;
+  --color-cyan: #38BDF8;
+  --color-indigo: #818CF8;
+  --color-amber: #F59E0B;
+  --color-border-hairline: rgba(255, 255, 255, 0.08);
+  --color-border-subtle: rgba(255, 255, 255, 0.05);
+}
+
+:root {
+  /* Institutional 3-Tier Elevation System (SSOT) */
+  --canvas-bg: #141414;
+  --surface-solid: #1E1E1E;
+  --surface-l1: #1E1E1E;
+  --surface-l2: #262626;
+  --surface-l3: #2E2E2E;
+  --surface-subdued: #181818;
+  --surface-hover: #262626;
+
+  --border-primary: rgba(255, 255, 255, 0.08);
+  --border-subdued: rgba(255, 255, 255, 0.05);
+  --border-strong: rgba(255, 255, 255, 0.12);
+
+  --ink-primary: #E0E0E0;
+  --ink-secondary: #A0A0A0;
+  --ink-muted: #757575;
+  --ink-subdued: #666666;
+
+  --brand-blue: #1E5EAE;
+  --brand-blue-text: #7CB3F3;
+  --brand-blue-soft: rgba(30, 94, 174, 0.18);
+  --profit-color: #10B981;
+  --loss-color: #C4553F;
+  --control-color: #94A3B8;
+
+  --font-display: 'Geist', Georgia, Cambria, 'Times New Roman', serif;
+  --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-serif: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+
+  --font-headline: 'Red Hat Display', 'Inter', system-ui, sans-serif;
+  --font-headline-accent: 'Sora', 'Inter', system-ui, sans-serif;
+
+  /* Static glow around big container panels (.glow-box). Kept as variables so the
+     strength can be tuned in one place later. */
+  --glow-box-ring: rgba(16, 185, 129, 0.04);
+  --glow-box-green: rgba(16, 185, 129, 0.065);
+  --glow-box-blue: rgba(0, 63, 136, 0.09);
+  --glow-box-border: rgba(60, 90, 80, 0.35);
+
+  /* Static glow for the #1 Home "Live Standings" row (.top-row-step--first-glow). */
+  --top1-glow-border: rgba(16, 185, 129, 0.28);
+  --top1-glow-bg: rgba(16, 185, 129, 0.03);
+  --top1-glow-shadow-1: rgba(16, 185, 129, 0.09);
+  --top1-glow-shadow-2: rgba(16, 185, 129, 0.04);
+
+  /* Agent Terminal Holdings allocation bar + figures (HoldingsLinearStack.tsx). Green/cream,
+     not blue -- kept as variables so the palette can be retuned in one place. */
+  --alloc-invested-from: #06604a;
+  --alloc-invested-to: #0c8a63;
+  --alloc-invested-text: #14a077;
+  --alloc-cash: #cfc8b6;
+  --alloc-cash-text: #f2efe8;
+
+  /* One shared blue family -- Agent Terminal (Switch-agent button, dropdown's selected row,
+     Twin card hover, role label) and the Comparison page's "Difference" value all use these,
+     so every blue accent on these pages is the same blue. */
+  --blue-text: #8fb8f0;
+  --blue: #4f8fe0;
+  --blue-line: #2f6fc0;
+  --blue-fill: rgba(0, 63, 136, 0.22);
+  --blue-border: rgba(79, 143, 224, 0.45);
+}
+
+.font-display {
+  font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  letter-spacing: -0.015em;
+}
+
+.font-serif {
+  font-family: var(--font-serif);
+  letter-spacing: -0.015em;
+}
+
+.font-sans {
+  font-family: var(--font-sans);
+  letter-spacing: -0.011em;
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+@keyframes heroEntrance {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-hero-entrance {
+  animation: heroEntrance 350ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #141414;
+  color: #E0E0E0;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.011em;
+}
+
+/* Headings Typography */
+h1, h2, h3, h4 {
+  color: var(--ink-primary);
+  letter-spacing: -0.02em;
+}
+
+code, kbd, samp, pre, .font-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* Institutional Minimalist Terminal Panels */
+.cosmic-card, .terminal-card {
+  background-color: #1E1E1E;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.25rem;
+}
+
+.cosmic-card-hover {
+  transition: border-color 150ms ease;
+}
+.cosmic-card-hover:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.cosmic-pod, .terminal-pod {
+  background-color: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 0.25rem;
+}
+
+.cosmic-well, .terminal-well {
+  background-color: #181818;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 0.25rem;
+}
+
+/* Terminal & Ledger Panels */
+.arena-glass {
+  background-color: #1E1E1E;
+  border: 1px solid var(--border-primary);
+  border-radius: 0.25rem;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.8);
+}
+
+.arena-glass-subdued {
+  background-color: var(--surface-subdued);
+  border: 1px solid var(--border-subdued);
+  border-radius: 0.25rem;
+}
+
+.arena-glass-hover:hover {
+  background-color: var(--surface-hover);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Structured Terminal Card */
+.arena-glow-card {
+  position: relative;
+  background-color: var(--surface-glass);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-strong);
+  border-radius: 0.25rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* Translucent Financial Ledger Table */
+.ledger-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.ledger-table th {
+  background-color: rgba(255, 255, 255, 0.02);
+  color: var(--ink-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-align: left;
+  border-bottom: 1px solid var(--border-primary);
+  padding: 0.75rem 1rem;
+}
+
+.ledger-table td {
+  border-bottom: 1px solid var(--border-subdued);
+  padding: 0.75rem 1rem;
+  font-size: 0.8125rem;
+  color: var(--ink-primary);
+}
+
+.ledger-table tr:hover td {
+  background-color: var(--surface-hover);
+}
+
+/* Focus Visible Accessible Ring (Restrained Antique Gold, Never Generic Blue) */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--brand-blue);
+  outline-offset: 2px;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: #141414;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(30, 94, 174, 0.5);
+}
+
+/* Brand Wordmark (Logo.tsx) */
+.logo {
+  --mx: 50%;
+  --my: 50%;
+  display: inline-flex;
+  flex-direction: column;
+  text-decoration: none;
+  line-height: 1;
+}
+
+.logo__name {
+  position: relative;
+  display: block;
+  font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  font-weight: 900;
+  font-size: var(--fs);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #F2EFE8;
+}
+
+.logo__name::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 200ms ease;
+  background: radial-gradient(
+    circle calc(var(--fs) * 1.1) at var(--mx) var(--my),
+    #10B981 0,
+    #10B981 38%,
+    rgba(16, 185, 129, 0) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  pointer-events: none;
+}
+
+.logo:hover .logo__name::after,
+.logo:focus-visible .logo__name::after {
+  opacity: 1;
+}
+
+.logo__tagline {
+  display: block;
+  font-family: 'Great Vibes', cursive;
+  font-weight: 400;
+  font-size: calc(var(--fs) * 0.55);
+  line-height: 1;
+  color: #10B981;
+  margin-top: calc(var(--fs) * -0.04);
+  margin-left: calc(var(--fs) * 0.08);
+}
+
+@media (max-width: 639px) {
+  .logo--header .logo__tagline {
+    display: none;
+  }
+}
+
+@media (hover: none) {
+  .logo__name::after {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo__name::after {
+    transition: none;
+  }
+}
+
+/* Header nav hover/active underline (Header.tsx) */
+.nav-link {
+  position: relative;
+}
+
+.nav-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -6px;
+  height: 2px;
+  background: var(--brand-blue);
+  box-shadow: 0 0 10px rgba(79, 143, 224, 0.55);
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 350ms cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+.nav-link:hover::after,
+.nav-link:focus-visible::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+.nav-link.is-active::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-link::after {
+    transition: none;
+  }
+}
+
+/* Fixed header: frosted-on-scroll + hide-on-scroll-down (Header.tsx) */
+.site-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  background-color: rgba(22, 22, 22, 0.6);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  transform: translateY(0);
+  transition:
+    transform 400ms cubic-bezier(0.4, 0, 0.2, 1),
+    background-color 300ms ease,
+    backdrop-filter 300ms ease,
+    border-color 300ms ease;
+}
+
+.site-header--scrolled {
+  background-color: rgba(22, 22, 22, 0.75);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  border-bottom-color: rgba(255, 255, 255, 0.07);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .site-header {
+    background-color: rgba(22, 22, 22, 0.92);
+  }
+  .site-header--scrolled {
+    background-color: rgba(22, 22, 22, 0.96);
+  }
+}
+
+.site-header--hidden {
+  transform: translateY(-100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-header {
+    transition: none;
+    transform: none !important;
+    background-color: #141414 !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+  }
+}
+
+/* Persona cards (Home.tsx "The Five Observed Personas") */
+.persona-grid {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: 18px;
+}
+
+@media (min-width: 600px) {
+  .persona-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 900px) {
+  .persona-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1280px) {
+  .persona-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+.persona-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 20px;
+  border-radius: 14px;
+  border: 1px solid #262626;
+  background: linear-gradient(180deg, #1a1a1a 0%, #171717 100%);
+  text-decoration: none;
+  transition:
+    transform 250ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    border-color 250ms ease,
+    background 250ms ease,
+    box-shadow 250ms ease;
+}
+
+.persona-card:hover,
+.persona-card:focus-visible {
+  transform: translateY(-8px);
+  border-color: var(--brand-blue);
+  background: linear-gradient(180deg, #1b2230 0%, #171a20 100%);
+  box-shadow: 0 16px 36px rgba(30, 94, 174, 0.32), 0 0 0 1px rgba(124, 179, 243, 0.22);
+}
+
+.persona-card:focus-visible {
+  outline: 2px solid var(--brand-blue-text);
+  outline-offset: 3px;
+}
+
+.persona-card:hover .persona-card__horizon,
+.persona-card:focus-visible .persona-card__horizon,
+.persona-card:hover .persona-card__link,
+.persona-card:focus-visible .persona-card__link {
+  color: var(--brand-blue-text);
+}
+
+.persona-card:hover .persona-card__arrow,
+.persona-card:focus-visible .persona-card__arrow {
+  transform: translateX(5px);
+}
+
+.persona-card__arrow {
+  display: inline-block;
+  transition: transform 250ms ease;
+}
+
+@media (hover: none) {
+  .persona-card:hover {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .persona-card {
+    transition: border-color 250ms ease, background 250ms ease, box-shadow 250ms ease;
+  }
+  .persona-card:hover,
+  .persona-card:focus-visible {
+    transform: none;
+  }
+  .persona-card__arrow {
+    transition: none;
+  }
+  .persona-card:hover .persona-card__arrow,
+  .persona-card:focus-visible .persona-card__arrow {
+    transform: none;
+  }
+}
+
+/* Home hero headline: self-hosted Red Hat Display + Sora, metric-matched fallbacks to
+   avoid a layout shift while the real webfonts load (font-display: swap on both). */
+@font-face {
+  font-family: 'Red Hat Display Fallback';
+  src: local('Arial');
+  size-adjust: 104%;
+  ascent-override: 95%;
+  descent-override: 25%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: 'Sora Fallback';
+  src: local('Arial');
+  size-adjust: 97%;
+  ascent-override: 95%;
+  descent-override: 25%;
+  line-gap-override: 0%;
+}
+
+.hero-headline {
+  font-family: var(--font-headline), 'Red Hat Display Fallback', system-ui, sans-serif;
+  font-weight: 600;
+  /* Tuned so the font stays close to its old size right at the lg (1024px) breakpoint,
+     where the hero switches from one column to a narrow 5/12 column and most needs the
+     room -- then ramps up to the full +10% (46.2px) by typical desktop widths. */
+  font-size: clamp(2.4rem, 21.285px + 1.73vw, 46.2px);
+  letter-spacing: -0.025em;
+  line-height: 1.08;
+  text-wrap: balance;
+}
+
+/* Home hero headline accent ("live market") */
+.hl {
+  font-family: var(--font-headline-accent), 'Sora Fallback', system-ui, sans-serif;
+  font-weight: 500;
+  /* Sora runs visually larger than Red Hat Display at the same font-size (wider glyphs,
+     taller x-height); 0.97em brings it back into optical balance with the rest of the line. */
+  font-size: 0.97em;
+  color: #10b981;
+}
+
+/* Entrance reveal (Reveal.tsx): fade + slide up, once per mount */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 650ms cubic-bezier(0.2, 0.8, 0.2, 1), transform 650ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: opacity, transform;
+}
+
+.reveal--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Row slide-in from the left (Home Live Standings, Portfolio holdings) */
+.row-reveal {
+  opacity: 0;
+  transform: translateX(-22px);
+  transition: opacity 500ms cubic-bezier(0.2, 0.8, 0.2, 1), transform 500ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.row-reveal--visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* Home "Live Standings · Top 3 Agents Today": each row steps up once on page load (never
+   replays when the data refreshes in the background -- gated by TopAgentRow's one-time
+   `visible` state, not by the agent data itself). The #1 row additionally gets a static
+   boxed glow that fades in once it lands; strength lives in the --top1-glow-* variables. */
+@keyframes top-row-step-up {
+  from {
+    opacity: 0;
+    transform: translateY(34px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.top-row-step {
+  opacity: 0;
+  transform: translateY(34px);
+}
+
+.top-row-step--play {
+  animation: top-row-step-up 0.75s cubic-bezier(0.2, 0.9, 0.25, 1.12) forwards;
+}
+
+.top-row-step--first {
+  position: relative;
+  margin: 0 -16px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background-color: transparent;
+  box-shadow: 0 0 0 transparent, 0 0 0 transparent;
+  transition:
+    border-color 0.7s ease,
+    background-color 0.7s ease,
+    box-shadow 0.7s ease;
+  transition-delay: 0.85s;
+}
+
+.top-row-step--first-glow {
+  border-color: var(--top1-glow-border);
+  background-color: var(--top1-glow-bg);
+  box-shadow: 0 0 12px var(--top1-glow-shadow-1), 0 0 28px var(--top1-glow-shadow-2);
+}
+
+.top-row-step--first-rank {
+  color: #f2efe8;
+}
+
+.top-row-step--first-name {
+  font-size: 19px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .row-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .top-row-step {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+
+  .top-row-step--first {
+    transition: none;
+    border-color: var(--top1-glow-border);
+    background-color: var(--top1-glow-bg);
+    box-shadow: 0 0 12px var(--top1-glow-shadow-1), 0 0 28px var(--top1-glow-shadow-2);
+  }
+}
+
+/* Dashed chart series: Recharts animates dashes badly, so these fade in via CSS instead */
+.chart-dashed-fade {
+  opacity: 0;
+  animation: chart-dashed-fade-in 800ms ease forwards;
+  animation-delay: 1.6s;
+}
+
+@keyframes chart-dashed-fade-in {
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chart-dashed-fade {
+    opacity: 1;
+    animation: none;
+  }
+}
+
+/* Flash-on-change (useFlashOnChange) */
+.flash-up {
+  background-color: rgba(16, 185, 129, 0.28);
+  color: #34d399 !important;
+  border-radius: 3px;
+}
+
+.flash-down {
+  background-color: rgba(229, 72, 77, 0.25);
+  color: #ff6b70 !important;
+  border-radius: 3px;
+}
+
+/* Live market pill (Header.tsx) */
+.market-pill {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  transition: background-color 300ms ease, border-color 300ms ease;
+}
+
+.market-pill--open {
+  border-color: rgba(30, 94, 174, 0.9);
+  background: rgba(30, 94, 174, 0.18);
+  animation: market-pill-breathe 3.2s ease-in-out infinite;
+}
+
+@keyframes market-pill-breathe {
+  0%, 100% {
+    box-shadow: 0 0 18px rgba(30, 94, 174, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 9px rgba(30, 94, 174, 0.18);
+  }
+}
+
+.market-pill__ring {
+  animation: market-pill-ring 1.6s ease-out infinite;
+}
+
+@keyframes market-pill-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .market-pill--open {
+    animation: none;
+    box-shadow: 0 0 18px rgba(30, 94, 174, 0.35);
+  }
+  .market-pill__ring {
+    animation: none;
+    display: none;
+  }
+}
+
+/* Cursor bubble background (BubbleBackground.tsx) -- Home and Agents Terminal only */
+.bubble-background {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Frosted-glass panels, applied through the one shared token every page already uses
+   for its big panels/cards (`bg-surface-inset`) rather than page-by-page copies. Same
+   border/radius as before everywhere; only the background becomes translucent and
+   blurred, so bubbles read as softer/blurrier behind a panel than outside it. Text and
+   chart lines drawn on top of a panel are unaffected by backdrop-filter -- it only
+   blurs what's behind, so readability is unchanged. */
+.bg-surface-inset {
+  background-color: rgba(22, 22, 22, 0.8);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .bg-surface-inset {
+    background-color: rgba(22, 22, 22, 0.96);
+  }
+}
+
+/* Static, non-animated greenish-blue glow around the outside edge of big container
+   panels only (full tables/charts/standings sections) -- never inside the box, never on
+   small cards/chips/tiles/rows. One shared class so the values live in one place
+   (CONFIG-style, via the --glow-box-* variables above). A parent needs overflow: visible
+   (or extra margin) for the glow to show uncut if it would otherwise be clipped. */
+.glow-box {
+  box-shadow:
+    0 0 0 1px var(--glow-box-ring),
+    0 0 24px var(--glow-box-green),
+    0 0 50px var(--glow-box-blue);
+  border-color: var(--glow-box-border);
+}
+
+/* Agent Terminal header name (Portfolio.tsx): same cursor-tracked green spotlight sweep as
+   the brand wordmark (.logo__name::after above), reused generically via --mx/--my/--fs. */
+.name-spotlight {
+  --mx: 50%;
+  --my: 50%;
+  position: relative;
+  display: inline-block;
+}
+
+/* Shared page-heading style (PageTitle.tsx) -- Leaderboard, Backtest, Telemetry, and
+   Comparison's two agent names. Same font/hover technique as the Agent Terminal's agent
+   name (which sets its own --fs/font-size directly since its size is intentionally
+   different); never used for the Home hero headline. */
+.page-title {
+  --fs: 44px;
+  font-family: var(--font-headline), 'Red Hat Display Fallback', system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #f2efe8;
+  line-height: 1.05;
+  font-size: clamp(32px, 6vw, 44px);
+}
+
+/* Comparison page paired metric bars (Comparison.tsx). */
+.comparison-metric-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.comparison-metric-row:last-of-type {
+  border-bottom: none;
+}
+
+.comparison-metric-row__label {
+  flex-shrink: 0;
+  width: 150px;
+  font-family: var(--font-headline), 'Red Hat Display Fallback', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  color: #e0e0e0;
+}
+
+.comparison-metric-row__bars {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.comparison-metric-row__diff {
+  flex-shrink: 0;
+  width: 64px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--blue);
+}
+
+.comparison-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.comparison-bar-track {
+  flex: 1;
+  height: 10px;
+  border-radius: 5px;
+  background: #222;
+  overflow: hidden;
+}
+
+.comparison-bar-fill {
+  height: 100%;
+  border-radius: 5px;
+}
+
+.comparison-bar-fill--green {
+  background: linear-gradient(to right, var(--alloc-invested-from), var(--alloc-invested-to));
+}
+
+.comparison-bar-fill--cream {
+  background: var(--alloc-cash);
+}
+
+/* Comparison page heading name pickers (Comparison.tsx / SlotNameButton). */
+.comparison-name-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  line-height: 1.1;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.comparison-name-btn--open {
+  background: var(--blue-fill);
+  border: 1px solid var(--blue-border);
+}
+
+.comparison-bar-value {
+  flex-shrink: 0;
+  width: 70px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: #cfcfcf;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .comparison-bar-fill {
+    transition: none !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .comparison-metric-row {
+    flex-wrap: wrap;
+  }
+  .comparison-metric-row__label {
+    width: 100%;
+    margin-bottom: 2px;
+  }
+}
+
+.name-spotlight::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 200ms ease;
+  background: radial-gradient(
+    circle calc(var(--fs, 52px) * 1.1) at var(--mx) var(--my),
+    #10b981 0,
+    #10b981 38%,
+    rgba(16, 185, 129, 0) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.name-spotlight:hover::after,
+.name-spotlight:focus-visible::after {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .name-spotlight::after {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .name-spotlight::after {
+    transition: none;
+  }
+}
+
+/* Agent Terminal header tags (Portfolio.tsx): Horizon and style tags, bigger/bluer than the
+   small LLM/Rules CategoryBadge beside them. */
+.terminal-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 16px;
+  padding: 7px 15px;
+  border-radius: 9px;
+  color: #6aa7ee;
+  border: 1px solid #1f4a85;
+  background: rgba(0, 63, 136, 0.12);
+}
+
+/* Agent Terminal role label (Portfolio.tsx): plain underlined text, no box -- "design F". */
+.terminal-role-label {
+  font-family: var(--font-headline), 'Red Hat Display Fallback', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 18px;
+  color: var(--blue-text);
+  border-bottom: 1px solid var(--blue-line);
+  padding-bottom: 3px;
+  line-height: 1.1;
+}
+
+/* "Switch agent" / "Compare agent" trigger button, above the Twin card
+   (AgentSwitchDropdown.tsx), and reused as-is on the Comparison page. */
+.agent-switch-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: #f2efe8;
+  border: 1px solid var(--blue-border);
+  background: var(--blue-fill);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.agent-switch-trigger:hover,
+.agent-switch-trigger:focus-visible {
+  background: rgba(0, 63, 136, 0.32);
+}
+
+.agent-switch-trigger:focus-visible {
+  outline: 2px solid var(--brand-blue-text);
+  outline-offset: 2px;
+}
+
+/* Portal-rendered dropdown panel (document.body, positioned via JS -- never clipped by an
+   ancestor's overflow/rounded-corner clipping). */
+.agent-switch-panel {
+  z-index: 200;
+  border-radius: 14px;
+  background: rgba(20, 20, 20, 0.97);
+  border: 1px solid #2a2a2a;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.6), 0 0 30px rgba(0, 63, 136, 0.18);
+  padding: 14px;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.agent-switch-panel--enter {
+  animation: agent-switch-panel-enter 0.15s ease-out;
+}
+
+@keyframes agent-switch-panel-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-switch-panel--enter {
+    animation: none;
+  }
+}
+
+.agent-switch-panel__cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.agent-switch-panel__col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.agent-switch-panel__col-header {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: #7d7d7d;
+  padding: 4px 8px 6px;
+}
+
+.agent-switch-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 8px;
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.agent-switch-row:hover,
+.agent-switch-row:focus-visible {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.agent-switch-row:focus-visible {
+  outline: 2px solid var(--brand-blue-text);
+  outline-offset: -2px;
+}
+
+.agent-switch-row--current {
+  background: var(--blue-fill);
+  border: 1px solid var(--blue-border);
+}
+
+.agent-switch-row--disabled {
+  opacity: 0.35;
+  cursor: default;
+  pointer-events: none;
+}
+
+.agent-switch-row__note {
+  color: #757575;
+  font-size: 11px;
+}
+
+.agent-switch-row__name {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  color: #e0e0e0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-switch-row__tag {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  color: #757575;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.agent-switch-row__return {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  min-width: 48px;
+  text-align: right;
+}
+
+@media (max-width: 639px) {
+  .agent-switch-panel__cols {
+    grid-template-columns: 1fr;
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+}
+
+/* Agent Terminal twin card (Portfolio.tsx): same hover "lift" feel as the Home persona
+   cards (.persona-card), tuned to this task's own spec. */
+.twin-card {
+  display: block;
+  position: relative;
+  transition: transform 0.2s ease, border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.twin-card:hover,
+.twin-card:focus-visible {
+  transform: translateY(-4px);
+  border-color: var(--blue-border);
+  background-color: var(--blue-fill);
+  box-shadow: 0 10px 26px rgba(0, 63, 136, 0.3);
+}
+
+.twin-card:focus-visible {
+  outline: 2px solid var(--brand-blue-text);
+  outline-offset: 3px;
+}
+
+.twin-card:hover .twin-card__name,
+.twin-card:focus-visible .twin-card__name {
+  color: #78b0f0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .twin-card {
+    transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .twin-card:hover,
+  .twin-card:focus-visible {
+    transform: none;
+  }
+}
+
+/* Shared skeleton-shimmer placeholder (ui/Skeleton.tsx). */
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #1c1c1c;
+}
+
+.skeleton-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+  animation: skeleton-shimmer-sweep 1.4s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer::after {
+    animation: none;
+  }
+}
+
+/* Footer: only its background becomes translucent/blurred so the bubble field shows
+   through behind it, same frosted treatment as the other big panels. Layout, text,
+   links, border and spacing are untouched. */
+.footer-frosted {
+  background-color: rgba(22, 22, 22, 0.8);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .footer-frosted {
+    background-color: rgba(22, 22, 22, 0.96);
+  }
+}
+
+/* Micro-interaction Transitions */
+a, button, [role="button"] {
+  transition-property: color, background-color, border-color, opacity;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
